@@ -88,8 +88,36 @@ export type Database = {
       }
       students: {
         Row: Student
-        Insert: Omit<Student, 'created_at' | 'updated_at'> & {
+        Insert: {
+          id: string
+          full_name: string
+          passport?: string | null
+          passport_issue_date?: string | null
+          passport_expire_date?: string | null
+          gender?: 'MALE' | 'FEMALE' | null
+          birthday?: string | null
+          phone1?: string | null
+          phone2?: string | null
+          father_phone?: string | null
+          mother_phone?: string | null
+          email?: string | null
+          address?: string | null
+          level?: StudentLevel | null
+          level2?: StudentLevel | null
+          educational_background?: string | null
+          tariff?: StudentTariff | null
+          language_certificate?: StudentLanguageCertificate | null
+          certificate_score?: string | null
+          language_certificate_2?: StudentLanguageCertificate | null
+          certificate_score_2?: string | null
+          language_certificate_3?: StudentLanguageCertificate | null
+          certificate_score_3?: string | null
+          university_1?: string | null
           university_1_status?: string
+          university_2?: string | null
+          university_2_status?: string | null
+          university_3?: string | null
+          university_3_status?: string | null
           balance?: number
           discount?: number
           pick_needed?: string[]
@@ -98,18 +126,81 @@ export type Database = {
           mc_hand_count?: number
           apos_hand_count?: number
           pic_hand_count?: number
+          office?: string | null
+          student_group?: string | null
+          lead_by?: string | null
+          notes?: string | null
           created_at?: string
           updated_at?: string
+          jarayon_updated_at?: string | null
           is_deleted?: boolean
+          row_color?: string | null
+          status_row_color?: string | null
           task_tags?: string[]
         }
-        Update: Partial<Omit<Student, 'id' | 'created_at'>> & {
+        Update: {
+          id?: string
+          full_name?: string
+          passport?: string | null
+          passport_issue_date?: string | null
+          passport_expire_date?: string | null
+          gender?: 'MALE' | 'FEMALE' | null
+          birthday?: string | null
+          phone1?: string | null
+          phone2?: string | null
+          father_phone?: string | null
+          mother_phone?: string | null
+          email?: string | null
+          address?: string | null
+          level?: StudentLevel | null
+          level2?: StudentLevel | null
+          educational_background?: string | null
+          tariff?: StudentTariff | null
+          language_certificate?: StudentLanguageCertificate | null
+          certificate_score?: string | null
+          language_certificate_2?: StudentLanguageCertificate | null
+          certificate_score_2?: string | null
+          language_certificate_3?: StudentLanguageCertificate | null
+          certificate_score_3?: string | null
+          university_1?: string | null
+          university_1_status?: string
+          university_2?: string | null
+          university_2_status?: string | null
+          university_3?: string | null
+          university_3_status?: string | null
+          balance?: number
+          discount?: number
+          pick_needed?: string[]
+          has_mc?: boolean
+          bc_hand_count?: number
+          mc_hand_count?: number
+          apos_hand_count?: number
+          pic_hand_count?: number
+          office?: string | null
+          student_group?: string | null
+          lead_by?: string | null
+          notes?: string | null
+          created_at?: string
           updated_at?: string
+          jarayon_updated_at?: string | null
+          is_deleted?: boolean
+          row_color?: string | null
+          status_row_color?: string | null
+          task_tags?: string[]
         }
       }
     }
+    Views: {
+      [_ in never]: never
+    }
+    Functions: {
+      [_ in never]: never
+    }
     Enums: {
       user_role: UserRole
+    }
+    CompositeTypes: {
+      [_ in never]: never
     }
   }
 }
