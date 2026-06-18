@@ -21,20 +21,32 @@ export function UserProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     const fetchProfile = async () => {
-      const { data: { user } } = await supabase.auth.getUser()
-      if (!user) {
+      try {
+        const { data: { user }, error: authError } = await supabase.auth.getUser()
+        if (authError || !user) {
+          setProfile(null)
+          setLoading(false)
+          return
+        }
+
+        const { data, error: profileError } = await supabase
+          .from('profiles')
+          .select('*')
+          .eq('id', user.id)
+          .single()
+
+        if (profileError) {
+          console.error('Error fetching profile:', profileError)
+          setProfile(null)
+        } else {
+          setProfile(data)
+        }
+      } catch (err) {
+        console.error('Failed to load user session/profile:', err)
+        setProfile(null)
+      } finally {
         setLoading(false)
-        return
       }
-
-      const { data } = await supabase
-        .from('profiles')
-        .select('*')
-        .eq('id', user.id)
-        .single()
-
-      setProfile(data)
-      setLoading(false)
     }
 
     fetchProfile()
