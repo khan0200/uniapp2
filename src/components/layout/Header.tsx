@@ -1,9 +1,10 @@
 'use client'
 
 import { usePathname } from 'next/navigation'
-import { Bell, Search } from 'lucide-react'
+import { Bell, Search, Plus } from 'lucide-react'
 import { useUser } from '@/contexts/UserContext'
 import { cn } from '@/lib/utils'
+import { useStudentDashboard } from '@/contexts/StudentDashboardContext'
 
 // Human-readable titles for routes
 const PAGE_TITLES: Record<string, string> = {
@@ -18,6 +19,7 @@ const PAGE_TITLES: Record<string, string> = {
 export function Header() {
   const pathname = usePathname()
   const { profile } = useUser()
+  const { searchQuery, setSearchQuery, setIsAddStudentModalOpen } = useStudentDashboard()
 
   // Find the best matching title
   const pageTitle =
@@ -47,24 +49,48 @@ export function Header() {
         </p>
       </div>
 
-      {/* Search */}
-      <button
-        id="header-search-btn"
-        className={cn(
-          'hidden sm:flex items-center gap-2 rounded-[var(--radius-md)] px-3 py-2',
-          'border border-[var(--border)] bg-[var(--background)]',
-          'text-sm text-[var(--foreground-muted)]',
-          'hover:bg-[var(--surface-elevated)] hover:text-[var(--foreground)]',
-          'transition-all duration-150'
-        )}
-        aria-label="Search"
-      >
-        <Search className="h-4 w-4" />
-        <span className="hidden md:block">Search…</span>
-        <kbd className="hidden md:flex items-center gap-0.5 rounded bg-[var(--border)] px-1.5 py-0.5 text-[10px] font-mono text-[var(--foreground-subtle)]">
-          ⌘K
-        </kbd>
-      </button>
+      {/* Unified Search and Action Button */}
+      {pathname === '/students' ? (
+        <div className="flex items-center gap-3">
+          <div className="relative">
+            <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[var(--foreground-muted)]" />
+            <input
+              type="text"
+              placeholder="Search by name, ID or phone..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="pl-9 pr-4 py-2 text-sm border border-[var(--border)] bg-[var(--background)] rounded-[var(--radius-md)] text-[var(--foreground)] placeholder-[var(--foreground-muted)] focus:outline-none focus:border-[var(--accent)] focus:ring-1 focus:ring-[var(--accent)] transition-all w-60 md:w-72"
+            />
+          </div>
+          <button
+            id="students-add-btn"
+            onClick={() => setIsAddStudentModalOpen(true)}
+            className="flex items-center gap-2 rounded-[var(--radius-md)] bg-[var(--accent)] px-3.5 py-2 text-sm font-semibold text-white hover:bg-[var(--accent-hover)] transition-all cursor-pointer select-none"
+            style={{ boxShadow: '0 4px 12px rgba(59, 127, 245, 0.2)' }}
+          >
+            <Plus className="h-4 w-4" />
+            Add Student
+          </button>
+        </div>
+      ) : (
+        <button
+          id="header-search-btn"
+          className={cn(
+            'hidden sm:flex items-center gap-2 rounded-[var(--radius-md)] px-3 py-2',
+            'border border-[var(--border)] bg-[var(--background)]',
+            'text-sm text-[var(--foreground-muted)]',
+            'hover:bg-[var(--surface-elevated)] hover:text-[var(--foreground)]',
+            'transition-all duration-150'
+          )}
+          aria-label="Search"
+        >
+          <Search className="h-4 w-4" />
+          <span className="hidden md:block">Search…</span>
+          <kbd className="hidden md:flex items-center gap-0.5 rounded bg-[var(--border)] px-1.5 py-0.5 text-[10px] font-mono text-[var(--foreground-subtle)]">
+            ⌘K
+          </kbd>
+        </button>
+      )}
 
       {/* Notifications */}
       <button
