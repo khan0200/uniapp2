@@ -1,9 +1,14 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { Plus, Filter, Users, X, Loader2, Search, AlertCircle, CheckCircle2, Building2, User, Landmark } from 'lucide-react'
+import { 
+  Plus, Filter, Users, X, Loader2, Search, AlertCircle, CheckCircle2, 
+  Building2, User, Landmark, Tag, Layers, Award, Bookmark, UserCheck, 
+  FileSpreadsheet, ChevronDown, GraduationCap, Hourglass, CheckSquare, 
+  MessageSquare, Sparkles 
+} from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
-import { type Student, type Database } from '@/types/database'
+import { type Student, type StudentLevel, type StudentTariff, type StudentLanguageCertificate } from '@/types/database'
 import { PageShell } from '@/components/ui/PageShell'
 import { motion, AnimatePresence } from 'framer-motion'
 
@@ -15,9 +20,14 @@ export function StudentDashboardClient() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
-  // Search & Filter state
+  // Search & Filters state
   const [searchQuery, setSearchQuery] = useState('')
-  const [officeFilter, setOfficeFilter] = useState<'ALL' | 'ANDIJON OFFIS' | 'TOSHKENT OFFIS'>('ALL')
+  const [tariffFilter, setTariffFilter] = useState<StudentTariff | 'ALL'>('ALL')
+  const [levelFilter, setLevelFilter] = useState<StudentLevel | 'ALL'>('ALL')
+  const [groupFilter, setGroupFilter] = useState<string | 'ALL'>('ALL')
+  const [certificateFilter, setCertificateFilter] = useState<StudentLanguageCertificate | 'ALL'>('ALL')
+  const [tagFilter, setTagFilter] = useState<string | 'ALL'>('ALL')
+  const [leadByFilter, setLeadByFilter] = useState<string | 'ALL'>('ALL')
 
   // Modal form state
   const [isModalOpen, setIsModalOpen] = useState(false)
@@ -81,7 +91,7 @@ export function StudentDashboardClient() {
           id: studentId.trim().toUpperCase(),
           full_name: fullName.trim().toUpperCase(),
           office: office,
-          // Explicitly set default fields that might trigger constraint validation
+          // Explicitly set default fields to avoid RLS/constraint issue
           university_1_status: 'Chosen',
           balance: 0,
           discount: 0,
@@ -96,7 +106,6 @@ export function StudentDashboardClient() {
         } as any)
 
       if (insertError) {
-        // Handle common unique constraint error
         if (insertError.code === '23505') {
           throw new Error(`Student ID "${studentId}" is already taken. Please choose another.`)
         }
@@ -104,15 +113,12 @@ export function StudentDashboardClient() {
       }
 
       setModalSuccess(true)
-      // Clear inputs
       setStudentId('')
       setFullName('')
       setOffice('ANDIJON OFFIS')
 
-      // Refresh list
       await fetchStudents()
 
-      // Close modal after delay
       setTimeout(() => {
         setIsModalOpen(false)
         setModalSuccess(false)
@@ -126,16 +132,174 @@ export function StudentDashboardClient() {
     }
   }
 
-  // Filter students based on search query and office selection
+  // Extract dynamic filter options from fetched students dataset
+  const uniqueGroups = Array.from(new Set(students.map(s => s.student_group).filter(Boolean))) as string[]
+  const uniqueLeadBys = Array.from(new Set(students.map(s => s.lead_by).filter(Boolean))) as string[]
+  const uniqueTags = Array.from(new Set(students.flatMap(s => s.task_tags || []).filter(Boolean))) as string[]
+
+  // Filter students based on all filter parameters
   const filteredStudents = students.filter(student => {
     const matchesSearch = 
       student.id.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      student.full_name.toLowerCase().includes(searchQuery.toLowerCase())
+      student.full_name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      (student.phone1 && student.phone1.includes(searchQuery)) ||
+      (student.phone2 && student.phone2.includes(searchQuery))
     
-    const matchesOffice = officeFilter === 'ALL' || student.office === officeFilter
+    const matchesTariff = tariffFilter === 'ALL' || student.tariff === tariffFilter
+    const matchesLevel = levelFilter === 'ALL' || student.level === levelFilter || student.level2 === levelFilter
+    const matchesGroup = groupFilter === 'ALL' || student.student_group === groupFilter
+    
+    const matchesCertificate = certificateFilter === 'ALL' || 
+      student.language_certificate === certificateFilter ||
+      student.language_certificate_2 === certificateFilter ||
+      student.language_certificate_3 === certificateFilter
 
-    return matchesSearch && matchesOffice
+    const matchesTag = tagFilter === 'ALL' || (student.task_tags && student.task_tags.includes(tagFilter))
+    const matchesLeadBy = leadByFilter === 'ALL' || student.lead_by === leadByFilter
+
+    return matchesSearch && matchesTariff && matchesLevel && matchesGroup && matchesCertificate && matchesTag && matchesLeadBy
   })
+
+  // Export to CSV function
+  const handleExportCSV = () => {
+    const headers = [
+      'Student ID', 'Full Name', 'Passport', 'Gender', 'Birthday', 
+      'Phone 1', 'Phone 2', 'Email', 'Address', 'Level', 'Level 2', 
+      'Educational Background', 'Tariff', 'Certificate 1', 'Score 1',
+      'Certificate 2', 'Score 2', 'Certificate 3', 'Score 3',
+      'University 1', 'Status 1', 'University 2', 'Status 2', 'University 3', 'Status 3',
+      'Balance', 'Discount', 'Group', 'Lead By', 'Office', 'Created At'
+    ]
+
+    const rows = filteredStudents.map(s => [
+      s.id, s.full_name, s.passport || '', s.gender || '', s.birthday || '',
+      s.phone1 || '', s.phone2 || '', s.email || '', s.address || '', s.level || '', s.level2 || '',
+      s.educational_background || '', s.tariff || '', s.language_certificate || '', s.certificate_score || '',
+      s.language_certificate_2 || '', s.certificate_score_2 || '', s.language_certificate_3 || '', s.certificate_score_3 || '',
+      s.university_1 || '', s.university_1_status || '', s.university_2 || '', s.university_2_status || '', s.university_3 || '', s.university_3_status || '',
+      s.balance, s.discount, s.student_group || '', s.lead_by || '', s.office || '', s.created_at
+    ])
+
+    const csvContent = [
+      headers.join(','),
+      ...rows.map(row => row.map(val => {
+        const strVal = String(val).replace(/"/g, '""')
+        return strVal.includes(',') || strVal.includes('\n') || strVal.includes('"') ? `"${strVal}"` : strVal
+      }).join(','))
+    ].join('\n')
+
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' })
+    const url = URL.createObjectURL(blob)
+    const link = document.createElement('a')
+    link.setAttribute('href', url)
+    link.setAttribute('download', `students_export_${new Date().toISOString().split('T')[0]}.csv`)
+    link.style.visibility = 'hidden'
+    document.body.appendChild(link)
+    link.click()
+    document.body.removeChild(link)
+  }
+
+  // Row background color selector matching visual row highlights
+  const getRowBgColor = (student: Student) => {
+    if (student.row_color?.toUpperCase() === 'GREEN') {
+      return 'bg-[#e2f0d9]/60 hover:bg-[#d6e9cb] dark:bg-emerald-950/20 dark:hover:bg-emerald-950/30'
+    }
+    if (student.row_color?.toUpperCase() === 'BLUE') {
+      return 'bg-[#deebf7]/60 hover:bg-[#c6dbef] dark:bg-blue-950/20 dark:hover:bg-blue-950/30'
+    }
+    if (student.row_color?.toUpperCase() === 'YELLOW') {
+      return 'bg-[#fff2cc]/60 hover:bg-[#ffe599] dark:bg-amber-950/20 dark:hover:bg-amber-950/30'
+    }
+    return 'hover:bg-gray-50/70 dark:hover:bg-[var(--border-subtle)]'
+  }
+
+  // Level Badge style selector
+  const getLevelBadgeStyles = (level: StudentLevel) => {
+    switch (level) {
+      case 'MASTER NO CERTIFICATE':
+        return 'bg-[#00875a] text-white'
+      case 'COLLEGE':
+        return 'bg-[#6554c0] text-white'
+      case 'BACHELOR':
+        return 'bg-[#0052cc] text-white'
+      case 'MASTERS':
+        return 'bg-[#36b37e] text-white'
+      case 'LANGUAGE COURSE':
+        return 'bg-[#ffab00] text-gray-900'
+      default:
+        return 'bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-300'
+    }
+  }
+
+  // Render language certificate pill in dual-pill format matching mockup
+  const renderCertificatePills = (student: Student) => {
+    const certs = [
+      { type: student.language_certificate, score: student.certificate_score, color: 'bg-[#de350b]' }, // Red for primary
+      { type: student.language_certificate_2, score: student.certificate_score_2, color: 'bg-[#00b8d9]' }, // Teal
+      { type: student.language_certificate_3, score: student.certificate_score_3, color: 'bg-[#ff5630]' }  // Orange
+    ].filter(c => c.type && c.type !== 'NO CERTIFICATE')
+
+    if (certs.length === 0) return null
+
+    return (
+      <div className="flex flex-wrap gap-2 mt-1.5">
+        {certs.map((c, idx) => (
+          <div key={idx} className="inline-flex items-center text-[10px] font-bold tracking-tight rounded-[4px] overflow-hidden" style={{ boxShadow: '0 1px 3px rgba(0,0,0,0.1)' }}>
+            <span className={`${c.color} text-white px-1.5 py-0.5 uppercase`}>{c.type}</span>
+            <span className="bg-[#0052cc] text-white px-1.5 py-0.5">{c.score || '—'}</span>
+          </div>
+        ))}
+      </div>
+    )
+  }
+
+  // Render university stack
+  const renderUniversities = (student: Student) => {
+    const unis = [student.university_1, student.university_2, student.university_3].filter(Boolean)
+    if (unis.length === 0) return <span className="text-gray-400 dark:text-gray-600">—</span>
+
+    return (
+      <ul className="space-y-1 text-xs text-[var(--foreground)] max-w-xs leading-relaxed list-none pl-0 font-medium">
+        {unis.map((uni, idx) => (
+          <li key={idx} className="flex items-start gap-1">
+            <span className="text-[var(--foreground-muted)] select-none">•</span>
+            <span>{uni}</span>
+          </li>
+        ))}
+      </ul>
+    )
+  }
+
+  // Render Actions column circular indicators
+  const renderActionCircle = (student: Student) => {
+    const isCompleted = student.university_1_status === 'Accepted' || student.university_1_status === 'Finished'
+    return (
+      <div className={`h-4.5 w-4.5 rounded-full border-2 flex items-center justify-center cursor-pointer transition-all ${
+        isCompleted 
+          ? 'border-emerald-600 bg-emerald-600 text-white shadow-sm' 
+          : 'border-gray-300 dark:border-gray-600 bg-transparent hover:border-gray-400'
+      }`}>
+        {isCompleted && <div className="h-1.5 w-1.5 rounded-full bg-white" />}
+      </div>
+    )
+  }
+
+  // Render Actions column status icon
+  const renderActionIcon = (student: Student) => {
+    if (student.university_1_status === 'Accepted' || student.university_1_status === 'Finished') {
+      return <CheckSquare className="h-4.5 w-4.5 text-emerald-600 dark:text-emerald-400" />
+    }
+    if (student.university_1_status === 'Admitted' || student.university_1_status === 'Graduated') {
+      return <GraduationCap className="h-4.5 w-4.5 text-indigo-600 dark:text-indigo-400" />
+    }
+    if (student.university_1_status === 'Chosen' || student.university_1_status === 'Applying') {
+      return <Hourglass className="h-4.5 w-4.5 text-amber-500 dark:text-amber-400 animate-pulse" />
+    }
+    if (student.notes?.toLowerCase().includes('phone') || student.notes?.toLowerCase().includes('call')) {
+      return <MessageSquare className="h-4.5 w-4.5 text-sky-500 dark:text-sky-400" />
+    }
+    return null
+  }
 
   return (
     <PageShell
@@ -147,57 +311,173 @@ export function StudentDashboardClient() {
           <button
             id="students-add-btn"
             onClick={() => setIsModalOpen(true)}
-            className="flex items-center gap-2 rounded-[var(--radius-md)] bg-[var(--accent)] px-3 py-2 text-sm font-semibold text-white hover:bg-[var(--accent-hover)] transition-all cursor-pointer select-none"
+            className="flex items-center gap-2 rounded-[var(--radius-md)] bg-[var(--accent)] px-3.5 py-2 text-sm font-semibold text-white hover:bg-[var(--accent-hover)] transition-all cursor-pointer select-none"
             style={{ boxShadow: '0 4px 14px rgba(59, 127, 245, 0.3)' }}
           >
-            <Plus className="h-4 w-4" />
+            <Plus className="h-4.5 w-4.5" />
             Add Student
           </button>
         </div>
       }
     >
-      {/* Search & Filter Controls */}
-      <div className="mb-6 flex flex-col sm:flex-row gap-4 items-center justify-between">
-        <div className="relative w-full sm:max-w-xs">
-          <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[var(--foreground-muted)]" />
-          <input
-            type="text"
-            placeholder="Search by name or ID..."
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            className="w-full pl-9 pr-4 py-2 border border-[var(--border)] rounded-[var(--radius-md)] bg-[var(--surface)] text-[var(--foreground)] placeholder-[var(--foreground-subtle)] focus:outline-none focus:border-[var(--accent)] focus:ring-1 focus:ring-[var(--accent)] transition-all"
-          />
+      {/* Search Input */}
+      <div className="mb-4 relative max-w-md">
+        <Search className="absolute left-3 top-1/2 h-4.5 w-4.5 -translate-y-1/2 text-[var(--foreground-muted)]" />
+        <input
+          type="text"
+          placeholder="Search by name, ID or phone..."
+          value={searchQuery}
+          onChange={(e) => setSearchQuery(e.target.value)}
+          className="w-full pl-9.5 pr-4 py-2.5 border border-[var(--border)] rounded-[var(--radius-md)] bg-[var(--surface)] text-[var(--foreground)] placeholder-[var(--foreground-subtle)] focus:outline-none focus:border-[var(--accent)] focus:ring-1 focus:ring-[var(--accent)] transition-all text-sm shadow-sm"
+        />
+      </div>
+
+      {/* Redesigned Filters Card Section */}
+      <div className="mb-6 rounded-[var(--radius-lg)] border border-[var(--border)] bg-[var(--surface)] p-4 shadow-[var(--shadow-sm)] flex flex-wrap lg:flex-nowrap gap-3 items-center justify-between">
+        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3 w-full">
+          {/* Tariffs Filter */}
+          <div className="relative">
+            <Tag className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[var(--foreground-muted)] pointer-events-none" />
+            <select
+              value={tariffFilter}
+              onChange={(e) => setTariffFilter(e.target.value as any)}
+              className="w-full pl-9 pr-7 py-2 border border-[var(--border)] rounded-[var(--radius-md)] bg-[var(--surface-elevated)] text-[var(--foreground)] focus:outline-none hover:border-blue-400 transition-all text-xs font-medium appearance-none cursor-pointer"
+            >
+              <option value="ALL">All Tariffs</option>
+              <option value="STANDART">STANDART</option>
+              <option value="PREMIUM">PREMIUM</option>
+              <option value="VISA PLUS">VISA PLUS</option>
+              <option value="E-VISA">E-VISA</option>
+              <option value="REGIONAL VISA">REGIONAL VISA</option>
+            </select>
+            <ChevronDown className="absolute right-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-[var(--foreground-subtle)] pointer-events-none" />
+          </div>
+
+          {/* Levels Filter */}
+          <div className="relative">
+            <Layers className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[var(--foreground-muted)] pointer-events-none" />
+            <select
+              value={levelFilter}
+              onChange={(e) => setLevelFilter(e.target.value as any)}
+              className="w-full pl-9 pr-7 py-2 border border-[var(--border)] rounded-[var(--radius-md)] bg-[var(--surface-elevated)] text-[var(--foreground)] focus:outline-none hover:border-blue-400 transition-all text-xs font-medium appearance-none cursor-pointer"
+            >
+              <option value="ALL">All Levels</option>
+              <option value="COLLEGE">COLLEGE</option>
+              <option value="BACHELOR">BACHELOR</option>
+              <option value="MASTERS">MASTERS</option>
+              <option value="MASTER NO CERTIFICATE">MASTER NO CERTIFICATE</option>
+              <option value="LANGUAGE COURSE">LANGUAGE COURSE</option>
+            </select>
+            <ChevronDown className="absolute right-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-[var(--foreground-subtle)] pointer-events-none" />
+          </div>
+
+          {/* Groups Filter */}
+          <div className="relative">
+            <Users className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[var(--foreground-muted)] pointer-events-none" />
+            <select
+              value={groupFilter}
+              onChange={(e) => setGroupFilter(e.target.value)}
+              className="w-full pl-9 pr-7 py-2 border border-[var(--border)] rounded-[var(--radius-md)] bg-[var(--surface-elevated)] text-[var(--foreground)] focus:outline-none hover:border-blue-400 transition-all text-xs font-medium appearance-none cursor-pointer"
+            >
+              <option value="ALL">All Groups</option>
+              {uniqueGroups.map(grp => (
+                <option key={grp} value={grp}>{grp}</option>
+              ))}
+            </select>
+            <ChevronDown className="absolute right-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-[var(--foreground-subtle)] pointer-events-none" />
+          </div>
+
+          {/* Certificates Filter */}
+          <div className="relative">
+            <Award className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[var(--foreground-muted)] pointer-events-none" />
+            <select
+              value={certificateFilter}
+              onChange={(e) => setCertificateFilter(e.target.value as any)}
+              className="w-full pl-9 pr-7 py-2 border border-[var(--border)] rounded-[var(--radius-md)] bg-[var(--surface-elevated)] text-[var(--foreground)] focus:outline-none hover:border-blue-400 transition-all text-xs font-medium appearance-none cursor-pointer"
+            >
+              <option value="ALL">All Certificates</option>
+              <option value="TOPIK">TOPIK</option>
+              <option value="IELTS">IELTS</option>
+              <option value="TOEFL">TOEFL</option>
+              <option value="SKA">SKA</option>
+              <option value="NO CERTIFICATE">NO CERTIFICATE</option>
+            </select>
+            <ChevronDown className="absolute right-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-[var(--foreground-subtle)] pointer-events-none" />
+          </div>
+
+          {/* Tags Filter */}
+          <div className="relative">
+            <Bookmark className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[var(--foreground-muted)] pointer-events-none" />
+            <select
+              value={tagFilter}
+              onChange={(e) => setTagFilter(e.target.value)}
+              className="w-full pl-9 pr-7 py-2 border border-[var(--border)] rounded-[var(--radius-md)] bg-[var(--surface-elevated)] text-[var(--foreground)] focus:outline-none hover:border-blue-400 transition-all text-xs font-medium appearance-none cursor-pointer"
+            >
+              <option value="ALL">All Tasks/Tags</option>
+              {uniqueTags.map(tag => (
+                <option key={tag} value={tag}>{tag}</option>
+              ))}
+            </select>
+            <ChevronDown className="absolute right-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-[var(--foreground-subtle)] pointer-events-none" />
+          </div>
+
+          {/* Lead By Filter */}
+          <div className="relative">
+            <UserCheck className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[var(--foreground-muted)] pointer-events-none" />
+            <select
+              value={leadByFilter}
+              onChange={(e) => setLeadByFilter(e.target.value)}
+              className="w-full pl-9 pr-7 py-2 border border-[var(--border)] rounded-[var(--radius-md)] bg-[var(--surface-elevated)] text-[var(--foreground)] focus:outline-none hover:border-blue-400 transition-all text-xs font-medium appearance-none cursor-pointer"
+            >
+              <option value="ALL">All Lead By</option>
+              {uniqueLeadBys.map(lead => (
+                <option key={lead} value={lead}>{lead}</option>
+              ))}
+            </select>
+            <ChevronDown className="absolute right-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-[var(--foreground-subtle)] pointer-events-none" />
+          </div>
         </div>
 
-        <div className="flex items-center gap-2 w-full sm:w-auto justify-end">
-          <Filter className="h-4 w-4 text-[var(--foreground-muted)]" />
-          <select
-            value={officeFilter}
-            onChange={(e) => setOfficeFilter(e.target.value as any)}
-            className="px-3 py-2 border border-[var(--border)] rounded-[var(--radius-md)] bg-[var(--surface)] text-[var(--foreground)] focus:outline-none focus:border-[var(--accent)] transition-all text-sm"
-          >
-            <option value="ALL">All Offices</option>
-            <option value="ANDIJON OFFIS">Andijon Office</option>
-            <option value="TOSHKENT OFFIS">Toshkent Office</option>
-          </select>
+        {/* Excel Export Button */}
+        <button
+          onClick={handleExportCSV}
+          className="flex-shrink-0 flex items-center justify-center p-2 rounded-[var(--radius-md)] border border-emerald-600/30 bg-emerald-50 hover:bg-emerald-100/70 text-emerald-700 dark:bg-emerald-950/20 dark:border-emerald-800/40 dark:text-emerald-400 transition-all cursor-pointer shadow-sm select-none"
+          title="Export Roster to Excel/CSV"
+        >
+          <FileSpreadsheet className="h-4.5 w-4.5" />
+        </button>
+      </div>
+
+      {/* Roster Total Count */}
+      <div className="mb-2 flex justify-between items-center text-xs text-[var(--foreground-muted)] italic px-1 font-medium">
+        <div>
+          {(searchQuery || tariffFilter !== 'ALL' || levelFilter !== 'ALL' || groupFilter !== 'ALL' || certificateFilter !== 'ALL' || tagFilter !== 'ALL' || leadByFilter !== 'ALL') && (
+            <span>Found {filteredStudents.length} matching students</span>
+          )}
+        </div>
+        <div className="text-right">
+          Total {students.length} students
         </div>
       </div>
 
-      {/* Main Roster Display */}
+      {/* Main Table Display */}
       {loading ? (
         // Skeleton Loader
         <div className="rounded-[var(--radius-lg)] border border-[var(--border)] bg-[var(--surface)] overflow-hidden shadow-[var(--shadow-sm)]">
           <div className="divide-y divide-[var(--border)] animate-pulse">
-            {[...Array(5)].map((_, idx) => (
-              <div key={idx} className="p-4 flex justify-between items-center gap-4">
+            {[...Array(6)].map((_, idx) => (
+              <div key={idx} className="p-5 flex justify-between items-center gap-6">
                 <div className="flex gap-4 items-center flex-1">
-                  <div className="h-10 w-10 bg-[var(--border-subtle)] rounded-full" />
+                  <div className="h-6 w-9 bg-[var(--border-subtle)] rounded-[4px]" />
                   <div className="space-y-2 flex-1">
                     <div className="h-4 w-1/3 bg-[var(--border-subtle)] rounded" />
                     <div className="h-3 w-1/4 bg-[var(--border-subtle)] rounded" />
                   </div>
                 </div>
-                <div className="h-4 w-24 bg-[var(--border-subtle)] rounded" />
+                <div className="h-4 w-28 bg-[var(--border-subtle)] rounded" />
+                <div className="h-4 w-20 bg-[var(--border-subtle)] rounded" />
+                <div className="h-4 w-40 bg-[var(--border-subtle)] rounded" />
+                <div className="h-5 w-5 bg-[var(--border-subtle)] rounded-full" />
               </div>
             ))}
           </div>
@@ -228,11 +508,9 @@ export function StudentDashboardClient() {
             No students found
           </h3>
           <p className="mt-1.5 text-sm text-[var(--foreground-muted)] max-w-sm mx-auto">
-            {searchQuery || officeFilter !== 'ALL'
-              ? 'No students match your active filters. Try adjusting your search query or office selection.'
-              : 'Add your first student to the system by clicking the button below.'}
+            No students match your active search filters or table criteria.
           </p>
-          {!searchQuery && officeFilter === 'ALL' && (
+          {!searchQuery && tariffFilter === 'ALL' && levelFilter === 'ALL' && (
             <button
               onClick={() => setIsModalOpen(true)}
               className="mt-5 inline-flex items-center gap-2 rounded-[var(--radius-md)] bg-[var(--accent)] px-4 py-2 text-sm font-semibold text-white hover:bg-[var(--accent-hover)] transition-all cursor-pointer"
@@ -243,46 +521,87 @@ export function StudentDashboardClient() {
           )}
         </div>
       ) : (
-        // Students Data Table
+        // Redesigned Students Data Table
         <div className="rounded-[var(--radius-lg)] border border-[var(--border)] bg-[var(--surface)] overflow-hidden shadow-[var(--shadow-sm)]">
           <div className="overflow-x-auto">
             <table className="w-full border-collapse text-left">
               <thead>
-                <tr className="border-b border-[var(--border)] bg-[var(--border-subtle)] text-xs font-semibold uppercase tracking-wider text-[var(--foreground-muted)]">
-                  <th className="px-6 py-3.5">Student ID</th>
+                <tr className="border-b border-[var(--border)] bg-gray-50 dark:bg-[var(--border-subtle)] text-[11px] font-bold uppercase tracking-wider text-[var(--foreground-muted)] select-none">
+                  <th className="px-6 py-3.5 w-20">
+                    <span className="flex items-center gap-1">
+                      ID
+                      <ChevronDown className="h-3 w-3" />
+                    </span>
+                  </th>
                   <th className="px-6 py-3.5">Full Name</th>
-                  <th className="px-6 py-3.5">Office</th>
-                  <th className="px-6 py-3.5">Created At</th>
+                  <th className="px-6 py-3.5">Phone</th>
+                  <th className="px-6 py-3.5">Level</th>
+                  <th className="px-6 py-3.5">University</th>
+                  <th className="px-6 py-3.5 text-center w-28">Actions</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-[var(--border)]">
                 {filteredStudents.map((student) => (
                   <tr
                     key={student.id}
-                    className="hover:bg-[var(--border-subtle)] transition-colors text-sm text-[var(--foreground)]"
+                    className={`transition-colors text-sm text-[var(--foreground)] ${getRowBgColor(student)}`}
                   >
-                    <td className="px-6 py-4 font-mono font-semibold tracking-tight text-[var(--accent)]">
-                      {student.id}
-                    </td>
-                    <td className="px-6 py-4 font-medium">
-                      {student.full_name}
-                    </td>
+                    {/* ID Badge Column */}
                     <td className="px-6 py-4">
-                      <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-[var(--radius-full)] text-xs font-semibold ${
-                        student.office === 'TOSHKENT OFFIS' 
-                          ? 'bg-amber-100 text-amber-800 dark:bg-amber-950/40 dark:text-amber-300' 
-                          : 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950/40 dark:text-emerald-300'
-                      }`}>
-                        <Building2 className="h-3 w-3" />
-                        {student.office || 'N/A'}
-                      </span>
+                      <div className="flex items-center justify-center w-10 h-6.5 text-[11px] font-bold bg-[#007aff] text-white rounded-[4px] shadow-sm select-all">
+                        {student.id}
+                      </div>
                     </td>
-                    <td className="px-6 py-4 text-[var(--foreground-muted)]">
-                      {new Date(student.created_at).toLocaleDateString(undefined, {
-                        year: 'numeric',
-                        month: 'short',
-                        day: 'numeric'
-                      })}
+
+                    {/* Full Name & Tariff Info Column */}
+                    <td className="px-6 py-4">
+                      <div className="font-bold uppercase tracking-wide text-xs text-[var(--foreground)]">
+                        {student.full_name}
+                      </div>
+                      <div className="text-[10px] text-[var(--foreground-muted)] font-semibold tracking-wider uppercase mt-1">
+                        {student.tariff || 'NO TARIFF'} 
+                        {student.language_certificate && student.language_certificate !== 'NO CERTIFICATE' 
+                          ? ' (TIL SERTIFIKATLI)' 
+                          : ' (TIL SERTIFIKATISIZ)'}
+                      </div>
+                    </td>
+
+                    {/* Phone Numbers Column */}
+                    <td className="px-6 py-4 font-mono text-xs text-[var(--foreground-muted)] whitespace-nowrap">
+                      <div>{student.phone1 || '—'}</div>
+                      {student.phone2 && <div className="mt-0.5">{student.phone2}</div>}
+                    </td>
+
+                    {/* Levels & Languages Column */}
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      {/* Level Badges */}
+                      <div className="flex flex-wrap gap-1.5">
+                        {student.level && (
+                          <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wide ${getLevelBadgeStyles(student.level)}`}>
+                            {student.level}
+                          </span>
+                        )}
+                        {student.level2 && (
+                          <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wide bg-[#ffab00] text-gray-900">
+                            {student.level2}
+                          </span>
+                        )}
+                      </div>
+                      {/* Certificate Split Pills */}
+                      {renderCertificatePills(student)}
+                    </td>
+
+                    {/* Universities List Column */}
+                    <td className="px-6 py-4">
+                      {renderUniversities(student)}
+                    </td>
+
+                    {/* Status Circle & Action Icon Column */}
+                    <td className="px-6 py-4">
+                      <div className="flex items-center justify-center gap-3">
+                        {renderActionCircle(student)}
+                        {renderActionIcon(student)}
+                      </div>
                     </td>
                   </tr>
                 ))}
@@ -324,7 +643,7 @@ export function StudentDashboardClient() {
               </button>
 
               <h2 className="text-xl font-bold text-[var(--foreground)] mb-1 flex items-center gap-2">
-                <Users className="h-5 w-5 text-[var(--accent)]" />
+                <Sparkles className="h-5 w-5 text-[var(--accent)]" />
                 Add New Student
               </h2>
               <p className="text-xs text-[var(--foreground-muted)] mb-5">
