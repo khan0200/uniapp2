@@ -12,6 +12,7 @@ ALTER TABLE public.students DROP CONSTRAINT IF EXISTS students_language_certific
 
 ALTER TABLE public.students ADD COLUMN IF NOT EXISTS father_job TEXT;
 ALTER TABLE public.students ADD COLUMN IF NOT EXISTS mother_job TEXT;
+ALTER TABLE public.students ADD COLUMN IF NOT EXISTS major TEXT;
 
 
 -- 2. Create tables for settings options

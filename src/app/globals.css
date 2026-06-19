@@ -1,5 +1,5 @@
 /* ── Google Fonts — must be first @import ───────────────────── */
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:ital,wght@0,200..800;1,200..800&display=swap');
 
 @import "tailwindcss";
 @variant dark (.dark &);
@@ -13,7 +13,7 @@
 /* ── CSS Custom Properties (Light Mode) ────────────────────── */
 :root {
   /* Base surfaces */
-  --background: #f5f5f7;
+  --background: #ebedf0;
   --surface: #ffffff;
   --surface-elevated: #ffffff;
   --surface-overlay: rgba(255, 255, 255, 0.85);
@@ -104,7 +104,7 @@
 /* ── Tailwind v4 Theme Mapping ──────────────────────────────── */
 @theme inline {
   /* Fonts */
-  --font-sans: 'Inter', system-ui, -apple-system, sans-serif;
+  --font-sans: 'Plus Jakarta Sans', var(--font-plus-jakarta-sans), system-ui, -apple-system, sans-serif;
 
   /* Colors mapped from CSS vars */
   --color-background: var(--background);
@@ -147,13 +147,14 @@ html {
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   text-rendering: optimizeLegibility;
+  font-size: 110%;
 }
 
 body {
   background-color: var(--background);
   color: var(--foreground);
   font-family: var(--font-sans);
-  font-size: 14px;
+  font-size: 15.4px;
   line-height: 1.5;
   transition: background-color 0.2s ease, color 0.2s ease;
 }

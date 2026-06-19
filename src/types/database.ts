@@ -36,6 +36,7 @@ export interface Student {
   level: StudentLevel | null
   level2: StudentLevel | null
   educational_background: string | null
+  major: string | null
   tariff: StudentTariff | null
 
   // 3. Language Certificates (Supports up to 3)
@@ -109,6 +110,7 @@ export type Database = {
           level?: StudentLevel | null
           level2?: StudentLevel | null
           educational_background?: string | null
+          major?: string | null
           tariff?: StudentTariff | null
           language_certificate?: StudentLanguageCertificate | null
           certificate_score?: string | null
@@ -161,6 +163,7 @@ export type Database = {
           level?: StudentLevel | null
           level2?: StudentLevel | null
           educational_background?: string | null
+          major?: string | null
           tariff?: StudentTariff | null
           language_certificate?: StudentLanguageCertificate | null
           certificate_score?: string | null

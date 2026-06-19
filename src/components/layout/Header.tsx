@@ -1,7 +1,8 @@
 'use client'
 
 import { usePathname } from 'next/navigation'
-import { Bell, Search, Plus } from 'lucide-react'
+import { Bell, Search, Plus, FileSpreadsheet } from 'lucide-react'
+import Link from 'next/link'
 import { useUser } from '@/contexts/UserContext'
 import { cn } from '@/lib/utils'
 import { useStudentDashboard } from '@/contexts/StudentDashboardContext'
@@ -62,6 +63,14 @@ export function Header() {
               className="pl-9 pr-4 py-2 text-sm border border-[var(--border)] bg-[var(--background)] rounded-[var(--radius-md)] text-[var(--foreground)] placeholder-[var(--foreground-muted)] focus:outline-none focus:border-[var(--accent)] focus:ring-1 focus:ring-[var(--accent)] transition-all w-60 md:w-72"
             />
           </div>
+          <Link
+            id="students-import-btn"
+            href="/students/import"
+            className="flex items-center gap-2 rounded-[var(--radius-md)] border border-[var(--border)] bg-[var(--background)] hover:bg-[var(--surface-elevated)] px-3 py-2 text-sm font-semibold text-[var(--foreground)] transition-all cursor-pointer select-none"
+          >
+            <FileSpreadsheet className="h-4 w-4 text-[var(--foreground-muted)]" />
+            <span className="hidden sm:inline">Import</span>
+          </Link>
           <button
             id="students-add-btn"
             onClick={() => setIsAddStudentModalOpen(true)}

@@ -145,6 +145,7 @@ CREATE TABLE IF NOT EXISTS public.students (
   level                  TEXT        CHECK (level IN ('COLLEGE', 'BACHELOR', 'MASTERS', 'MASTER NO CERTIFICATE', 'LANGUAGE COURSE')),
   level2                 TEXT        CHECK (level2 IS NULL OR level2 IN ('COLLEGE', 'BACHELOR', 'MASTERS', 'MASTER NO CERTIFICATE', 'LANGUAGE COURSE')),
   educational_background TEXT,
+  major                  TEXT,
   tariff                 TEXT        CHECK (tariff IN ('STANDART', 'PREMIUM', 'VISA PLUS', 'E-VISA', 'REGIONAL VISA')),
 
   -- 3. Language Certificates (Supports up to 3)
