@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useMemo } from 'react'
+import { useState, useEffect, useMemo, useRef } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { type Student, type Payment } from '@/types/database'
 import {
@@ -12,6 +12,27 @@ const PAYMENT_METHODS = ['Karta J.A', 'Karta Abdulaziz', 'Naqd', 'Karta M.A', 'B
 const RECEIVED_BY_OPTIONS = ['ABDULAZIZ', 'MUSLIHIDDIN', 'BAXTIYOR', 'MUHAMMADALI', 'JASUR', 'ADMIN']
 const NOTE_PILLS = ['Shartnoma uchun', 'Qarz', 'Elchixona uchun', 'Appfee', 'DISCOUNT']
 const ITEMS_PER_PAGE = 12
+
+const TARIFF_FILTER_OPTIONS = [
+  'E-VISA (TIL SERTIFIKATISIZ)',
+  'E-VISA (TIL SERTIFIKATLI)',
+  'PREMIUM',
+  'REGIONAL VISA',
+  'STANDART',
+  'VISA PLUS',
+  'ZERO RISK',
+  'No Tariff'
+]
+
+const BALANCE_FILTER_OPTIONS = [
+  'Balance < 0 (Debt)',
+  'Balance = 0 (Fully Paid)',
+  'Balance > 500,000',
+  'Balance > 1,000,000',
+  'Balance > 2,000,000',
+  'Balance > 5,000,000',
+  'Balance > 10,000,000'
+]
 
 function formatAmount(val: number) {
   return new Intl.NumberFormat('uz-UZ').format(Math.round(val))
@@ -38,8 +59,17 @@ export function PaymentsClient() {
 
   // Students tab search/filter
   const [studentSearch, setStudentSearch] = useState('')
-  const [tariffFilter, setTariffFilter] = useState('')
-  const [balanceFilter, setBalanceFilter] = useState<'' | 'owing' | 'paid' | 'zero'>('')
+  const [selectedTariffs, setSelectedTariffs] = useState<string[]>([])
+  const [selectedBalances, setSelectedBalances] = useState<string[]>([])
+  const [selectedGroups, setSelectedGroups] = useState<string[]>([])
+
+  const [isTariffDropdownOpen, setIsTariffDropdownOpen] = useState(false)
+  const [isBalanceDropdownOpen, setIsBalanceDropdownOpen] = useState(false)
+  const [isGroupDropdownOpen, setIsGroupDropdownOpen] = useState(false)
+
+  const tariffRef = useRef<HTMLDivElement>(null)
+  const balanceRef = useRef<HTMLDivElement>(null)
+  const groupRef = useRef<HTMLDivElement>(null)
   const [studentsPage, setStudentsPage] = useState(1)
 
   // History tab search/filter
@@ -106,6 +136,101 @@ export function PaymentsClient() {
   useEffect(() => {
     fetchData()
   }, [])
+
+  useEffect(() => {
+    function handleClickOutside(event: MouseEvent) {
+      if (tariffRef.current && !tariffRef.current.contains(event.target as Node)) {
+        setIsTariffDropdownOpen(false)
+      }
+      if (balanceRef.current && !balanceRef.current.contains(event.target as Node)) {
+        setIsBalanceDropdownOpen(false)
+      }
+      if (groupRef.current && !groupRef.current.contains(event.target as Node)) {
+        setIsGroupDropdownOpen(false)
+      }
+    }
+    document.addEventListener('mousedown', handleClickOutside)
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside)
+    }
+  }, [])
+
+  const handleToggleTariff = (val: string) => {
+    setSelectedTariffs(prev =>
+      prev.includes(val) ? prev.filter(t => t !== val) : [...prev, val]
+    )
+  }
+
+  const handleToggleAllTariffs = () => {
+    if (selectedTariffs.length === TARIFF_FILTER_OPTIONS.length) {
+      setSelectedTariffs([])
+    } else {
+      setSelectedTariffs([...TARIFF_FILTER_OPTIONS])
+    }
+  }
+
+  const handleToggleBalance = (val: string) => {
+    setSelectedBalances(prev =>
+      prev.includes(val) ? prev.filter(b => b !== val) : [...prev, val]
+    )
+  }
+
+  const handleToggleAllBalances = () => {
+    if (selectedBalances.length === BALANCE_FILTER_OPTIONS.length) {
+      setSelectedBalances([])
+    } else {
+      setSelectedBalances([...BALANCE_FILTER_OPTIONS])
+    }
+  }
+
+  const groupOptions = useMemo(() => {
+    const set = new Set<string>()
+    students.forEach(s => { if (s.student_group) set.add(s.student_group) })
+    const list = Array.from(set)
+    if (!list.includes('2026 BAHOR')) list.push('2026 BAHOR')
+    if (!list.includes('2026 KUZ')) list.push('2026 KUZ')
+    if (!list.includes('2027 BAHOR')) list.push('2027 BAHOR')
+    return list.sort()
+  }, [students])
+
+  const ALL_GROUP_OPTIONS = useMemo(() => {
+    return ['No Group', ...groupOptions]
+  }, [groupOptions])
+
+  const handleToggleGroup = (val: string) => {
+    setSelectedGroups(prev =>
+      prev.includes(val) ? prev.filter(g => g !== val) : [...prev, val]
+    )
+  }
+
+  const handleToggleAllGroups = () => {
+    if (selectedGroups.length === ALL_GROUP_OPTIONS.length) {
+      setSelectedGroups([])
+    } else {
+      setSelectedGroups([...ALL_GROUP_OPTIONS])
+    }
+  }
+
+  const matchesBalanceOption = (studentBalance: number, option: string) => {
+    switch (option) {
+      case 'Balance < 0 (Debt)':
+        return studentBalance < 0
+      case 'Balance = 0 (Fully Paid)':
+        return studentBalance === 0
+      case 'Balance > 500,000':
+        return studentBalance > 500000
+      case 'Balance > 1,000,000':
+        return studentBalance > 1000000
+      case 'Balance > 2,000,000':
+        return studentBalance > 2000000
+      case 'Balance > 5,000,000':
+        return studentBalance > 5000000
+      case 'Balance > 10,000,000':
+        return studentBalance > 10000000
+      default:
+        return false
+    }
+  }
 
   // ── Balance update helpers ────────────────────────────────
   // Convention: students.balance is negative when the student owes money.
@@ -409,12 +534,6 @@ export function PaymentsClient() {
   }
 
   // ── Derived data ──────────────────────────────────────────
-  const tariffOptions = useMemo(() => {
-    const set = new Set<string>()
-    students.forEach(s => { if (s.tariff) set.add(s.tariff) })
-    return Array.from(set)
-  }, [students])
-
   const filteredStudents = useMemo(() => {
     return students.filter(s => {
       if (studentSearch) {
@@ -422,13 +541,55 @@ export function PaymentsClient() {
         const matches = s.id.toLowerCase().includes(q) || s.full_name.toLowerCase().includes(q)
         if (!matches) return false
       }
-      if (tariffFilter && s.tariff !== tariffFilter) return false
-      if (balanceFilter === 'owing' && !(s.balance < 0)) return false
-      if (balanceFilter === 'paid' && !(s.balance >= 0 && s.balance !== 0)) return false
-      if (balanceFilter === 'zero' && s.balance !== 0) return false
+
+      if (selectedTariffs.length > 0) {
+        let matchesTariff = false
+        for (const selected of selectedTariffs) {
+          if (selected === 'No Tariff' && !s.tariff) {
+            matchesTariff = true
+            break
+          } else if (selected === 'E-VISA (TIL SERTIFIKATLI)' && s.tariff === 'E-VISA' && s.language_certificate && s.language_certificate !== 'NO CERTIFICATE') {
+            matchesTariff = true
+            break
+          } else if (selected === 'E-VISA (TIL SERTIFIKATISIZ)' && s.tariff === 'E-VISA' && (!s.language_certificate || s.language_certificate === 'NO CERTIFICATE')) {
+            matchesTariff = true
+            break
+          } else if (s.tariff === selected) {
+            matchesTariff = true
+            break
+          }
+        }
+        if (!matchesTariff) return false
+      }
+
+      if (selectedBalances.length > 0) {
+        let matchesBalance = false
+        for (const selected of selectedBalances) {
+          if (matchesBalanceOption(s.balance, selected)) {
+            matchesBalance = true
+            break
+          }
+        }
+        if (!matchesBalance) return false
+      }
+
+      if (selectedGroups.length > 0) {
+        let matchesGroup = false
+        for (const selected of selectedGroups) {
+          if (selected === 'No Group' && !s.student_group) {
+            matchesGroup = true
+            break
+          } else if (s.student_group === selected) {
+            matchesGroup = true
+            break
+          }
+        }
+        if (!matchesGroup) return false
+      }
+
       return true
     })
-  }, [students, studentSearch, tariffFilter, balanceFilter])
+  }, [students, studentSearch, selectedTariffs, selectedBalances, selectedGroups])
 
   const filteredPayments = useMemo(() => {
     return payments.filter(p => {
@@ -452,7 +613,7 @@ export function PaymentsClient() {
   const historyTotalPages = Math.max(1, Math.ceil(filteredPayments.length / ITEMS_PER_PAGE))
   const paginatedPayments = filteredPayments.slice((historyPage - 1) * ITEMS_PER_PAGE, historyPage * ITEMS_PER_PAGE)
 
-  useEffect(() => { setStudentsPage(1) }, [studentSearch, tariffFilter, balanceFilter])
+  useEffect(() => { setStudentsPage(1) }, [studentSearch, selectedTariffs, selectedBalances, selectedGroups])
   useEffect(() => { setHistoryPage(1) }, [historySearch, methodFilter, receivedByFilter])
 
   const addModalStudentOptions = useMemo(() => {
@@ -543,24 +704,179 @@ export function PaymentsClient() {
                 className="w-full pl-9 pr-4 py-2 text-sm border border-[var(--border)] bg-[var(--background)] rounded-[var(--radius-md)] text-[var(--foreground)] focus:outline-none focus:border-[var(--accent)]"
               />
             </div>
-            <select
-              value={tariffFilter}
-              onChange={e => setTariffFilter(e.target.value)}
-              className="px-3 py-2 text-sm border border-[var(--border)] rounded-[var(--radius-md)] bg-[var(--surface-elevated)] text-[var(--foreground)] cursor-pointer"
-            >
-              <option value="">All Tariffs</option>
-              {tariffOptions.map(t => <option key={t} value={t}>{t}</option>)}
-            </select>
-            <select
-              value={balanceFilter}
-              onChange={e => setBalanceFilter(e.target.value as any)}
-              className="px-3 py-2 text-sm border border-[var(--border)] rounded-[var(--radius-md)] bg-[var(--surface-elevated)] text-[var(--foreground)] cursor-pointer"
-            >
-              <option value="">All Balances</option>
-              <option value="owing">Owing</option>
-              <option value="paid">Paid / Credit</option>
-              <option value="zero">Zero Balance</option>
-            </select>
+            {/* Tariff Filter Dropdown */}
+            <div className="relative" ref={tariffRef}>
+              <button
+                type="button"
+                onClick={() => {
+                  setIsTariffDropdownOpen(prev => !prev)
+                  setIsBalanceDropdownOpen(false)
+                  setIsGroupDropdownOpen(false)
+                }}
+                className={`px-4 py-2 text-sm border rounded-full text-[var(--foreground)] cursor-pointer flex items-center justify-between gap-2 min-w-[140px] focus:outline-none select-none transition-all ${
+                  isTariffDropdownOpen ? 'border-blue-600 bg-[var(--surface-elevated)] ring-1 ring-blue-600' : 'border-[var(--border)] bg-[var(--surface)] hover:border-blue-400'
+                }`}
+              >
+                <span className="truncate max-w-[150px]">
+                  {selectedTariffs.length === 0 || selectedTariffs.length === TARIFF_FILTER_OPTIONS.length
+                    ? 'All Tariffs'
+                    : selectedTariffs.join(', ')}
+                </span>
+                <ChevronDown className={`h-4 w-4 text-[var(--foreground-muted)] transition-transform duration-200 ${isTariffDropdownOpen ? 'rotate-180 text-blue-600' : ''}`} />
+              </button>
+
+              {isTariffDropdownOpen && (
+                <div className="absolute left-0 mt-1.5 w-64 rounded-2xl border border-[var(--border)] bg-[var(--surface)] shadow-lg py-2.5 z-40 max-h-80 overflow-y-auto animate-in fade-in slide-in-from-top-1 duration-100">
+                  <div
+                    onClick={handleToggleAllTariffs}
+                    className="px-4 py-2 flex items-center gap-3 cursor-pointer hover:bg-[var(--surface-elevated)] transition-colors select-none text-xs font-bold text-[var(--foreground)]"
+                  >
+                    <input
+                      type="checkbox"
+                      checked={selectedTariffs.length === TARIFF_FILTER_OPTIONS.length}
+                      readOnly
+                      className="h-4 w-4 rounded border-[var(--border)] text-blue-600 focus:ring-blue-500 cursor-pointer"
+                    />
+                    <span>Select All</span>
+                  </div>
+                  <div className="h-px bg-[var(--border)] my-1.5" />
+                  {TARIFF_FILTER_OPTIONS.map(opt => {
+                    const isChecked = selectedTariffs.includes(opt)
+                    return (
+                      <div
+                        key={opt}
+                        onClick={() => handleToggleTariff(opt)}
+                        className="px-4 py-2 flex items-center gap-3 cursor-pointer hover:bg-[var(--surface-elevated)] transition-colors select-none text-xs font-medium text-[var(--foreground)]"
+                      >
+                        <input
+                          type="checkbox"
+                          checked={isChecked}
+                          readOnly
+                          className="h-4 w-4 rounded border-[var(--border)] text-blue-600 focus:ring-blue-500 cursor-pointer"
+                        />
+                        <span>{opt}</span>
+                      </div>
+                    )
+                  })}
+                </div>
+              )}
+            </div>
+
+            {/* Balance Filter Dropdown */}
+            <div className="relative" ref={balanceRef}>
+              <button
+                type="button"
+                onClick={() => {
+                  setIsBalanceDropdownOpen(prev => !prev)
+                  setIsTariffDropdownOpen(false)
+                  setIsGroupDropdownOpen(false)
+                }}
+                className={`px-4 py-2 text-sm border rounded-full text-[var(--foreground)] cursor-pointer flex items-center justify-between gap-2 min-w-[140px] focus:outline-none select-none transition-all ${
+                  isBalanceDropdownOpen ? 'border-blue-600 bg-[var(--surface-elevated)] ring-1 ring-blue-600' : 'border-[var(--border)] bg-[var(--surface)] hover:border-blue-400'
+                }`}
+              >
+                <span className="truncate max-w-[150px]">
+                  {selectedBalances.length === 0 || selectedBalances.length === BALANCE_FILTER_OPTIONS.length
+                    ? 'All Balances'
+                    : selectedBalances.join(', ')}
+                </span>
+                <ChevronDown className={`h-4 w-4 text-[var(--foreground-muted)] transition-transform duration-200 ${isBalanceDropdownOpen ? 'rotate-180 text-blue-600' : ''}`} />
+              </button>
+
+              {isBalanceDropdownOpen && (
+                <div className="absolute left-0 mt-1.5 w-64 rounded-2xl border border-[var(--border)] bg-[var(--surface)] shadow-lg py-2.5 z-40 max-h-80 overflow-y-auto animate-in fade-in slide-in-from-top-1 duration-100">
+                  <div
+                    onClick={handleToggleAllBalances}
+                    className="px-4 py-2 flex items-center gap-3 cursor-pointer hover:bg-[var(--surface-elevated)] transition-colors select-none text-xs font-bold text-[var(--foreground)]"
+                  >
+                    <input
+                      type="checkbox"
+                      checked={selectedBalances.length === BALANCE_FILTER_OPTIONS.length}
+                      readOnly
+                      className="h-4 w-4 rounded border-[var(--border)] text-blue-600 focus:ring-blue-500 cursor-pointer"
+                    />
+                    <span>Select All</span>
+                  </div>
+                  <div className="h-px bg-[var(--border)] my-1.5" />
+                  {BALANCE_FILTER_OPTIONS.map(opt => {
+                    const isChecked = selectedBalances.includes(opt)
+                    return (
+                      <div
+                        key={opt}
+                        onClick={() => handleToggleBalance(opt)}
+                        className="px-4 py-2 flex items-center gap-3 cursor-pointer hover:bg-[var(--surface-elevated)] transition-colors select-none text-xs font-medium text-[var(--foreground)]"
+                      >
+                        <input
+                          type="checkbox"
+                          checked={isChecked}
+                          readOnly
+                          className="h-4 w-4 rounded border-[var(--border)] text-blue-600 focus:ring-blue-500 cursor-pointer"
+                        />
+                        <span>{opt}</span>
+                      </div>
+                    )
+                  })}
+                </div>
+              )}
+            </div>
+
+            {/* Group Filter Dropdown */}
+            <div className="relative" ref={groupRef}>
+              <button
+                type="button"
+                onClick={() => {
+                  setIsGroupDropdownOpen(prev => !prev)
+                  setIsTariffDropdownOpen(false)
+                  setIsBalanceDropdownOpen(false)
+                }}
+                className={`px-4 py-2 text-sm border rounded-full text-[var(--foreground)] cursor-pointer flex items-center justify-between gap-2 min-w-[140px] focus:outline-none select-none transition-all ${
+                  isGroupDropdownOpen ? 'border-blue-600 bg-[var(--surface-elevated)] ring-1 ring-blue-600' : 'border-[var(--border)] bg-[var(--surface)] hover:border-blue-400'
+                }`}
+              >
+                <span className="truncate max-w-[150px]">
+                  {selectedGroups.length === 0 || selectedGroups.length === ALL_GROUP_OPTIONS.length
+                    ? 'All Groups'
+                    : selectedGroups.map(g => g === 'No Group' ? 'No Group' : g).join(', ')}
+                </span>
+                <ChevronDown className={`h-4 w-4 text-[var(--foreground-muted)] transition-transform duration-200 ${isGroupDropdownOpen ? 'rotate-180 text-blue-600' : ''}`} />
+              </button>
+
+              {isGroupDropdownOpen && (
+                <div className="absolute left-0 mt-1.5 w-64 rounded-2xl border border-[var(--border)] bg-[var(--surface)] shadow-lg py-2.5 z-40 max-h-80 overflow-y-auto animate-in fade-in slide-in-from-top-1 duration-100">
+                  <div
+                    onClick={handleToggleAllGroups}
+                    className="px-4 py-2 flex items-center gap-3 cursor-pointer hover:bg-[var(--surface-elevated)] transition-colors select-none text-xs font-bold text-[var(--foreground)]"
+                  >
+                    <input
+                      type="checkbox"
+                      checked={selectedGroups.length === ALL_GROUP_OPTIONS.length}
+                      readOnly
+                      className="h-4 w-4 rounded border-[var(--border)] text-blue-600 focus:ring-blue-500 cursor-pointer"
+                    />
+                    <span>Select All</span>
+                  </div>
+                  <div className="h-px bg-[var(--border)] my-1.5" />
+                  {ALL_GROUP_OPTIONS.map(opt => {
+                    const isChecked = selectedGroups.includes(opt)
+                    return (
+                      <div
+                        key={opt}
+                        onClick={() => handleToggleGroup(opt)}
+                        className="px-4 py-2 flex items-center gap-3 cursor-pointer hover:bg-[var(--surface-elevated)] transition-colors select-none text-xs font-medium text-[var(--foreground)]"
+                      >
+                        <input
+                          type="checkbox"
+                          checked={isChecked}
+                          readOnly
+                          className="h-4 w-4 rounded border-[var(--border)] text-blue-600 focus:ring-blue-500 cursor-pointer"
+                        />
+                        <span>{opt}</span>
+                      </div>
+                    )
+                  })}
+                </div>
+              )}
+            </div>
           </div>
 
           <div className="text-xs text-[var(--foreground-muted)] italic px-1">
