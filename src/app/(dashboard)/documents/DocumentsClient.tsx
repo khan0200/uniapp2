@@ -1,254 +1,1072 @@
 'use client'
 
-import { useState } from 'react'
-import { motion, AnimatePresence } from 'framer-motion'
+import { useState, useEffect } from 'react'
+import { createClient } from '@/lib/supabase/client'
+import { type Student } from '@/types/database'
 import { 
-  FileText, ShieldAlert, CheckCircle2, User, Users, Landmark, 
-  Sparkles, FileCheck, CheckSquare, HelpCircle, GraduationCap, Info
+  Folder, ChevronDown, ChevronUp, CheckCircle2, ShieldAlert,
+  X, Loader2, ArrowLeft, Plus, AlertCircle, Info, RefreshCw, Hash, Users, Bookmark, UserCheck, Layers, Tag,
+  FileText, CheckSquare
 } from 'lucide-react'
 
 export function DocumentsClient() {
-  const [activeTab, setActiveTab] = useState<'university' | 'visa'>('university')
+  const supabase = createClient()
 
-  const universityDocsScan = [
-    "Talabaning pasporti — ID (yoki 'yashil' pasport)",
-    "Xorijiy pasport (zagran pasport)",
-    "Ota-onaning pasporti",
-    "Ota-onaning nikoh guvohnomasi",
-    "IELTS, TOPIK yoki SKA sertifikati (agar mavjud bo'lsa)",
-    "Tug'ilganlik haqida guvohnoma (metrka)",
-    "Rasm — 3.5 × 4.5 (1 ta elektron rasm va 8 ta chiqarilgan)"
+  // States
+  const [students, setStudents] = useState<Student[]>([])
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
+  
+  // Selected filter states
+  const [selectedTariffs, setSelectedTariffs] = useState<string[]>([])
+  const [selectedLevels, setSelectedLevels] = useState<string[]>([])
+  const [selectedGroups, setSelectedGroups] = useState<string[]>([])
+  const [selectedCerts, setSelectedCerts] = useState<string[]>([])
+  const [selectedMissingDocs, setSelectedMissingDocs] = useState<string[]>([])
+  const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('asc')
+
+  // Filter dropdown state
+  const [isTariffDropdownOpen, setIsTariffDropdownOpen] = useState(false)
+  const [isLevelDropdownOpen, setIsLevelDropdownOpen] = useState(false)
+  const [isGroupDropdownOpen, setIsGroupDropdownOpen] = useState(false)
+  const [isCertDropdownOpen, setIsCertDropdownOpen] = useState(false)
+  const [isMissingDropdownOpen, setIsMissingDropdownOpen] = useState(false)
+
+  // Selected student for details modal
+  const [selectedStudent, setSelectedStudent] = useState<Student | null>(null)
+  const [isModalOpen, setIsModalOpen] = useState(false)
+  const [modalUpdating, setModalUpdating] = useState(false)
+
+  // Option lists
+  const [tariffOptions, setTariffOptions] = useState<string[]>(['STANDART', 'PREMIUM', 'VISA PLUS', 'E-VISA', 'REGIONAL VISA'])
+  const [levelOptions, setLevelOptions] = useState<string[]>(['COLLEGE', 'BACHELOR', 'MASTERS', 'MASTER NO CERTIFICATE', 'LANGUAGE COURSE'])
+  const [groupOptions, setGroupOptions] = useState<string[]>([])
+
+  const certOptions = ['NO CERTIFICATE', 'EXPECTED', 'TOPIK', 'SKA', 'IELTS', 'TOEFL', 'SAT', 'CEFR']
+  
+  const pickNeededList = [
+    "APOSTILLE", "BIRTH CERTIFICATE", "MARRIAGE CERTIFICATE", "AJRASHGANLIK",
+    "Foreign passport", "Student ID", "Mother passport", "MOTHER DEATH",
+    "Father passport", "FATHER DEATH", "IELTS", "TOEFL", "SKA", "TOPIK",
+    "SAT", "CEFR", "3.5x4.5", "2 ta nomer", "Email", "Manzil", "Edu-Level", "FULL OK"
   ]
 
-  const visaStudentDocs = [
-    "Zagran pasport aslini va rangli nusxasi (2 ta)",
-    "Biometrik pasport yoki ID kartaning nusxasi (oldi va orqa tomoni)",
-    "Admission (Taklifnoma — Universitet tomonidan beriladi)",
-    "Business Registration (Universitet litsenziyasi — Universitet beradi)",
-    "Eng oxirgi o'qish joyidan olingan bitiruv hujjati (Diplom yoki Shahodatnoma apostil bilan, QR-kod, imzo va muhr bo'lishi shart)",
-    "Talaba nomidagi 1 oylik KDB bank hisobi ma'lumotnomasi ($12,500 - $15,500 oralig'ida, shahar va universitet talabidan kelib chiqib)",
-    "Til bilish sertifikati (TOPIK 3, SKA 321 ball, Sejong 1-darajadan yuqori yoki IELTS 5.5 dan yuqori)",
-    "Tug'ilganlik haqida guvohnoma (Metrka) — rasmiy tarjimasi bilan",
-    "Ota-onasining nikoh guvohnomasi (ZAGS) — rasmiy tarjimasi bilan",
-    "Nikohda turganligi yoki turmaganligi haqidagi ma'lumotnoma (rasmiy tarjimasi bilan)",
-    "3.5 x 4.5 o'lchamdagi rasm (orqasi oq fonda, 2 ta)",
-    "Study Plan (Koreys yoki ingliz tilida talaba tomonidan qo'lda yoziladi)"
-  ]
+  // Fetch Students & Options
+  const fetchStudents = async () => {
+    try {
+      setLoading(true)
+      setError(null)
+      const { data, error: fetchError } = await supabase
+        .from('students')
+        .select('*')
+        .order('created_at', { ascending: false })
 
-  const visaParentDocs = [
-    "Ota-onaning biometrik pasporti yoki ID nusxasi (oldi va orqa tomoni)",
-    "Mehnat daftarchasidan ko'chirma (My.gov.uz dan yuklab olinadi) — rasmiy tarjimasi bilan",
-    "Yillik daromad haqida ma'lumotnoma (oxirgi 1 yillik, My.gov.uz dan) — rasmiy tarjimasi bilan",
-    "Ota-ona nomida yer yoki ko'chmas mulk bo'lsa, davreestr.uz portalidan kadastr ko'chirmasi — rasmiy tarjimasi bilan (agar mavjud bo'lsa)",
-    "Shaxsiy avtotransport vositasi bo'lsa, texpasport nusxasi — rasmiy tarjimasi bilan (agar mavjud bo'lsa)",
-    "QR-kodli ota-ona nomidagi 1 kunlik bank balansidan ko'chirma"
-  ]
+      if (fetchError) throw fetchError
+      setStudents(data || [])
+    } catch (err: any) {
+      console.error('Error fetching students:', err)
+      setError(err.message || 'Failed to load students.')
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const fetchFilterOptions = async () => {
+    try {
+      const [tariffsRes, levelsRes, groupsRes] = await Promise.all([
+        supabase.from('tariff_options').select('name'),
+        supabase.from('education_levels').select('name'),
+        supabase.from('student_groups').select('name')
+      ])
+
+      if (tariffsRes.data && tariffsRes.data.length > 0) setTariffOptions((tariffsRes.data as any[]).map(t => t.name))
+      if (levelsRes.data && levelsRes.data.length > 0) setLevelOptions((levelsRes.data as any[]).map(l => l.name))
+      if (groupsRes.data && groupsRes.data.length > 0) setGroupOptions((groupsRes.data as any[]).map(g => g.name))
+    } catch (err) {
+      console.error('Error fetching filter options:', err)
+    }
+  }
+
+  useEffect(() => {
+    fetchStudents()
+    fetchFilterOptions()
+  }, [])
+
+  // Auto-update modal student reference if background students array updates
+  useEffect(() => {
+    if (selectedStudent) {
+      const updated = students.find(s => s.id === selectedStudent.id)
+      if (updated) setSelectedStudent(updated)
+    }
+  }, [students])
+
+  // Reset filter dropdown toggles on click outside
+  const closeAllDropdowns = () => {
+    setIsTariffDropdownOpen(false)
+    setIsLevelDropdownOpen(false)
+    setIsGroupDropdownOpen(false)
+    setIsCertDropdownOpen(false)
+    setIsMissingDropdownOpen(false)
+  }
+
+  // Document Helpers
+  const getEffectiveMissingDocs = (s: Student): string[] => {
+    if (!s) return []
+    const manualMissing = s.pick_needed || []
+    if (manualMissing.includes("FULL OK")) return ["FULL OK"]
+    
+    const effectiveList = [...manualMissing]
+    
+    const addIfMissing = (condition: boolean, docName: string) => {
+      if (condition && !effectiveList.includes(docName)) {
+        effectiveList.push(docName)
+      }
+    }
+    
+    const phone1Empty = !s.phone1 || s.phone1 === "-" || s.phone1.trim() === ""
+    const phone2Empty = !s.phone2 || s.phone2 === "-" || s.phone2.trim() === ""
+    addIfMissing(phone1Empty && phone2Empty, "2 ta nomer")
+    
+    addIfMissing(!s.email || s.email === "-" || s.email.trim() === "", "Email")
+    addIfMissing(!s.passport || s.passport === "-" || s.passport.trim() === "", "Foreign passport")
+    addIfMissing(!s.address || s.address === "-" || s.address.trim() === "", "Manzil")
+    
+    const level1Empty = !s.level || (s.level as string) === "-" || (s.level as string).trim() === ""
+    const level2Empty = !s.level2 || (s.level2 as string) === "-" || (s.level2 as string).trim() === ""
+    addIfMissing(level1Empty && level2Empty, "Edu-Level")
+    
+    return effectiveList
+  }
+
+  const getDocColor = (docName: string) => {
+    if (docName === "FULL OK") {
+      return { bg: 'rgba(16, 185, 129, 0.15)', text: '#10b981', border: 'rgba(16, 185, 129, 0.25)' }
+    }
+    // High contrast color mappings matching screenshot
+    const mappings: Record<string, { bg: string; text: string; border: string }> = {
+      "APOS": { bg: 'rgba(99, 102, 241, 0.15)', text: '#6366f1', border: 'rgba(99, 102, 241, 0.25)' },
+      "BC": { bg: 'rgba(20, 184, 166, 0.15)', text: '#14b8a6', border: 'rgba(20, 184, 166, 0.25)' },
+      "MC": { bg: 'rgba(59, 130, 246, 0.15)', text: '#3b82f6', border: 'rgba(59, 130, 246, 0.25)' },
+      "AJRASHGANLIK": { bg: 'rgba(236, 72, 153, 0.15)', text: '#ec4899', border: 'rgba(236, 72, 153, 0.25)' },
+      "Foreign passport": { bg: 'rgba(245, 158, 11, 0.15)', text: '#f59e0b', border: 'rgba(245, 158, 11, 0.25)' }
+    }
+    return mappings[docName] || { bg: 'rgba(100, 116, 139, 0.15)', text: '#64748b', border: 'rgba(100, 116, 139, 0.25)' }
+  }
+
+  const getDocRemainingCount = (s: Student, docName: string): number => {
+    const missingList = getEffectiveMissingDocs(s)
+    const isFullOk = missingList.includes("FULL OK")
+    const isMissing = !isFullOk && missingList.includes(docName)
+    
+    if (isMissing) return 0
+    
+    let key: keyof Student
+    if (docName === "BIRTH CERTIFICATE") key = "bc_hand_count"
+    else if (docName === "MARRIAGE CERTIFICATE") key = "mc_hand_count"
+    else if (docName === "APOSTILLE") key = "apos_hand_count"
+    else if (docName === "3.5x4.5") key = "pic_hand_count"
+    else return 0
+    
+    if (s[key] !== undefined && s[key] !== null) {
+      return Number(s[key])
+    }
+    
+    let used = 0
+    if (s.university_1 && s.university_1.trim() !== "") used++
+    if (s.university_2 && s.university_2.trim() !== "") used++
+    if (s.university_3 && s.university_3.trim() !== "") used++
+    return Math.max(0, 3 - used)
+  }
+
+  // Sorting
+  const compareStudentNames = (a: Student, b: Student, order: 'asc' | 'desc' = 'asc') => {
+    const nameA = a.full_name || ""
+    const nameB = b.full_name || ""
+    return order === 'asc' ? nameA.localeCompare(nameB) : nameB.localeCompare(nameA)
+  }
+
+  // Filters Reset & Toggles
+  const handleToggleTariff = (opt: string) => {
+    setSelectedTariffs(prev => prev.includes(opt) ? prev.filter(x => x !== opt) : [...prev, opt])
+  }
+  const handleToggleAllTariffs = () => {
+    setSelectedTariffs(prev => prev.length === tariffOptions.length ? [] : [...tariffOptions])
+  }
+
+  const handleToggleLevel = (opt: string) => {
+    setSelectedLevels(prev => prev.includes(opt) ? prev.filter(x => x !== opt) : [...prev, opt])
+  }
+  const handleToggleAllLevels = () => {
+    setSelectedLevels(prev => prev.length === (levelOptions.length + 2) ? [] : ['NO_LEVEL', 'DELETED', ...levelOptions])
+  }
+
+  const handleToggleGroup = (opt: string) => {
+    setSelectedGroups(prev => prev.includes(opt) ? prev.filter(x => x !== opt) : [...prev, opt])
+  }
+  const handleToggleAllGroups = () => {
+    const activeGroups = groupOptions.length > 0 ? groupOptions : Array.from(new Set(students.map(s => s.student_group).filter(Boolean))) as string[]
+    setSelectedGroups(prev => prev.length === (activeGroups.length + 1) ? [] : ['NO_GROUP', ...activeGroups])
+  }
+
+  const handleToggleCert = (opt: string) => {
+    setSelectedCerts(prev => prev.includes(opt) ? prev.filter(x => x !== opt) : [...prev, opt])
+  }
+  const handleToggleAllCerts = () => {
+    setSelectedCerts(prev => prev.length === certOptions.length ? [] : [...certOptions])
+  }
+
+  const handleToggleMissingDocs = (opt: string) => {
+    setSelectedMissingDocs(prev => prev.includes(opt) ? prev.filter(x => x !== opt) : [...prev, opt])
+  }
+  const handleToggleAllMissingDocs = () => {
+    setSelectedMissingDocs(prev => prev.length === pickNeededList.length ? [] : [...pickNeededList])
+  }
+
+  // In-Modal Actions
+  const handleTogglePickNeeded = async (studentId: string, pill: string) => {
+    const student = students.find(s => s.id === studentId)
+    if (!student) return
+    
+    let updatedPick: string[] = student.pick_needed ? [...student.pick_needed] : []
+    let showMessage: string | null = null
+
+    if (pill === "FULL OK") {
+      if (updatedPick.includes("FULL OK")) {
+        updatedPick = []
+      } else {
+        updatedPick = ["FULL OK"]
+      }
+    } else {
+      updatedPick = updatedPick.filter(p => p !== "FULL OK")
+      if (updatedPick.includes(pill)) {
+        updatedPick = updatedPick.filter(p => p !== pill)
+        // Set triggers for custom alerts
+        if (pill === "Foreign passport") {
+          showMessage = "Talabani zagranini oldingizmi? uni kirgizing, ismini tekshirib yozib qo'ying!"
+        } else if (pill === "2 ta nomer") {
+          showMessage = "Talabaning nomerini to'g'ri yozing! Bazaga kiritish esdan chiqmasin!"
+        } else if (pill === "Email") {
+          showMessage = "Email ni tekshirib oling, Bazaga kiritish esdan chiqmasin! Iltimos"
+        } else if (pill === "Manzil") {
+          showMessage = "Manzil ingliz tilida yozing iltimos. Bazaga kiritish esdan chiqmasin"
+        } else if (["IELTS", "TOEFL", "SKA", "TOPIK", "SAT", "CEFR"].includes(pill)) {
+          showMessage = "Til sertifikati va darajasini talabani bazasiga yozib qo'ying!"
+        }
+      } else {
+        updatedPick.push(pill)
+      }
+    }
+
+    setModalUpdating(true)
+    try {
+      const { error: updateErr } = await (supabase
+        .from('students') as any)
+        .update({ pick_needed: updatedPick })
+        .eq('id', studentId)
+
+      if (updateErr) throw updateErr
+      
+      // Update local state immediately
+      setStudents(prev => prev.map(s => s.id === studentId ? { ...s, pick_needed: updatedPick } : s))
+      if (showMessage) {
+        alert(showMessage)
+      }
+    } catch (err: any) {
+      console.error('Error updating pick needed:', err)
+      alert(err.message || 'Failed to update missing documents list.')
+    } finally {
+      setModalUpdating(false)
+    }
+  }
+
+  const handleToggleMcEnabled = async (studentId: string) => {
+    const student = students.find(s => s.id === studentId)
+    if (!student) return
+    const newMc = !student.has_mc
+    
+    setModalUpdating(true)
+    try {
+      const { error: updateErr } = await (supabase
+        .from('students') as any)
+        .update({ has_mc: newMc })
+        .eq('id', studentId)
+
+      if (updateErr) throw updateErr
+      setStudents(prev => prev.map(s => s.id === studentId ? { ...s, has_mc: newMc } : s))
+    } catch (err: any) {
+      console.error('Error toggling has_mc:', err)
+      alert(err.message || 'Failed to update MC requirement.')
+    } finally {
+      setModalUpdating(false)
+    }
+  }
+
+  const handleUpdateCopyCount = async (studentId: string, field: 'bc_hand_count' | 'mc_hand_count' | 'apos_hand_count' | 'pic_hand_count', value: number) => {
+    if (value < 0) return
+    setModalUpdating(true)
+    try {
+      const { error: updateErr } = await (supabase
+        .from('students') as any)
+        .update({ [field]: value })
+        .eq('id', studentId)
+
+      if (updateErr) throw updateErr
+      setStudents(prev => prev.map(s => s.id === studentId ? { ...s, [field]: value } : s))
+    } catch (err: any) {
+      console.error('Error updating hand count:', err)
+      alert(err.message || 'Failed to update document hand count.')
+    } finally {
+      setModalUpdating(false)
+    }
+  }
+
+  // Filter core student list
+  const filteredStudents = students.filter(student => {
+    // 1. Deleted Students
+    const showDeleted = selectedLevels.includes('DELETED')
+    if (showDeleted) {
+      if (student.is_deleted !== true) return false
+    } else {
+      if (student.is_deleted === true) return false
+    }
+
+    // 2. Tariff Filter
+    if (selectedTariffs.length > 0) {
+      const matchesTariff = selectedTariffs.includes(student.tariff || 'NO_TARIFF') || 
+                            (selectedTariffs.includes('NO_TARIFF') && !student.tariff)
+      if (!matchesTariff) return false
+    }
+
+    // 3. Level Filter
+    const activeLevels = selectedLevels.filter(l => l !== 'DELETED')
+    if (activeLevels.length > 0) {
+      const matchesLevel = activeLevels.includes(student.level || '') || 
+                           activeLevels.includes(student.level2 || '') || 
+                           (activeLevels.includes('NO_LEVEL') && !student.level && !student.level2)
+      if (!matchesLevel) return false
+    }
+
+    // 4. Group Filter
+    if (selectedGroups.length > 0) {
+      const matchesGroup = selectedGroups.includes(student.student_group || '') || 
+                           (selectedGroups.includes('NO_GROUP') && !student.student_group)
+      if (!matchesGroup) return false
+    }
+
+    // 5. Certificate Filter
+    if (selectedCerts.length > 0) {
+      let matchesCert = false
+      if (selectedCerts.includes('NO CERTIFICATE') && (!student.language_certificate || student.language_certificate === 'NO CERTIFICATE')) {
+        matchesCert = true
+      }
+      if (selectedCerts.includes('EXPECTED') && (student.certificate_score?.toUpperCase() === 'EXPECTED' || student.certificate_score_2?.toUpperCase() === 'EXPECTED' || student.certificate_score_3?.toUpperCase() === 'EXPECTED')) {
+        matchesCert = true
+      }
+      const certMatches = [student.language_certificate, student.language_certificate_2, student.language_certificate_3]
+        .some(c => c && c !== 'NO CERTIFICATE' && selectedCerts.includes(c))
+      if (certMatches) matchesCert = true
+      
+      if (!matchesCert) return false
+    }
+
+    // 6. Missing Docs Filter (OR matching)
+    if (selectedMissingDocs.length > 0) {
+      const missingList = getEffectiveMissingDocs(student)
+      const matchesMissing = selectedMissingDocs.some(d => missingList.includes(d))
+      if (!matchesMissing) return false
+    }
+
+    return true
+  })
+
+  const sortedStudents = [...filteredStudents].sort((a, b) => compareStudentNames(a, b, sortOrder))
+
+  // Render Pill badges
+  const renderMissingPills = (s: Student) => {
+    const missingDocs = getEffectiveMissingDocs(s)
+    if (missingDocs.includes("FULL OK")) {
+      return (
+        <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-extrabold uppercase bg-emerald-500/10 text-emerald-600 dark:bg-emerald-950/20 dark:text-emerald-400 border border-emerald-500/20">
+          <CheckCircle2 className="h-3 w-3" /> FULL OK
+        </span>
+      )
+    }
+    
+    const items = missingDocs.filter(d => d !== "FULL OK" && !(d === "MARRIAGE CERTIFICATE" && s.has_mc === false))
+    if (items.length === 0) {
+      return <span className="text-xs text-[var(--foreground-muted)] italic font-medium">No missing documents</span>
+    }
+
+    return (
+      <div className="flex flex-wrap gap-1.5 items-center">
+        {items.map(d => {
+          let label = d
+          if (d === "BIRTH CERTIFICATE") label = "BC"
+          else if (d === "MARRIAGE CERTIFICATE") label = "MC"
+          else if (d === "APOSTILLE") label = "APOS"
+          else if (d === "3.5x4.5") label = "PIC"
+
+          const colors = getDocColor(label)
+          return (
+            <span 
+              key={d} 
+              className="inline-flex px-2 py-0.5 rounded-full text-[9px] font-extrabold tracking-wide uppercase shadow-sm"
+              style={{ backgroundColor: colors.bg, color: colors.text, border: `1.5px solid ${colors.border}` }}
+            >
+              {label}
+            </span>
+          )
+        })}
+      </div>
+    )
+  }
+
+  // Render Pill badges
+  const renderMissingPills = (s: Student) => {
+    const missingDocs = getEffectiveMissingDocs(s)
+    if (missingDocs.includes("FULL OK")) {
+      return (
+        <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[10px] font-extrabold uppercase bg-emerald-500 text-white shadow-sm border-none">
+          ✔ FULL OK
+        </span>
+      )
+    }
+    
+    const items = missingDocs.filter(d => d !== "FULL OK" && !(d === "MARRIAGE CERTIFICATE" && s.has_mc === false))
+    if (items.length === 0) {
+      return <span className="text-xs text-[var(--foreground-muted)] italic font-medium">No missing documents</span>
+    }
+
+    return (
+      <div className="flex flex-wrap gap-1.5 items-center">
+        {items.map(d => {
+          let label = d
+          if (d === "BIRTH CERTIFICATE") label = "BC"
+          else if (d === "MARRIAGE CERTIFICATE") label = "MC"
+          else if (d === "APOSTILLE") label = "APOS"
+          else if (d === "3.5x4.5") label = "PIC"
+
+          const colors = getDocColor(label)
+          return (
+            <span 
+              key={d} 
+              className="inline-flex px-2 py-0.5 rounded-full text-[9px] font-extrabold tracking-wide uppercase shadow-sm text-white border-none"
+              style={{ backgroundColor: colors.text }}
+            >
+              {label}
+            </span>
+          )
+        })}
+      </div>
+    )
+  }
+
+  // Render cell counter statuses
+  const renderDocCell = (s: Student, docName: string) => {
+    if (docName === "MARRIAGE CERTIFICATE" && s.has_mc === false) {
+      return (
+        <span className="h-6 w-6 rounded-full flex items-center justify-center font-extrabold text-[9px] bg-[var(--border-subtle)] text-[var(--foreground-muted)] border border-[var(--border)] shadow-sm">
+          N/A
+        </span>
+      )
+    }
+
+    const missingList = getEffectiveMissingDocs(s)
+    const isFullOk = missingList.includes("FULL OK")
+    const isMissing = !isFullOk && missingList.includes(docName)
+
+    if (isMissing) {
+      return (
+        <span className="h-6 w-6 rounded-full flex items-center justify-center font-bold text-xs bg-rose-500 text-white shadow-sm border border-rose-600/10">
+          0
+        </span>
+      )
+    }
+
+    const remaining = getDocRemainingCount(s, docName)
+    if (remaining === 0) {
+      return (
+        <span className="h-6 w-6 rounded-full flex items-center justify-center font-bold text-xs bg-amber-500 text-white shadow-sm border border-amber-600/10">
+          0
+        </span>
+      )
+    }
+
+    return (
+      <span className="h-6 w-6 rounded-full flex items-center justify-center font-bold text-xs bg-emerald-500 text-white shadow-sm border border-emerald-600/10">
+        {remaining}
+      </span>
+    )
+  }
+
+  // Render Student Ghost Metadata
+  const getGhostText = (s: Student) => {
+    const parts = []
+    if (s.id) parts.push(s.id)
+    if (s.tariff) parts.push(s.tariff)
+    if (s.level) parts.push(s.level)
+    if (s.level2) parts.push(s.level2)
+    return parts.join(" | ")
+  }
+
+  // Format currency
+  const formatCurrency = (val: number) => {
+    return new Intl.NumberFormat('uz-UZ').format(val) + ' UZS'
+  }
 
   return (
-    <div className="flex flex-col gap-6 animate-in fade-in duration-300">
-      {/* Embassy Documents Warning Card */}
-      <div 
-        className="rounded-[var(--radius-lg)] border border-rose-500/25 bg-rose-500/5 p-4 shadow-[var(--shadow-sm)] flex items-start gap-3.5 relative overflow-hidden"
-        style={{ backdropFilter: 'blur(8px)' }}
-      >
-        <div className="absolute top-0 left-0 bottom-0 w-1.5 bg-rose-500" />
-        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-[var(--radius-md)] bg-rose-500/10 text-rose-600 dark:text-rose-400">
-          <ShieldAlert className="h-5 w-5 animate-pulse" />
-        </div>
-        <div className="flex-1">
-          <h4 className="text-sm font-bold text-rose-700 dark:text-rose-400 uppercase tracking-wide">Muhim Ogohlantirish</h4>
-          <p className="mt-1 text-sm font-semibold text-rose-900 dark:text-rose-200/90 leading-relaxed">
-            Elchixonaga taqdim etiladigan hujjatlar my.gov.uz portalidan olinganiga <span className="underline decoration-2 font-extrabold text-rose-600 dark:text-rose-400">1 oydan oshmagan</span> bo'lishi lozim!
-          </p>
-        </div>
-      </div>
+    <div className="flex flex-col gap-6 relative">
+      {/* Dropdowns Click-Outside Backdrop */}
+      {(isTariffDropdownOpen || isLevelDropdownOpen || isGroupDropdownOpen || isCertDropdownOpen || isMissingDropdownOpen) && (
+        <div className="fixed inset-0 z-30 bg-transparent cursor-default" onClick={closeAllDropdowns} />
+      )}
 
-      {/* Tabs Controller */}
-      <div className="flex justify-center">
-        <div className="inline-flex rounded-xl p-1 bg-[var(--surface-elevated)] border border-[var(--border)] relative shadow-sm select-none">
-          <button
-            type="button"
-            onClick={() => setActiveTab('university')}
-            className={`relative z-10 px-5 py-2.5 rounded-lg text-xs font-bold uppercase tracking-wider cursor-pointer flex items-center gap-2 transition-all ${
-              activeTab === 'university' 
-                ? 'text-[var(--accent-foreground)]' 
-                : 'text-[var(--foreground-muted)] hover:text-[var(--foreground)]'
-            }`}
-          >
-            {activeTab === 'university' && (
-              <motion.div 
-                layoutId="activeTabIndicator" 
-                className="absolute inset-0 bg-[var(--accent)] rounded-lg -z-10 shadow-sm"
-                transition={{ type: 'spring', stiffness: 380, damping: 30 }}
-              />
-            )}
-            <GraduationCap className="h-4.5 w-4.5" />
-            Universitetga Topshirish
-          </button>
-          <button
-            type="button"
-            onClick={() => setActiveTab('visa')}
-            className={`relative z-10 px-5 py-2.5 rounded-lg text-xs font-bold uppercase tracking-wider cursor-pointer flex items-center gap-2 transition-all ${
-              activeTab === 'visa' 
-                ? 'text-[var(--accent-foreground)]' 
-                : 'text-[var(--foreground-muted)] hover:text-[var(--foreground)]'
-            }`}
-          >
-            {activeTab === 'visa' && (
-              <motion.div 
-                layoutId="activeTabIndicator" 
-                className="absolute inset-0 bg-[var(--accent)] rounded-lg -z-10 shadow-sm"
-                transition={{ type: 'spring', stiffness: 380, damping: 30 }}
-              />
-            )}
-            <FileCheck className="h-4.5 w-4.5" />
-            D-2 Viza Hujjatlari
-          </button>
-        </div>
-      </div>
-
-      {/* Tab Panels */}
-      <AnimatePresence mode="wait">
-        {activeTab === 'university' ? (
-          <motion.div
-            key="university-tab"
-            initial={{ opacity: 0, y: 15 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -15 }}
-            transition={{ duration: 0.2 }}
-            className="grid grid-cols-1 md:grid-cols-3 gap-6"
-          >
-            {/* Scanned copies checklist */}
-            <div className="md:col-span-2 rounded-[var(--radius-lg)] border border-[var(--border)] bg-[var(--surface)] p-5 shadow-[var(--shadow-sm)] flex flex-col gap-4">
-              <div className="pb-3 border-b border-[var(--border)] flex items-center gap-2.5">
-                <div className="h-9 w-9 rounded-lg bg-[var(--accent-subtle)] flex items-center justify-center text-[var(--accent)]">
-                  <CheckSquare className="h-5 w-5" />
+      {/* Roster Filters Menu Card */}
+      <div className="rounded-[var(--radius-lg)] border border-[var(--border)] bg-[var(--surface)] p-4 shadow-[var(--shadow-sm)] flex flex-wrap gap-3 items-center justify-between z-40">
+        <div className="grid grid-cols-2 md:grid-cols-5 gap-3 w-full">
+          {/* Tariffs Filter */}
+          <div className="relative">
+            <button
+              type="button"
+              onClick={() => { closeAllDropdowns(); setIsTariffDropdownOpen(prev => !prev) }}
+              className="w-full pl-9 pr-7 py-2 border border-[var(--border)] rounded-[var(--radius-md)] bg-[var(--surface-elevated)] text-[var(--foreground)] focus:outline-none hover:border-blue-400 transition-all text-xs font-semibold cursor-pointer flex items-center justify-between text-left h-[34px] relative"
+            >
+              <Tag className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[var(--foreground-muted)]" />
+              <span className="truncate pr-1">
+                {selectedTariffs.length === 0 ? 'All Tariffs' : selectedTariffs.length + ' Selected'}
+              </span>
+              <ChevronDown className="absolute right-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-[var(--foreground-subtle)]" />
+            </button>
+            {isTariffDropdownOpen && (
+              <div className="absolute left-0 mt-1 w-56 rounded-[var(--radius-md)] border border-[var(--border)] bg-[var(--surface-elevated)] shadow-lg py-1.5 z-50 max-h-72 overflow-y-auto">
+                <div 
+                  className="px-3 py-1.5 flex items-center gap-2 cursor-pointer hover:bg-[var(--border-subtle)] transition-colors select-none text-[11px] font-bold text-[var(--foreground)]" 
+                  onClick={handleToggleAllTariffs}
+                >
+                  <input type="checkbox" checked={selectedTariffs.length === tariffOptions.length} readOnly className="h-3.5 w-3.5 rounded border-[var(--border)] text-blue-600 focus:ring-blue-500 cursor-pointer" />
+                  <span>Select All</span>
                 </div>
-                <div>
-                  <h3 className="text-sm font-bold uppercase tracking-wider text-[var(--foreground)]">Skaner Varianti Yetarli Hujjatlar</h3>
-                  <p className="text-xs text-[var(--foreground-muted)]">Ofisga skaner variantini yuborish yoki aslini olib kelish kifoya</p>
-                </div>
-              </div>
-
-              <div className="flex flex-col gap-3">
-                {universityDocsScan.map((doc, idx) => (
-                  <div key={idx} className="flex items-start gap-3 p-3 rounded-lg border border-[var(--border-subtle)] bg-[var(--background)] hover:border-[var(--accent)]/30 hover:bg-[var(--surface-elevated)] transition-all">
-                    <CheckCircle2 className="h-4.5 w-4.5 text-[var(--accent)] shrink-0 mt-0.5" />
-                    <span className="text-xs font-semibold text-[var(--foreground)] tracking-wide">{doc}</span>
+                <div className="h-px bg-[var(--border)] my-1" />
+                {tariffOptions.map(opt => (
+                  <div key={opt} onClick={() => handleToggleTariff(opt)} className="px-3 py-1.5 flex items-center gap-2 cursor-pointer hover:bg-[var(--border-subtle)] transition-colors select-none text-[11px] font-medium text-[var(--foreground)]">
+                    <input type="checkbox" checked={selectedTariffs.includes(opt)} readOnly className="h-3.5 w-3.5 rounded border-[var(--border)] text-blue-600 focus:ring-blue-500 cursor-pointer" />
+                    <span>{opt}</span>
                   </div>
                 ))}
               </div>
-            </div>
+            )}
+          </div>
 
-            {/* Originals checklist and warning cards */}
-            <div className="flex flex-col gap-6">
-              {/* Originals Card */}
-              <div className="rounded-[var(--radius-lg)] border border-[var(--border)] bg-[var(--surface)] p-5 shadow-[var(--shadow-sm)] flex flex-col gap-4">
-                <div className="pb-3 border-b border-[var(--border)] flex items-center gap-2.5">
-                  <div className="h-9 w-9 rounded-lg bg-emerald-500/10 flex items-center justify-center text-emerald-600 dark:text-emerald-400">
-                    <FileText className="h-5 w-5" />
-                  </div>
-                  <div>
-                    <h3 className="text-sm font-bold uppercase tracking-wider text-[var(--foreground)]">Aslini Olib Kelish Shart</h3>
-                    <p className="text-xs text-[var(--foreground-muted)]">Asl nusxada taqdim etiladigan hujjatlar</p>
-                  </div>
+          {/* Levels Filter */}
+          <div className="relative">
+            <button
+              type="button"
+              onClick={() => { closeAllDropdowns(); setIsLevelDropdownOpen(prev => !prev) }}
+              className="w-full pl-9 pr-7 py-2 border border-[var(--border)] rounded-[var(--radius-md)] bg-[var(--surface-elevated)] text-[var(--foreground)] focus:outline-none hover:border-blue-400 transition-all text-xs font-semibold cursor-pointer flex items-center justify-between text-left h-[34px] relative"
+            >
+              <Layers className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[var(--foreground-muted)]" />
+              <span className="truncate pr-1">
+                {selectedLevels.length === 0 ? 'All Levels' : selectedLevels.length + ' Selected'}
+              </span>
+              <ChevronDown className="absolute right-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-[var(--foreground-subtle)]" />
+            </button>
+            {isLevelDropdownOpen && (
+              <div className="absolute left-0 mt-1 w-56 rounded-[var(--radius-md)] border border-[var(--border)] bg-[var(--surface-elevated)] shadow-lg py-1.5 z-50 max-h-72 overflow-y-auto">
+                <div 
+                  className="px-3 py-1.5 flex items-center gap-2 cursor-pointer hover:bg-[var(--border-subtle)] transition-colors select-none text-[11px] font-bold text-[var(--foreground)]" 
+                  onClick={handleToggleAllLevels}
+                >
+                  <input type="checkbox" checked={selectedLevels.length === (levelOptions.length + 2)} readOnly className="h-3.5 w-3.5 rounded border-[var(--border)] text-blue-600 focus:ring-blue-500 cursor-pointer" />
+                  <span>Select All</span>
                 </div>
-
-                <div className="p-3.5 rounded-lg border border-emerald-500/20 bg-emerald-500/5 flex items-start gap-3">
-                  <CheckCircle2 className="h-5 w-5 text-emerald-600 dark:text-emerald-400 shrink-0 mt-0.5" />
-                  <div>
-                    <span className="text-xs font-bold text-[var(--foreground)] tracking-wide">Diplom, Shahodatnoma yoki Attestat</span>
-                    <p className="text-[10px] text-[var(--foreground-muted)] mt-1 font-semibold">Baholar varaqasi (ilova) bilan birga taqdim etiladi.</p>
+                <div className="h-px bg-[var(--border)] my-1" />
+                <div onClick={() => handleToggleLevel('NO_LEVEL')} className="px-3 py-1.5 flex items-center gap-2 cursor-pointer hover:bg-[var(--border-subtle)] transition-colors select-none text-[11px] font-medium text-[var(--foreground)]">
+                  <input type="checkbox" checked={selectedLevels.includes('NO_LEVEL')} readOnly className="h-3.5 w-3.5 rounded border-[var(--border)] text-blue-600 focus:ring-blue-500 cursor-pointer" />
+                  <span>No Level</span>
+                </div>
+                {levelOptions.map(opt => (
+                  <div key={opt} onClick={() => handleToggleLevel(opt)} className="px-3 py-1.5 flex items-center gap-2 cursor-pointer hover:bg-[var(--border-subtle)] transition-colors select-none text-[11px] font-medium text-[var(--foreground)]">
+                    <input type="checkbox" checked={selectedLevels.includes(opt)} readOnly className="h-3.5 w-3.5 rounded border-[var(--border)] text-blue-600 focus:ring-blue-500 cursor-pointer" />
+                    <span>{opt}</span>
                   </div>
+                ))}
+                <div className="h-px bg-[var(--border)] my-1" />
+                <div onClick={() => handleToggleLevel('DELETED')} className="px-3 py-1.5 flex items-center gap-2 cursor-pointer hover:bg-rose-500/10 dark:hover:bg-rose-950/20 transition-colors select-none text-[11px] font-bold text-rose-600 dark:text-rose-400">
+                  <input type="checkbox" checked={selectedLevels.includes('DELETED')} readOnly className="h-3.5 w-3.5 rounded border-rose-300 dark:border-rose-900 text-rose-600 focus:ring-rose-500 cursor-pointer" />
+                  <span>Deleted students</span>
                 </div>
               </div>
+            )}
+          </div>
 
-              {/* Quality note card */}
-              <div className="rounded-[var(--radius-lg)] border border-amber-500/25 bg-amber-500/5 p-5 shadow-[var(--shadow-sm)] flex flex-col gap-3">
-                <div className="flex items-center gap-2 text-amber-600 dark:text-amber-400">
-                  <ShieldAlert className="h-5 w-5 animate-bounce-slow" />
-                  <h4 className="text-xs font-bold uppercase tracking-wider">Hujjatlar Sifati</h4>
+          {/* Groups Filter */}
+          <div className="relative">
+            <button
+              type="button"
+              onClick={() => { closeAllDropdowns(); setIsGroupDropdownOpen(prev => !prev) }}
+              className="w-full pl-9 pr-7 py-2 border border-[var(--border)] rounded-[var(--radius-md)] bg-[var(--surface-elevated)] text-[var(--foreground)] focus:outline-none hover:border-blue-400 transition-all text-xs font-semibold cursor-pointer flex items-center justify-between text-left h-[34px] relative"
+            >
+              <Users className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[var(--foreground-muted)]" />
+              <span className="truncate pr-1">
+                {selectedGroups.length === 0 ? 'All Groups' : selectedGroups.length + ' Selected'}
+              </span>
+              <ChevronDown className="absolute right-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-[var(--foreground-subtle)]" />
+            </button>
+            {isGroupDropdownOpen && (
+              <div className="absolute left-0 mt-1 w-56 rounded-[var(--radius-md)] border border-[var(--border)] bg-[var(--surface-elevated)] shadow-lg py-1.5 z-50 max-h-72 overflow-y-auto">
+                <div 
+                  className="px-3 py-1.5 flex items-center gap-2 cursor-pointer hover:bg-[var(--border-subtle)] transition-colors select-none text-[11px] font-bold text-[var(--foreground)]" 
+                  onClick={handleToggleAllGroups}
+                >
+                  <input type="checkbox" checked={selectedGroups.length === (groupOptions.length + 1)} readOnly className="h-3.5 w-3.5 rounded border-[var(--border)] text-blue-600 focus:ring-blue-500 cursor-pointer" />
+                  <span>Select All</span>
                 </div>
-                <p className="text-xs font-semibold text-[var(--foreground)] leading-relaxed">
-                  DIQQAT! Shikastlangan, yirtilgan yoki yozuvi ko'rinmaydigan hujjatlar yangi qilib berilishi shart!
-                </p>
-              </div>
-            </div>
-          </motion.div>
-        ) : (
-          <motion.div
-            key="visa-tab"
-            initial={{ opacity: 0, y: 15 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -15 }}
-            transition={{ duration: 0.2 }}
-            className="grid grid-cols-1 lg:grid-cols-2 gap-6"
-          >
-            {/* Student Documents Card */}
-            <div className="rounded-[var(--radius-lg)] border border-[var(--border)] bg-[var(--surface)] p-5 shadow-[var(--shadow-sm)] flex flex-col gap-4">
-              <div className="pb-3 border-b border-[var(--border)] flex items-center gap-2.5">
-                <div className="h-9 w-9 rounded-lg bg-[var(--accent-subtle)] flex items-center justify-center text-[var(--accent)]">
-                  <User className="h-5 w-5" />
+                <div className="h-px bg-[var(--border)] my-1" />
+                <div onClick={() => handleToggleGroup('NO_GROUP')} className="px-3 py-1.5 flex items-center gap-2 cursor-pointer hover:bg-[var(--border-subtle)] transition-colors select-none text-[11px] font-medium text-[var(--foreground)]">
+                  <input type="checkbox" checked={selectedGroups.includes('NO_GROUP')} readOnly className="h-3.5 w-3.5 rounded border-[var(--border)] text-blue-600 focus:ring-blue-500 cursor-pointer" />
+                  <span>No Group</span>
                 </div>
-                <div>
-                  <h3 className="text-sm font-bold uppercase tracking-wider text-[var(--foreground)]">Talaba Hujjatlari</h3>
-                  <p className="text-xs text-[var(--foreground-muted)]">Viza arizachisi tomonidan tayyorlanadigan hujjatlar</p>
-                </div>
-              </div>
-
-              <div className="flex flex-col gap-2.5 max-h-[640px] overflow-y-auto pr-1">
-                {visaStudentDocs.map((doc, idx) => (
-                  <div key={idx} className="flex items-start gap-3 p-3 rounded-lg border border-[var(--border-subtle)] bg-[var(--background)] hover:border-[var(--accent)]/30 hover:bg-[var(--surface-elevated)] transition-all">
-                    <div className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-[var(--accent-subtle)] text-[var(--accent)] text-[10px] font-bold mt-0.5">
-                      {idx + 1}
-                    </div>
-                    <span className="text-xs font-semibold text-[var(--foreground)] tracking-wide leading-relaxed">{doc}</span>
+                {groupOptions.map(opt => (
+                  <div key={opt} onClick={() => handleToggleGroup(opt)} className="px-3 py-1.5 flex items-center gap-2 cursor-pointer hover:bg-[var(--border-subtle)] transition-colors select-none text-[11px] font-medium text-[var(--foreground)]">
+                    <input type="checkbox" checked={selectedGroups.includes(opt)} readOnly className="h-3.5 w-3.5 rounded border-[var(--border)] text-blue-600 focus:ring-blue-500 cursor-pointer" />
+                    <span>{opt}</span>
                   </div>
                 ))}
               </div>
-            </div>
+            )}
+          </div>
 
-            {/* Parent Documents Card */}
-            <div className="flex flex-col gap-6">
-              <div className="rounded-[var(--radius-lg)] border border-[var(--border)] bg-[var(--surface)] p-5 shadow-[var(--shadow-sm)] flex flex-col gap-4">
-                <div className="pb-3 border-b border-[var(--border)] flex items-center gap-2.5">
-                  <div className="h-9 w-9 rounded-lg bg-emerald-500/10 flex items-center justify-center text-emerald-600 dark:text-emerald-400">
-                    <Users className="h-5 w-5" />
+          {/* Certificates Filter */}
+          <div className="relative">
+            <button
+              type="button"
+              onClick={() => { closeAllDropdowns(); setIsCertDropdownOpen(prev => !prev) }}
+              className="w-full pl-9 pr-7 py-2 border border-[var(--border)] rounded-[var(--radius-md)] bg-[var(--surface-elevated)] text-[var(--foreground)] focus:outline-none hover:border-blue-400 transition-all text-xs font-semibold cursor-pointer flex items-center justify-between text-left h-[34px] relative"
+            >
+              <Bookmark className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[var(--foreground-muted)]" />
+              <span className="truncate pr-1">
+                {selectedCerts.length === 0 ? 'All Certificates' : selectedCerts.length + ' Selected'}
+              </span>
+              <ChevronDown className="absolute right-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-[var(--foreground-subtle)]" />
+            </button>
+            {isCertDropdownOpen && (
+              <div className="absolute left-0 mt-1 w-56 rounded-[var(--radius-md)] border border-[var(--border)] bg-[var(--surface-elevated)] shadow-lg py-1.5 z-50 max-h-72 overflow-y-auto">
+                <div 
+                  className="px-3 py-1.5 flex items-center gap-2 cursor-pointer hover:bg-[var(--border-subtle)] transition-colors select-none text-[11px] font-bold text-[var(--foreground)]" 
+                  onClick={handleToggleAllCerts}
+                >
+                  <input type="checkbox" checked={selectedCerts.length === certOptions.length} readOnly className="h-3.5 w-3.5 rounded border-[var(--border)] text-blue-600 focus:ring-blue-500 cursor-pointer" />
+                  <span>Select All</span>
+                </div>
+                <div className="h-px bg-[var(--border)] my-1" />
+                {certOptions.map(opt => (
+                  <div key={opt} onClick={() => handleToggleCert(opt)} className="px-3 py-1.5 flex items-center gap-2 cursor-pointer hover:bg-[var(--border-subtle)] transition-colors select-none text-[11px] font-medium text-[var(--foreground)]">
+                    <input type="checkbox" checked={selectedCerts.includes(opt)} readOnly className="h-3.5 w-3.5 rounded border-[var(--border)] text-blue-600 focus:ring-blue-500 cursor-pointer" />
+                    <span>{opt}</span>
                   </div>
-                  <div>
-                    <h3 className="text-sm font-bold uppercase tracking-wider text-[var(--foreground)]">Ota-Ona Hujjatlari</h3>
-                    <p className="text-xs text-[var(--foreground-muted)]">Ota-ona yoki kafil tomonidan taqdim etiladigan hujjatlar</p>
+                ))}
+              </div>
+            )}
+          </div>
+
+          {/* Missing Docs Filter */}
+          <div className="relative">
+            <button
+              type="button"
+              onClick={() => { closeAllDropdowns(); setIsMissingDropdownOpen(prev => !prev) }}
+              className="w-full pl-9 pr-7 py-2 border border-[var(--border)] rounded-[var(--radius-md)] bg-[var(--surface-elevated)] text-[var(--foreground)] focus:outline-none hover:border-blue-400 transition-all text-xs font-semibold cursor-pointer flex items-center justify-between text-left h-[34px] relative"
+            >
+              <ShieldAlert className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[var(--foreground-muted)]" />
+              <span className="truncate pr-1">
+                {selectedMissingDocs.length === 0 ? 'All Missing Docs' : selectedMissingDocs.length + ' Selected'}
+              </span>
+              <ChevronDown className="absolute right-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-[var(--foreground-subtle)]" />
+            </button>
+            {isMissingDropdownOpen && (
+              <div className="absolute left-0 mt-1 w-56 rounded-[var(--radius-md)] border border-[var(--border)] bg-[var(--surface-elevated)] shadow-lg py-1.5 z-50 max-h-72 overflow-y-auto">
+                <div 
+                  className="px-3 py-1.5 flex items-center gap-2 cursor-pointer hover:bg-[var(--border-subtle)] transition-colors select-none text-[11px] font-bold text-[var(--foreground)]" 
+                  onClick={handleToggleAllMissingDocs}
+                >
+                  <input type="checkbox" checked={selectedMissingDocs.length === pickNeededList.length} readOnly className="h-3.5 w-3.5 rounded border-[var(--border)] text-blue-600 focus:ring-blue-500 cursor-pointer" />
+                  <span>Select All</span>
+                </div>
+                <div className="h-px bg-[var(--border)] my-1" />
+                {pickNeededList.map(opt => (
+                  <div key={opt} onClick={() => handleToggleMissingDocs(opt)} className="px-3 py-1.5 flex items-center gap-2 cursor-pointer hover:bg-[var(--border-subtle)] transition-colors select-none text-[11px] font-medium text-[var(--foreground)]">
+                    <input type="checkbox" checked={selectedMissingDocs.includes(opt)} readOnly className="h-3.5 w-3.5 rounded border-[var(--border)] text-blue-600 focus:ring-blue-500 cursor-pointer" />
+                    <span>{opt}</span>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+
+      {/* Roster Counter Summary */}
+      <div className="flex justify-between items-center text-xs text-[var(--foreground-muted)] italic px-1 font-semibold select-none">
+        <div>
+          {(selectedTariffs.length > 0 || selectedLevels.length > 0 || selectedGroups.length > 0 || selectedCerts.length > 0 || selectedMissingDocs.length > 0) && (
+            <span>Found {filteredStudents.length} matching students</span>
+          )}
+        </div>
+        <div className="text-right">
+          Total {students.length} students
+        </div>
+      </div>
+
+      {/* Main Roster Display Table */}
+      {loading ? (
+        <div className="rounded-[var(--radius-lg)] border border-[var(--border)] bg-[var(--surface)] overflow-hidden shadow-[var(--shadow-sm)]">
+          <div className="divide-y divide-[var(--border)] animate-pulse">
+            {[...Array(6)].map((_, idx) => (
+              <div key={idx} className="p-5 flex justify-between items-center gap-6">
+                <div className="flex gap-4 items-center flex-1">
+                  <div className="h-6 w-9 bg-[var(--border-subtle)] rounded-[4px]" />
+                  <div className="space-y-2 flex-1">
+                    <div className="h-4 w-1/3 bg-[var(--border-subtle)] rounded" />
+                    <div className="h-3 w-1/4 bg-[var(--border-subtle)] rounded" />
                   </div>
                 </div>
-
-                <div className="flex flex-col gap-2.5">
-                  {visaParentDocs.map((doc, idx) => (
-                    <div key={idx} className="flex items-start gap-3 p-3 rounded-lg border border-[var(--border-subtle)] bg-[var(--background)] hover:border-emerald-500/30 hover:bg-[var(--surface-elevated)] transition-all">
-                      <div className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 text-[10px] font-bold mt-0.5">
-                        {idx + 1}
+                <div className="h-4 w-28 bg-[var(--border-subtle)] rounded" />
+                <div className="h-4 w-20 bg-[var(--border-subtle)] rounded animate-bounce" />
+                <div className="h-5 w-5 bg-[var(--border-subtle)] rounded-full" />
+              </div>
+            ))}
+          </div>
+        </div>
+      ) : error ? (
+        <div className="rounded-[var(--radius-lg)] border border-[var(--danger)] bg-[var(--surface)] p-6 text-center shadow-[var(--shadow-sm)]">
+          <AlertCircle className="mx-auto h-12 w-12 text-[var(--danger)] mb-3" />
+          <h3 className="text-base font-semibold text-[var(--foreground)]">Failed to Load Documents Dashboard</h3>
+          <p className="mt-1 text-sm text-[var(--foreground-muted)]">{error}</p>
+          <button onClick={fetchStudents} className="mt-4 px-4 py-2 bg-[var(--accent)] text-white text-sm font-semibold rounded-[var(--radius-md)] hover:bg-[var(--accent-hover)] transition-all cursor-pointer">
+            Reload
+          </button>
+        </div>
+      ) : sortedStudents.length === 0 ? (
+        <div className="rounded-[var(--radius-lg)] border border-[var(--border)] border-dashed bg-[var(--surface)] p-12 text-center shadow-[var(--shadow-sm)]">
+          <Folder className="mx-auto h-12 w-12 text-[var(--foreground-subtle)] mb-3" />
+          <h3 className="text-base font-semibold text-[var(--foreground)]">No matching student documents found</h3>
+          <p className="mt-1 text-sm text-[var(--foreground-muted)]">Adjust your filter options and try again.</p>
+        </div>
+      ) : (
+        <div className="rounded-[var(--radius-lg)] border border-[var(--border)] bg-[var(--surface)] overflow-hidden shadow-[var(--shadow-sm)]">
+          <div className="overflow-x-auto">
+            <table className="w-full border-collapse text-left">
+              <thead>
+                <tr className="border-b border-[var(--border)] bg-[var(--background)] text-[11px] font-bold uppercase tracking-wider text-[var(--foreground-muted)] dark:text-[var(--foreground)] select-none">
+                  <th 
+                    className="px-6 py-3.5 cursor-pointer hover:bg-[var(--surface-elevated)] transition-colors"
+                    onClick={() => setSortOrder(prev => prev === 'asc' ? 'desc' : 'asc')}
+                  >
+                    <span className="flex items-center gap-1">
+                      Full Name
+                      {sortOrder === 'asc' ? (
+                        <ChevronDown className="h-3.5 w-3.5 text-[var(--accent)]" />
+                      ) : (
+                        <ChevronUp className="h-3.5 w-3.5 text-[var(--accent)]" />
+                      )}
+                    </span>
+                  </th>
+                  <th className="px-6 py-3.5">Missing</th>
+                  <th className="px-4 py-3.5 text-center w-16">BC</th>
+                  <th className="px-4 py-3.5 text-center w-16">MC</th>
+                  <th className="px-4 py-3.5 text-center w-16">APOS</th>
+                  <th className="px-4 py-3.5 text-center w-16">PIC</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-[var(--border)]">
+                {sortedStudents.map(student => (
+                  <tr 
+                    key={student.id} 
+                    onClick={() => { setSelectedStudent(student); setIsModalOpen(true) }}
+                    className={`cursor-pointer hover:bg-[var(--border-subtle)] transition-colors text-sm text-[var(--foreground)] ${student.is_deleted ? 'bg-rose-500/5 dark:bg-rose-950/10' : ''}`}
+                  >
+                    <td className="px-6 py-4">
+                      <div className="flex items-center gap-1.5">
+                        {student.is_deleted && <ShieldAlert className="h-3.5 w-3.5 text-rose-500 shrink-0" />}
+                        <span className="font-bold uppercase tracking-wide text-xs">{student.full_name}</span>
                       </div>
-                      <span className="text-xs font-semibold text-[var(--foreground)] tracking-wide leading-relaxed">{doc}</span>
-                    </div>
-                  ))}
+                      <span className="text-[10px] text-[var(--foreground-muted)] font-semibold tracking-wider uppercase mt-1.5 block">
+                        {getGhostText(student)}
+                      </span>
+                    </td>
+                    <td className="px-6 py-4">
+                      {renderMissingPills(student)}
+                    </td>
+                    <td className="px-4 py-4 flex items-center justify-center">
+                      {renderDocCell(student, "BIRTH CERTIFICATE")}
+                    </td>
+                    <td className="px-4 py-4">
+                      <div className="flex justify-center">{renderDocCell(student, "MARRIAGE CERTIFICATE")}</div>
+                    </td>
+                    <td className="px-4 py-4">
+                      <div className="flex justify-center">{renderDocCell(student, "APOSTILLE")}</div>
+                    </td>
+                    <td className="px-4 py-4">
+                      <div className="flex justify-center">{renderDocCell(student, "3.5x4.5")}</div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
+
+      {/* Dynamic Manage Documents Modal */}
+      {isModalOpen && selectedStudent && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 animate-in fade-in duration-200">
+          <div className="fixed inset-0 bg-black/60 backdrop-blur-sm" onClick={() => setIsModalOpen(false)} />
+          
+          <div className="relative w-full max-w-4xl max-h-[95vh] overflow-y-auto rounded-3xl border border-[var(--border)] bg-[var(--surface-elevated)] p-6 shadow-[var(--shadow-lg)] z-10 flex flex-col gap-6">
+            {/* Close Button */}
+            <button 
+              disabled={modalUpdating}
+              onClick={() => setIsModalOpen(false)} 
+              className="absolute right-6 top-6 rounded-full p-2 text-[var(--foreground-muted)] hover:bg-[var(--border-subtle)] hover:text-[var(--foreground)] transition-all cursor-pointer disabled:opacity-50 border border-[var(--border)]"
+            >
+              <X className="h-5 w-5" />
+            </button>
+
+            {/* Modal Header */}
+            <div className="flex items-center gap-4">
+              <div className="w-12 h-12 rounded-2xl bg-blue-600 flex items-center justify-center text-white shrink-0 shadow-sm">
+                <Folder className="h-6 w-6" />
+              </div>
+              <div>
+                <h2 className="text-lg font-extrabold text-[var(--foreground)] select-all uppercase tracking-wide leading-tight">
+                  Documents: {selectedStudent.full_name}
+                </h2>
+                <p className="text-xs text-[var(--foreground-muted)] mt-0.5 font-medium">Manage student documents</p>
+              </div>
+            </div>
+
+            {/* Student Info Card Grid */}
+            <div className="p-4 rounded-[var(--radius-lg)] border border-[var(--border)] bg-[var(--background)] grid grid-cols-2 sm:grid-cols-3 md:grid-cols-6 gap-4 select-text">
+              <div>
+                <span className="block text-[10px] uppercase font-bold text-[var(--foreground-muted)] tracking-wider mb-1">Student ID</span>
+                <span className="text-sm font-extrabold text-[#007aff] font-mono">{selectedStudent.id}</span>
+              </div>
+              <div>
+                <span className="block text-[10px] uppercase font-bold text-[var(--foreground-muted)] tracking-wider mb-1">Status</span>
+                {selectedStudent.is_deleted ? (
+                  <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[9px] font-extrabold uppercase bg-rose-500/10 text-rose-600 border border-rose-500/20">
+                    <span className="w-1.5 h-1.5 rounded-full bg-rose-500" /> Deleted
+                  </span>
+                ) : (
+                  <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[9px] font-extrabold uppercase bg-emerald-500/10 text-emerald-600 border border-emerald-500/20">
+                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" /> Active
+                  </span>
+                )}
+              </div>
+              <div>
+                <span className="block text-[10px] uppercase font-bold text-[var(--foreground-muted)] tracking-wider mb-1">Group</span>
+                <span className="text-sm font-bold text-[var(--foreground)] uppercase">{selectedStudent.student_group || 'No Group'}</span>
+              </div>
+              <div>
+                <span className="block text-[10px] uppercase font-bold text-[var(--foreground-muted)] tracking-wider mb-1">Edu-Level</span>
+                <span className="text-sm font-bold text-[var(--foreground)] uppercase">
+                  {[selectedStudent.level, selectedStudent.level2].filter(Boolean).join(', ') || 'No Level'}
+                </span>
+              </div>
+              <div>
+                <span className="block text-[10px] uppercase font-bold text-[var(--foreground-muted)] tracking-wider mb-1">Office</span>
+                <span className="text-sm font-bold text-[var(--foreground)] uppercase">{selectedStudent.office || '—'}</span>
+              </div>
+              <div>
+                <span className="block text-[10px] uppercase font-bold text-[var(--foreground-muted)] tracking-wider mb-1">Payments Done</span>
+                <span className="text-sm font-extrabold text-emerald-600 dark:text-emerald-400">
+                  {formatCurrency(Math.max(0, -selectedStudent.balance))}
+                </span>
+              </div>
+            </div>
+
+            {/* Split cards grid for Missing & Pick needed */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              {/* Missing Documents Column */}
+              <div className="border border-[var(--border)] rounded-2xl p-5 flex flex-col gap-4 bg-[var(--surface-elevated)] min-h-[300px]">
+                <h3 className="text-sm font-bold text-[var(--foreground)] flex items-center gap-2">
+                  <FileText className="h-4.5 w-4.5 text-rose-500" />
+                  Missing documents
+                </h3>
+                
+                <div className="flex flex-col gap-2 overflow-y-auto max-h-[320px] pr-1">
+                  {getEffectiveMissingDocs(selectedStudent).length === 0 ? (
+                    <span className="text-xs text-[var(--foreground-muted)] italic font-semibold py-2">No missing documents specified.</span>
+                  ) : (
+                    getEffectiveMissingDocs(selectedStudent).map(doc => {
+                      let label = doc
+                      if (doc === "BIRTH CERTIFICATE") label = "BC"
+                      else if (doc === "MARRIAGE CERTIFICATE") label = "MC"
+                      else if (doc === "APOSTILLE") label = "APOS"
+                      else if (doc === "3.5x4.5") label = "PIC"
+
+                      // Match color based on the design screenshot: APOSTILLE -> orange, BIRTH CERTIFICATE -> yellow-orange
+                      let bgStyle = 'bg-gray-500'
+                      if (doc === 'APOSTILLE') bgStyle = 'bg-[#ea580c]'
+                      else if (doc === 'BIRTH CERTIFICATE') bgStyle = 'bg-[#f59e0b]'
+                      else if (doc === 'MARRIAGE CERTIFICATE') bgStyle = 'bg-[#2563eb]'
+                      else if (doc === 'AJRASHGANLIK') bgStyle = 'bg-[#ec4899]'
+                      else if (doc === 'Foreign passport') bgStyle = 'bg-[#ea580c]'
+                      else if (doc === 'FULL OK') bgStyle = 'bg-emerald-500'
+
+                      return (
+                        <div 
+                          key={doc} 
+                          className={`flex items-center justify-between p-3.5 rounded-xl text-xs font-bold text-white shadow-sm w-full transition-all ${bgStyle}`}
+                        >
+                          <div className="flex items-center gap-2">
+                            <FileText className="h-4 w-4 text-white" />
+                            <span>{doc}</span>
+                          </div>
+                          
+                          <button
+                            type="button"
+                            disabled={modalUpdating}
+                            onClick={() => handleTogglePickNeeded(selectedStudent.id, doc)}
+                            className="p-1 hover:bg-white/15 rounded-lg transition-all cursor-pointer disabled:opacity-50 text-white"
+                            title="Remove document"
+                          >
+                            <X className="h-4 w-4" />
+                          </button>
+                        </div>
+                      )
+                    })
+                  )}
                 </div>
               </div>
 
-              {/* Time limits warning info card */}
-              <div className="rounded-[var(--radius-lg)] border border-amber-500/25 bg-amber-500/5 p-4 shadow-[var(--shadow-sm)] flex items-start gap-3">
-                <div className="h-8 w-8 shrink-0 rounded bg-amber-500/10 flex items-center justify-center text-amber-600 dark:text-amber-400">
-                  <Info className="h-4.5 w-4.5" />
-                </div>
-                <div>
-                  <span className="text-xs font-bold text-amber-700 dark:text-amber-400 uppercase tracking-wider">Mulkni Ro'yxatdan O'tkazish Muddati</span>
-                  <p className="mt-1 text-xs font-semibold text-[var(--foreground)] leading-relaxed">
-                    Yer, ko'chmas mulk hamda shaxsiy transport vositasini ota-ona nomiga ro'yxatdan o'tkazilganligiga <span className="underline decoration-2 font-bold text-amber-600 dark:text-amber-400">3 oydan ko'p bo'lishi kerak!</span>
-                  </p>
+              {/* Pick Needed Column */}
+              <div className="border border-[var(--border)] rounded-2xl p-5 flex flex-col gap-4 bg-[var(--surface-elevated)] min-h-[300px]">
+                <h3 className="text-sm font-bold text-[var(--foreground)] flex items-center gap-2">
+                  <CheckSquare className="h-4.5 w-4.5 text-emerald-500" />
+                  Pick needed
+                </h3>
+                
+                <div className="flex flex-wrap gap-2 overflow-y-auto max-h-[320px] pr-1">
+                  {pickNeededList.map(pill => {
+                    const isActive = (selectedStudent.pick_needed || []).includes(pill) || (pill === "FULL OK" && (selectedStudent.pick_needed || []).includes("FULL OK"))
+                    
+                    let activeStyle = 'bg-gray-600 text-white border-gray-700'
+                    if (isActive) {
+                      if (pill === 'APOSTILLE' || pill === 'Foreign passport') activeStyle = 'bg-[#ea580c] text-white border-[#ea580c]'
+                      else if (pill === 'BIRTH CERTIFICATE') activeStyle = 'bg-[#f59e0b] text-white border-[#f59e0b]'
+                      else if (pill === 'MARRIAGE CERTIFICATE') activeStyle = 'bg-[#2563eb] text-white border-[#2563eb]'
+                      else if (pill === 'AJRASHGANLIK') activeStyle = 'bg-[#ec4899] text-white border-[#ec4899]'
+                      else if (pill === 'FULL OK') activeStyle = 'bg-emerald-500 text-white border-emerald-600'
+                    }
+
+                    return (
+                      <button
+                        key={pill}
+                        type="button"
+                        disabled={modalUpdating}
+                        onClick={() => handleTogglePickNeeded(selectedStudent.id, pill)}
+                        className={`px-3.5 py-2 rounded-full text-[10px] font-bold uppercase tracking-wide border cursor-pointer transition-all hover:scale-[1.02] active:scale-95 disabled:opacity-50 ${
+                          isActive
+                            ? `${activeStyle} shadow-sm`
+                            : (pill === "FULL OK"
+                                ? 'border-emerald-500/30 text-emerald-600 bg-emerald-500/5 hover:bg-emerald-500/10'
+                                : 'border-gray-200 dark:border-zinc-800 text-gray-700 dark:text-gray-300 bg-white dark:bg-zinc-900 hover:bg-gray-50 dark:hover:bg-zinc-800')
+                        }`}
+                      >
+                        {pill}
+                      </button>
+                    )
+                  })}
                 </div>
               </div>
             </div>
-          </motion.div>
-        )}
-      </AnimatePresence>
+
+            {/* Bottom Card Counter Override */}
+            <div className="border border-[var(--border)] rounded-2xl p-5 flex flex-col gap-4 bg-[var(--surface-elevated)]">
+              <h3 className="text-sm font-bold text-[var(--foreground)] flex items-center gap-2">
+                <Folder className="h-4.5 w-4.5 text-blue-500" />
+                Physical Copies In Hand (Override)
+              </h3>
+              
+              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4">
+                {[
+                  { key: 'bc_hand_count', docName: 'BIRTH CERTIFICATE', label: 'BC' },
+                  { key: 'mc_hand_count', docName: 'MARRIAGE CERTIFICATE', label: 'MC' },
+                  { key: 'apos_hand_count', docName: 'APOSTILLE', label: 'APOS' },
+                  { key: 'pic_hand_count', docName: '3.5x4.5', label: 'PIC' }
+                ].map(item => {
+                  const missingList = getEffectiveMissingDocs(selectedStudent)
+                  const isMissing = !missingList.includes("FULL OK") && missingList.includes(item.docName)
+                  const isMcDisabled = (item.label === "MC" && selectedStudent.has_mc === false)
+                  const remaining = getDocRemainingCount(selectedStudent, item.docName)
+                  const isDisabled = isMissing || isMcDisabled || modalUpdating
+
+                  return (
+                    <div key={item.key} className="relative rounded-2xl border border-[var(--border)] bg-gray-50 dark:bg-zinc-950 p-4 flex flex-col items-center justify-between min-h-[100px] select-none shadow-sm">
+                      {item.label === "MC" && (
+                        <div className="absolute top-3 right-3 z-10 flex items-center">
+                          <label className="relative inline-flex items-center cursor-pointer">
+                            <input 
+                              type="checkbox" 
+                              checked={selectedStudent.has_mc !== false} 
+                              onChange={() => handleToggleMcEnabled(selectedStudent.id)}
+                              disabled={modalUpdating}
+                              className="sr-only peer" 
+                            />
+                            <div className="w-8 h-4.5 bg-gray-200 peer-focus:outline-none rounded-full dark:bg-gray-700 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-3.5 after:w-3.5 after:transition-all dark:border-gray-600 peer-checked:bg-blue-600" />
+                          </label>
+                        </div>
+                      )}
+                      
+                      <span className="text-[10px] uppercase font-bold text-[var(--foreground-muted)] tracking-wider mb-2">{item.label}</span>
+                      
+                      <div className="flex items-center justify-between w-full mt-2 px-1">
+                        <button
+                          type="button"
+                          onClick={() => handleUpdateCopyCount(selectedStudent.id, item.key as any, remaining - 1)}
+                          disabled={isDisabled || remaining <= 0}
+                          className="h-8 w-8 rounded-full border border-gray-300 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-gray-600 dark:text-gray-300 flex items-center justify-center hover:bg-gray-100 dark:hover:bg-zinc-700 active:scale-95 disabled:opacity-40 disabled:pointer-events-none cursor-pointer transition-all text-sm font-bold shadow-sm"
+                        >
+                          -
+                        </button>
+                        
+                        <span className={`font-extrabold text-base w-12 text-center ${
+                          isMcDisabled 
+                            ? 'text-gray-400 dark:text-gray-600' 
+                            : (remaining > 0 ? 'text-[#007aff]' : 'text-gray-700 dark:text-gray-300')
+                        }`}>
+                          {isMcDisabled ? 'N/A' : remaining}
+                        </span>
+                        
+                        <button
+                          type="button"
+                          onClick={() => handleUpdateCopyCount(selectedStudent.id, item.key as any, remaining + 1)}
+                          disabled={isDisabled}
+                          className="h-8 w-8 rounded-full border border-gray-300 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-gray-600 dark:text-gray-300 flex items-center justify-center hover:bg-gray-100 dark:hover:bg-zinc-700 active:scale-95 disabled:opacity-40 disabled:pointer-events-none cursor-pointer transition-all text-sm font-bold shadow-sm"
+                        >
+                          +
+                        </button>
+                      </div>
+                    </div>
+                  )
+                })}
+              </div>
+            </div>
+
+            {/* Footer with Done button */}
+            <div className="flex justify-end mt-2">
+              <button
+                type="button"
+                onClick={() => setIsModalOpen(false)}
+                className="bg-[#007aff] hover:bg-blue-600 text-white rounded-full px-6 py-2.5 flex items-center gap-2 font-bold text-sm shadow-md transition-all cursor-pointer hover:scale-[1.02] active:scale-95"
+              >
+                <CheckCircle2 className="h-4.5 w-4.5" />
+                Done
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
