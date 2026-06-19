@@ -99,15 +99,85 @@ export function StudentDashboardClient() {
   const { searchQuery, isAddStudentModalOpen: isModalOpen, setIsAddStudentModalOpen: setIsModalOpen } = useStudentDashboard()
 
   // Search & Filters state
-  const [tariffFilter, setTariffFilter] = useState<StudentTariff | 'ALL' | 'NO_TARIFF'>('ALL')
-  const [levelFilter, setLevelFilter] = useState<StudentLevel | 'ALL' | 'NO_LEVEL' | 'DELETED'>('ALL')
-  const [groupFilter, setGroupFilter] = useState<string | 'ALL'>('ALL')
+  // Multi-select array states
+  const [selectedTariffs, setSelectedTariffs] = useState<string[]>([])
+  const [selectedLevels, setSelectedLevels] = useState<string[]>([])
+  const [selectedGroups, setSelectedGroups] = useState<string[]>([])
   const [selectedCerts, setSelectedCerts] = useState<string[]>([])
   const [selectedScores, setSelectedScores] = useState<string[]>([])
+  const [selectedTags, setSelectedTags] = useState<string[]>([])
+  const [selectedLeads, setSelectedLeads] = useState<string[]>([])
+
+  // Toggle states for filter dropdowns
+  const [isTariffDropdownOpen, setIsTariffDropdownOpen] = useState(false)
+  const [isLevelDropdownOpen, setIsLevelDropdownOpen] = useState(false)
+  const [isGroupDropdownOpen, setIsGroupDropdownOpen] = useState(false)
   const [isCertDropdownOpen, setIsCertDropdownOpen] = useState(false)
   const [isScoreDropdownOpen, setIsScoreDropdownOpen] = useState(false)
+  const [isTagDropdownOpen, setIsTagDropdownOpen] = useState(false)
+  const [isLeadDropdownOpen, setIsLeadDropdownOpen] = useState(false)
 
   const certOptions = ['NO CERTIFICATE', 'EXPECTED', 'TOPIK', 'SKA', 'IELTS', 'TOEFL', 'SAT', 'CEFR']
+
+  // Tariff Filter Helpers
+  const handleToggleTariff = (tariff: string) => {
+    setSelectedTariffs(prev =>
+      prev.includes(tariff) ? prev.filter(t => t !== tariff) : [...prev, tariff]
+    )
+  }
+  const handleToggleAllTariffs = (optionsList: string[]) => {
+    setSelectedTariffs(prev =>
+      prev.length === optionsList.length ? [] : [...optionsList]
+    )
+  }
+
+  // Level Filter Helpers
+  const handleToggleLevel = (level: string) => {
+    setSelectedLevels(prev =>
+      prev.includes(level) ? prev.filter(l => l !== level) : [...prev, level]
+    )
+  }
+  const handleToggleAllLevels = (optionsList: string[]) => {
+    setSelectedLevels(prev =>
+      prev.length === optionsList.length ? [] : [...optionsList]
+    )
+  }
+
+  // Group Filter Helpers
+  const handleToggleGroup = (group: string) => {
+    setSelectedGroups(prev =>
+      prev.includes(group) ? prev.filter(g => g !== group) : [...prev, group]
+    )
+  }
+  const handleToggleAllGroups = (optionsList: string[]) => {
+    setSelectedGroups(prev =>
+      prev.length === optionsList.length ? [] : [...optionsList]
+    )
+  }
+
+  // Tag Filter Helpers
+  const handleToggleTagFilter = (tag: string) => {
+    setSelectedTags(prev =>
+      prev.includes(tag) ? prev.filter(t => t !== tag) : [...prev, tag]
+    )
+  }
+  const handleToggleAllTags = (optionsList: string[]) => {
+    setSelectedTags(prev =>
+      prev.length === optionsList.length ? [] : [...optionsList]
+    )
+  }
+
+  // Lead By Filter Helpers
+  const handleToggleLead = (lead: string) => {
+    setSelectedLeads(prev =>
+      prev.includes(lead) ? prev.filter(l => l !== lead) : [...prev, lead]
+    )
+  }
+  const handleToggleAllLeads = (optionsList: string[]) => {
+    setSelectedLeads(prev =>
+      prev.length === optionsList.length ? [] : [...optionsList]
+    )
+  }
 
   const handleToggleCert = (cert: string) => {
     setSelectedCerts(prev =>
@@ -163,8 +233,6 @@ export function StudentDashboardClient() {
   useEffect(() => {
     setSelectedScores([])
   }, [activeCertForScore])
-  const [tagFilter, setTagFilter] = useState<string | 'ALL'>('ALL')
-  const [leadByFilter, setLeadByFilter] = useState<string | 'ALL'>('ALL')
 
   // Excel Export Modal States
   const [isExcelModalOpen, setIsExcelModalOpen] = useState(false)
@@ -712,7 +780,7 @@ export function StudentDashboardClient() {
   // Reset pagination when search query or filter values change
   useEffect(() => {
     setCurrentPage(1)
-  }, [searchQuery, tariffFilter, levelFilter, groupFilter, selectedCerts, selectedScores, tagFilter, leadByFilter])
+  }, [searchQuery, selectedTariffs, selectedLevels, selectedGroups, selectedCerts, selectedScores, selectedTags, selectedLeads])
 
   const getCustomTagIcon = (tagName: string) => {
     if (tagName === 'Call') return '📞'
@@ -933,8 +1001,8 @@ export function StudentDashboardClient() {
   // Filter students based on all filter parameters
   const filteredStudents = students.filter(student => {
     // 1. Deleted Students handling
-    const isDeletedFilterActive = (levelFilter as any) === 'DELETED'
-    if (isDeletedFilterActive) {
+    const showDeleted = selectedLevels.includes('DELETED')
+    if (showDeleted) {
       if (student.is_deleted !== true) return false
     } else {
       if (student.is_deleted === true) return false
@@ -949,32 +1017,45 @@ export function StudentDashboardClient() {
     
     // 3. Tariff filter (handling NO_TARIFF)
     let matchesTariff = false
-    if (tariffFilter === 'ALL') {
+    if (selectedTariffs.length === 0) {
       matchesTariff = true
-    } else if ((tariffFilter as any) === 'NO_TARIFF') {
-      matchesTariff = !student.tariff || (student.tariff as any) === ''
     } else {
-      matchesTariff = student.tariff === (tariffFilter as any)
+      if (selectedTariffs.includes('NO_TARIFF') && !student.tariff) {
+        matchesTariff = true
+      }
+      if (student.tariff && selectedTariffs.includes(student.tariff)) {
+        matchesTariff = true
+      }
     }
 
     // 4. Level filter (handling NO_LEVEL and DELETED)
+    const activeLevels = selectedLevels.filter(l => l !== 'DELETED')
     let matchesLevel = false
-    if (levelFilter === 'ALL' || (levelFilter as any) === 'DELETED') {
+    if (activeLevels.length === 0) {
       matchesLevel = true
-    } else if ((levelFilter as any) === 'NO_LEVEL') {
-      matchesLevel = (!student.level || (student.level as any) === '') && (!student.level2 || (student.level2 as any) === '')
     } else {
-      matchesLevel = student.level === (levelFilter as any) || student.level2 === (levelFilter as any)
+      if (activeLevels.includes('NO_LEVEL') && !student.level && !student.level2) {
+        matchesLevel = true
+      }
+      if (student.level && activeLevels.includes(student.level)) {
+        matchesLevel = true
+      }
+      if (student.level2 && activeLevels.includes(student.level2)) {
+        matchesLevel = true
+      }
     }
 
     // 5. Group filter (handling NO_GROUP)
     let matchesGroup = false
-    if (groupFilter === 'ALL') {
+    if (selectedGroups.length === 0) {
       matchesGroup = true
-    } else if (groupFilter === 'NO_GROUP') {
-      matchesGroup = !student.student_group || student.student_group === ''
     } else {
-      matchesGroup = student.student_group === groupFilter
+      if (selectedGroups.includes('NO_GROUP') && !student.student_group) {
+        matchesGroup = true
+      }
+      if (student.student_group && selectedGroups.includes(student.student_group)) {
+        matchesGroup = true
+      }
     }
     
     // 6. Language Certificate filter (handling NO CERTIFICATE / nulls & multi-select)
@@ -1010,8 +1091,31 @@ export function StudentDashboardClient() {
       })
     }
 
-    const matchesTag = tagFilter === 'ALL' || (student.task_tags && student.task_tags.includes(tagFilter))
-    const matchesLeadBy = leadByFilter === 'ALL' || student.lead_by === leadByFilter
+    let matchesTag = false
+    if (selectedTags.length === 0) {
+      matchesTag = true
+    } else {
+      matchesTag = selectedTags.some(tag => {
+        if (tag === 'Custom') {
+          const predefined = ['Call', 'Apply', 'Documents', 'Payment']
+          return student.task_tags && student.task_tags.some(t => !predefined.includes(t))
+        } else {
+          return student.task_tags && student.task_tags.includes(tag)
+        }
+      })
+    }
+
+    let matchesLeadBy = false
+    if (selectedLeads.length === 0) {
+      matchesLeadBy = true
+    } else {
+      if (selectedLeads.includes('NO_LEADBY') && !student.lead_by) {
+        matchesLeadBy = true
+      }
+      if (student.lead_by && selectedLeads.includes(student.lead_by)) {
+        matchesLeadBy = true
+      }
+    }
 
     return matchesSearch && matchesTariff && matchesLevel && matchesGroup && matchesCertificate && matchesTag && matchesLeadBy
   })
@@ -1212,12 +1316,17 @@ export function StudentDashboardClient() {
   return (
     <PageShell>
       {/* Filters Popover Overlay Backdrop */}
-      {(isCertDropdownOpen || isScoreDropdownOpen) && (
+      {(isCertDropdownOpen || isScoreDropdownOpen || isTariffDropdownOpen || isLevelDropdownOpen || isGroupDropdownOpen || isTagDropdownOpen || isLeadDropdownOpen) && (
         <div 
           className="fixed inset-0 z-30 bg-transparent cursor-default" 
           onClick={() => {
             setIsCertDropdownOpen(false)
             setIsScoreDropdownOpen(false)
+            setIsTariffDropdownOpen(false)
+            setIsLevelDropdownOpen(false)
+            setIsGroupDropdownOpen(false)
+            setIsTagDropdownOpen(false)
+            setIsLeadDropdownOpen(false)
           }}
         />
       )}
@@ -1227,54 +1336,240 @@ export function StudentDashboardClient() {
         <div className={`grid grid-cols-2 md:grid-cols-3 ${showScoreFilter ? 'lg:grid-cols-7' : 'lg:grid-cols-6'} gap-3 w-full`}>
           {/* Tariffs Filter */}
           <div className="relative">
-            <Tag className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[var(--foreground-muted)] pointer-events-none" />
-            <select
-              value={tariffFilter}
-              onChange={(e) => setTariffFilter(e.target.value as any)}
-              className="w-full pl-9 pr-7 py-2 border border-[var(--border)] rounded-[var(--radius-md)] bg-[var(--surface-elevated)] text-[var(--foreground)] focus:outline-none hover:border-blue-400 transition-all text-xs font-medium appearance-none cursor-pointer"
+            <button
+              type="button"
+              onClick={() => {
+                setIsTariffDropdownOpen(prev => !prev)
+                setIsLevelDropdownOpen(false)
+                setIsGroupDropdownOpen(false)
+                setIsCertDropdownOpen(false)
+                setIsScoreDropdownOpen(false)
+                setIsTagDropdownOpen(false)
+                setIsLeadDropdownOpen(false)
+              }}
+              className="w-full pl-9 pr-7 py-2 border border-[var(--border)] rounded-[var(--radius-md)] bg-[var(--surface-elevated)] text-[var(--foreground)] focus:outline-none hover:border-blue-400 transition-all text-xs font-medium cursor-pointer flex items-center justify-between text-left h-[34px] relative"
             >
-              <option value="ALL">All Tariffs</option>
-              <option value="NO_TARIFF">No Tariff</option>
-              {tariffOptions.map(opt => (
-                <option key={opt} value={opt}>{opt}</option>
-              ))}
-            </select>
-            <ChevronDown className="absolute right-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-[var(--foreground-subtle)] pointer-events-none" />
+              <Tag className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[var(--foreground-muted)] pointer-events-none" />
+              <span className="truncate select-none pr-1">
+                {selectedTariffs.length === 0
+                  ? 'All Tariffs'
+                  : selectedTariffs.length === (tariffOptions.length + 1)
+                  ? 'All Tariffs'
+                  : selectedTariffs.map(t => t === 'NO_TARIFF' ? 'No Tariff' : t).join(', ')}
+              </span>
+              <ChevronDown className="absolute right-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-[var(--foreground-subtle)] pointer-events-none" />
+            </button>
+
+            {isTariffDropdownOpen && (
+              <div className="absolute left-0 mt-1 w-56 rounded-[var(--radius-md)] border border-[var(--border)] bg-[var(--surface-elevated)]/95 backdrop-blur-md shadow-lg py-1.5 z-40 max-h-72 overflow-y-auto">
+                <div 
+                  className="px-3 py-1.5 flex items-center gap-2 cursor-pointer hover:bg-[var(--border-subtle)] transition-colors select-none text-[11px] font-bold text-[var(--foreground)]" 
+                  onClick={() => handleToggleAllTariffs(['NO_TARIFF', ...tariffOptions])}
+                >
+                  <input
+                    type="checkbox"
+                    checked={selectedTariffs.length === (tariffOptions.length + 1)}
+                    readOnly
+                    className="h-3.5 w-3.5 rounded border-[var(--border)] text-blue-600 focus:ring-blue-500 cursor-pointer"
+                  />
+                  <span>Select All</span>
+                </div>
+                <div className="h-px bg-[var(--border)] my-1" />
+                <div
+                  onClick={() => handleToggleTariff('NO_TARIFF')}
+                  className="px-3 py-1.5 flex items-center gap-2 cursor-pointer hover:bg-[var(--border-subtle)] transition-colors select-none text-[11px] font-medium text-[var(--foreground)]"
+                >
+                  <input
+                    type="checkbox"
+                    checked={selectedTariffs.includes('NO_TARIFF')}
+                    readOnly
+                    className="h-3.5 w-3.5 rounded border-[var(--border)] text-blue-600 focus:ring-blue-500 cursor-pointer"
+                  />
+                  <span>No Tariff</span>
+                </div>
+                {tariffOptions.map(opt => {
+                  const isChecked = selectedTariffs.includes(opt)
+                  return (
+                    <div
+                      key={opt}
+                      onClick={() => handleToggleTariff(opt)}
+                      className="px-3 py-1.5 flex items-center gap-2 cursor-pointer hover:bg-[var(--border-subtle)] transition-colors select-none text-[11px] font-medium text-[var(--foreground)]"
+                    >
+                      <input
+                        type="checkbox"
+                        checked={isChecked}
+                        readOnly
+                        className="h-3.5 w-3.5 rounded border-[var(--border)] text-blue-600 focus:ring-blue-500 cursor-pointer"
+                      />
+                      <span>{opt}</span>
+                    </div>
+                  )
+                })}
+              </div>
+            )}
           </div>
 
           {/* Levels Filter */}
           <div className="relative">
-            <Layers className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[var(--foreground-muted)] pointer-events-none" />
-            <select
-              value={levelFilter}
-              onChange={(e) => setLevelFilter(e.target.value as any)}
-              className="w-full pl-9 pr-7 py-2 border border-[var(--border)] rounded-[var(--radius-md)] bg-[var(--surface-elevated)] text-[var(--foreground)] focus:outline-none hover:border-blue-400 transition-all text-xs font-medium appearance-none cursor-pointer"
+            <button
+              type="button"
+              onClick={() => {
+                setIsLevelDropdownOpen(prev => !prev)
+                setIsTariffDropdownOpen(false)
+                setIsGroupDropdownOpen(false)
+                setIsCertDropdownOpen(false)
+                setIsScoreDropdownOpen(false)
+                setIsTagDropdownOpen(false)
+                setIsLeadDropdownOpen(false)
+              }}
+              className="w-full pl-9 pr-7 py-2 border border-[var(--border)] rounded-[var(--radius-md)] bg-[var(--surface-elevated)] text-[var(--foreground)] focus:outline-none hover:border-blue-400 transition-all text-xs font-medium cursor-pointer flex items-center justify-between text-left h-[34px] relative"
             >
-              <option value="ALL">All Levels</option>
-              <option value="NO_LEVEL">No Level</option>
-              <option value="DELETED">Deleted Students</option>
-              {levelOptions.map(opt => (
-                <option key={opt} value={opt}>{opt}</option>
-              ))}
-            </select>
-            <ChevronDown className="absolute right-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-[var(--foreground-subtle)] pointer-events-none" />
+              <Layers className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[var(--foreground-muted)] pointer-events-none" />
+              <span className="truncate select-none pr-1">
+                {selectedLevels.length === 0
+                  ? 'All Levels'
+                  : selectedLevels.length === (levelOptions.length + 2)
+                  ? 'All Levels'
+                  : selectedLevels.length + ' Selected'}
+              </span>
+              <ChevronDown className="absolute right-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-[var(--foreground-subtle)] pointer-events-none" />
+            </button>
+
+            {isLevelDropdownOpen && (
+              <div className="absolute left-0 mt-1 w-56 rounded-[var(--radius-md)] border border-[var(--border)] bg-[var(--surface-elevated)]/95 backdrop-blur-md shadow-lg py-1.5 z-40 max-h-72 overflow-y-auto">
+                <div 
+                  className="px-3 py-1.5 flex items-center gap-2 cursor-pointer hover:bg-[var(--border-subtle)] transition-colors select-none text-[11px] font-bold text-[var(--foreground)]" 
+                  onClick={() => handleToggleAllLevels(['NO_LEVEL', 'DELETED', ...levelOptions])}
+                >
+                  <input
+                    type="checkbox"
+                    checked={selectedLevels.length === (levelOptions.length + 2)}
+                    readOnly
+                    className="h-3.5 w-3.5 rounded border-[var(--border)] text-blue-600 focus:ring-blue-500 cursor-pointer"
+                  />
+                  <span>Select All</span>
+                </div>
+                <div className="h-px bg-[var(--border)] my-1" />
+                <div
+                  onClick={() => handleToggleLevel('NO_LEVEL')}
+                  className="px-3 py-1.5 flex items-center gap-2 cursor-pointer hover:bg-[var(--border-subtle)] transition-colors select-none text-[11px] font-medium text-[var(--foreground)]"
+                >
+                  <input
+                    type="checkbox"
+                    checked={selectedLevels.includes('NO_LEVEL')}
+                    readOnly
+                    className="h-3.5 w-3.5 rounded border-[var(--border)] text-blue-600 focus:ring-blue-500 cursor-pointer"
+                  />
+                  <span>No Level</span>
+                </div>
+                {levelOptions.map(opt => {
+                  const isChecked = selectedLevels.includes(opt)
+                  return (
+                    <div
+                      key={opt}
+                      onClick={() => handleToggleLevel(opt)}
+                      className="px-3 py-1.5 flex items-center gap-2 cursor-pointer hover:bg-[var(--border-subtle)] transition-colors select-none text-[11px] font-medium text-[var(--foreground)]"
+                    >
+                      <input
+                        type="checkbox"
+                        checked={isChecked}
+                        readOnly
+                        className="h-3.5 w-3.5 rounded border-[var(--border)] text-blue-600 focus:ring-blue-500 cursor-pointer"
+                      />
+                      <span>{opt}</span>
+                    </div>
+                  )
+                })}
+                <div className="h-px bg-[var(--border)] my-1" />
+                <div
+                  onClick={() => handleToggleLevel('DELETED')}
+                  className="px-3 py-1.5 flex items-center gap-2 cursor-pointer hover:bg-rose-500/10 dark:hover:bg-rose-950/20 transition-colors select-none text-[11px] font-bold text-rose-600 dark:text-rose-400"
+                >
+                  <input
+                    type="checkbox"
+                    checked={selectedLevels.includes('DELETED')}
+                    readOnly
+                    className="h-3.5 w-3.5 rounded border-rose-300 dark:border-rose-900 text-rose-600 focus:ring-rose-500 cursor-pointer"
+                  />
+                  <span>Deleted students</span>
+                </div>
+              </div>
+            )}
           </div>
 
           {/* Groups Filter */}
           <div className="relative">
-            <Users className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[var(--foreground-muted)] pointer-events-none" />
-            <select
-              value={groupFilter}
-              onChange={(e) => setGroupFilter(e.target.value)}
-              className="w-full pl-9 pr-7 py-2 border border-[var(--border)] rounded-[var(--radius-md)] bg-[var(--surface-elevated)] text-[var(--foreground)] focus:outline-none hover:border-blue-400 transition-all text-xs font-medium appearance-none cursor-pointer"
+            <button
+              type="button"
+              onClick={() => {
+                setIsGroupDropdownOpen(prev => !prev)
+                setIsTariffDropdownOpen(false)
+                setIsLevelDropdownOpen(false)
+                setIsCertDropdownOpen(false)
+                setIsScoreDropdownOpen(false)
+                setIsTagDropdownOpen(false)
+                setIsLeadDropdownOpen(false)
+              }}
+              className="w-full pl-9 pr-7 py-2 border border-[var(--border)] rounded-[var(--radius-md)] bg-[var(--surface-elevated)] text-[var(--foreground)] focus:outline-none hover:border-blue-400 transition-all text-xs font-medium cursor-pointer flex items-center justify-between text-left h-[34px] relative"
             >
-              <option value="ALL">All Groups</option>
-              <option value="NO_GROUP">No Group</option>
-              {uniqueGroups.map(grp => (
-                <option key={grp} value={grp}>{grp}</option>
-              ))}
-            </select>
-            <ChevronDown className="absolute right-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-[var(--foreground-subtle)] pointer-events-none" />
+              <Users className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[var(--foreground-muted)] pointer-events-none" />
+              <span className="truncate select-none pr-1">
+                {selectedGroups.length === 0
+                  ? 'All Groups'
+                  : selectedGroups.length === (uniqueGroups.length + 1)
+                  ? 'All Groups'
+                  : selectedGroups.map(g => g === 'NO_GROUP' ? 'No Group' : g).join(', ')}
+              </span>
+              <ChevronDown className="absolute right-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-[var(--foreground-subtle)] pointer-events-none" />
+            </button>
+
+            {isGroupDropdownOpen && (
+              <div className="absolute left-0 mt-1 w-56 rounded-[var(--radius-md)] border border-[var(--border)] bg-[var(--surface-elevated)]/95 backdrop-blur-md shadow-lg py-1.5 z-40 max-h-72 overflow-y-auto">
+                <div 
+                  className="px-3 py-1.5 flex items-center gap-2 cursor-pointer hover:bg-[var(--border-subtle)] transition-colors select-none text-[11px] font-bold text-[var(--foreground)]" 
+                  onClick={() => handleToggleAllGroups(['NO_GROUP', ...uniqueGroups])}
+                >
+                  <input
+                    type="checkbox"
+                    checked={selectedGroups.length === (uniqueGroups.length + 1)}
+                    readOnly
+                    className="h-3.5 w-3.5 rounded border-[var(--border)] text-blue-600 focus:ring-blue-500 cursor-pointer"
+                  />
+                  <span>Select All</span>
+                </div>
+                <div className="h-px bg-[var(--border)] my-1" />
+                <div
+                  onClick={() => handleToggleGroup('NO_GROUP')}
+                  className="px-3 py-1.5 flex items-center gap-2 cursor-pointer hover:bg-[var(--border-subtle)] transition-colors select-none text-[11px] font-medium text-[var(--foreground)]"
+                >
+                  <input
+                    type="checkbox"
+                    checked={selectedGroups.includes('NO_GROUP')}
+                    readOnly
+                    className="h-3.5 w-3.5 rounded border-[var(--border)] text-blue-600 focus:ring-blue-500 cursor-pointer"
+                  />
+                  <span>No Group</span>
+                </div>
+                {uniqueGroups.map(grp => {
+                  const isChecked = selectedGroups.includes(grp)
+                  return (
+                    <div
+                      key={grp}
+                      onClick={() => handleToggleGroup(grp)}
+                      className="px-3 py-1.5 flex items-center gap-2 cursor-pointer hover:bg-[var(--border-subtle)] transition-colors select-none text-[11px] font-medium text-[var(--foreground)]"
+                    >
+                      <input
+                        type="checkbox"
+                        checked={isChecked}
+                        readOnly
+                        className="h-3.5 w-3.5 rounded border-[var(--border)] text-blue-600 focus:ring-blue-500 cursor-pointer"
+                      />
+                      <span>{grp}</span>
+                    </div>
+                  )
+                })}
+              </div>
+            )}
           </div>
 
           {/* Certificates Filter */}
@@ -1284,6 +1579,11 @@ export function StudentDashboardClient() {
               onClick={() => {
                 setIsCertDropdownOpen(prev => !prev)
                 setIsScoreDropdownOpen(false)
+                setIsTariffDropdownOpen(false)
+                setIsLevelDropdownOpen(false)
+                setIsGroupDropdownOpen(false)
+                setIsTagDropdownOpen(false)
+                setIsLeadDropdownOpen(false)
               }}
               className="w-full pl-9 pr-7 py-2 border border-[var(--border)] rounded-[var(--radius-md)] bg-[var(--surface-elevated)] text-[var(--foreground)] focus:outline-none hover:border-blue-400 transition-all text-xs font-medium cursor-pointer flex items-center justify-between text-left h-[34px] relative animate-none"
             >
@@ -1397,34 +1697,140 @@ export function StudentDashboardClient() {
 
           {/* Tags Filter */}
           <div className="relative">
-            <Bookmark className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[var(--foreground-muted)] pointer-events-none" />
-            <select
-              value={tagFilter}
-              onChange={(e) => setTagFilter(e.target.value)}
-              className="w-full pl-9 pr-7 py-2 border border-[var(--border)] rounded-[var(--radius-md)] bg-[var(--surface-elevated)] text-[var(--foreground)] focus:outline-none hover:border-blue-400 transition-all text-xs font-medium appearance-none cursor-pointer"
+            <button
+              type="button"
+              onClick={() => {
+                setIsTagDropdownOpen(prev => !prev)
+                setIsTariffDropdownOpen(false)
+                setIsLevelDropdownOpen(false)
+                setIsGroupDropdownOpen(false)
+                setIsCertDropdownOpen(false)
+                setIsScoreDropdownOpen(false)
+                setIsLeadDropdownOpen(false)
+              }}
+              className="w-full pl-9 pr-7 py-2 border border-[var(--border)] rounded-[var(--radius-md)] bg-[var(--surface-elevated)] text-[var(--foreground)] focus:outline-none hover:border-blue-400 transition-all text-xs font-medium cursor-pointer flex items-center justify-between text-left h-[34px] relative"
             >
-              <option value="ALL">All Tasks/Tags</option>
-              {uniqueTags.map(tag => (
-                <option key={tag} value={tag}>{tag}</option>
-              ))}
-            </select>
-            <ChevronDown className="absolute right-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-[var(--foreground-subtle)] pointer-events-none" />
+              <Bookmark className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[var(--foreground-muted)] pointer-events-none" />
+              <span className="truncate select-none pr-1">
+                {selectedTags.length === 0
+                  ? 'All Tasks/Tags'
+                  : selectedTags.length === (['Call', 'Apply', 'Documents', 'Payment', 'Custom', ...uniqueTags.filter(t => !['Call', 'Apply', 'Documents', 'Payment'].includes(t))].length)
+                  ? 'All Tasks/Tags'
+                  : selectedTags.join(', ')}
+              </span>
+              <ChevronDown className="absolute right-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-[var(--foreground-subtle)] pointer-events-none" />
+            </button>
+
+            {isTagDropdownOpen && (
+              <div className="absolute left-0 mt-1 w-56 rounded-[var(--radius-md)] border border-[var(--border)] bg-[var(--surface-elevated)]/95 backdrop-blur-md shadow-lg py-1.5 z-40 max-h-72 overflow-y-auto">
+                <div 
+                  className="px-3 py-1.5 flex items-center gap-2 cursor-pointer hover:bg-[var(--border-subtle)] transition-colors select-none text-[11px] font-bold text-[var(--foreground)]" 
+                  onClick={() => handleToggleAllTags(['Call', 'Apply', 'Documents', 'Payment', 'Custom', ...uniqueTags.filter(t => !['Call', 'Apply', 'Documents', 'Payment'].includes(t))])}
+                >
+                  <input
+                    type="checkbox"
+                    checked={selectedTags.length === (['Call', 'Apply', 'Documents', 'Payment', 'Custom', ...uniqueTags.filter(t => !['Call', 'Apply', 'Documents', 'Payment'].includes(t))].length)}
+                    readOnly
+                    className="h-3.5 w-3.5 rounded border-[var(--border)] text-blue-600 focus:ring-blue-500 cursor-pointer"
+                  />
+                  <span>Select All</span>
+                </div>
+                <div className="h-px bg-[var(--border)] my-1" />
+                {['Call', 'Apply', 'Documents', 'Payment', 'Custom', ...uniqueTags.filter(t => !['Call', 'Apply', 'Documents', 'Payment'].includes(t))].map(tag => {
+                  const isChecked = selectedTags.includes(tag)
+                  return (
+                    <div
+                      key={tag}
+                      onClick={() => handleToggleTagFilter(tag)}
+                      className="px-3 py-1.5 flex items-center gap-2 cursor-pointer hover:bg-[var(--border-subtle)] transition-colors select-none text-[11px] font-medium text-[var(--foreground)]"
+                    >
+                      <input
+                        type="checkbox"
+                        checked={isChecked}
+                        readOnly
+                        className="h-3.5 w-3.5 rounded border-[var(--border)] text-blue-600 focus:ring-blue-500 cursor-pointer"
+                      />
+                      <span>{tag === 'Call' ? '📞 Call' : tag === 'Apply' ? '🎓 Apply' : tag === 'Documents' ? '📄 Documents' : tag === 'Payment' ? '💰 Payment' : tag}</span>
+                    </div>
+                  )
+                })}
+              </div>
+            )}
           </div>
 
           {/* Lead By Filter */}
           <div className="relative">
-            <UserCheck className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[var(--foreground-muted)] pointer-events-none" />
-            <select
-              value={leadByFilter}
-              onChange={(e) => setLeadByFilter(e.target.value)}
-              className="w-full pl-9 pr-7 py-2 border border-[var(--border)] rounded-[var(--radius-md)] bg-[var(--surface-elevated)] text-[var(--foreground)] focus:outline-none hover:border-blue-400 transition-all text-xs font-medium appearance-none cursor-pointer"
+            <button
+              type="button"
+              onClick={() => {
+                setIsLeadDropdownOpen(prev => !prev)
+                setIsTariffDropdownOpen(false)
+                setIsLevelDropdownOpen(false)
+                setIsGroupDropdownOpen(false)
+                setIsCertDropdownOpen(false)
+                setIsScoreDropdownOpen(false)
+                setIsTagDropdownOpen(false)
+              }}
+              className="w-full pl-9 pr-7 py-2 border border-[var(--border)] rounded-[var(--radius-md)] bg-[var(--surface-elevated)] text-[var(--foreground)] focus:outline-none hover:border-blue-400 transition-all text-xs font-medium cursor-pointer flex items-center justify-between text-left h-[34px] relative"
             >
-              <option value="ALL">All Lead By</option>
-              {uniqueLeadBys.map(lead => (
-                <option key={lead} value={lead}>{lead}</option>
-              ))}
-            </select>
-            <ChevronDown className="absolute right-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-[var(--foreground-subtle)] pointer-events-none" />
+              <UserCheck className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[var(--foreground-muted)] pointer-events-none" />
+              <span className="truncate select-none pr-1">
+                {selectedLeads.length === 0
+                  ? 'All Lead By'
+                  : selectedLeads.length === (uniqueLeadBys.length + 1)
+                  ? 'All Lead By'
+                  : selectedLeads.map(l => l === 'NO_LEADBY' ? 'No Lead by' : l).join(', ')}
+              </span>
+              <ChevronDown className="absolute right-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-[var(--foreground-subtle)] pointer-events-none" />
+            </button>
+
+            {isLeadDropdownOpen && (
+              <div className="absolute left-0 mt-1 w-56 rounded-[var(--radius-md)] border border-[var(--border)] bg-[var(--surface-elevated)]/95 backdrop-blur-md shadow-lg py-1.5 z-40 max-h-72 overflow-y-auto">
+                <div 
+                  className="px-3 py-1.5 flex items-center gap-2 cursor-pointer hover:bg-[var(--border-subtle)] transition-colors select-none text-[11px] font-bold text-[var(--foreground)]" 
+                  onClick={() => handleToggleAllLeads(['NO_LEADBY', ...uniqueLeadBys])}
+                >
+                  <input
+                    type="checkbox"
+                    checked={selectedLeads.length === (uniqueLeadBys.length + 1)}
+                    readOnly
+                    className="h-3.5 w-3.5 rounded border-[var(--border)] text-blue-600 focus:ring-blue-500 cursor-pointer"
+                  />
+                  <span>Select All</span>
+                </div>
+                <div className="h-px bg-[var(--border)] my-1" />
+                <div
+                  onClick={() => handleToggleLead('NO_LEADBY')}
+                  className="px-3 py-1.5 flex items-center gap-2 cursor-pointer hover:bg-[var(--border-subtle)] transition-colors select-none text-[11px] font-medium text-[var(--foreground)]"
+                >
+                  <input
+                    type="checkbox"
+                    checked={selectedLeads.includes('NO_LEADBY')}
+                    readOnly
+                    className="h-3.5 w-3.5 rounded border-[var(--border)] text-blue-600 focus:ring-blue-500 cursor-pointer"
+                  />
+                  <span>No Lead by</span>
+                </div>
+                {uniqueLeadBys.map(lead => {
+                  const isChecked = selectedLeads.includes(lead)
+                  return (
+                    <div
+                      key={lead}
+                      onClick={() => handleToggleLead(lead)}
+                      className="px-3 py-1.5 flex items-center gap-2 cursor-pointer hover:bg-[var(--border-subtle)] transition-colors select-none text-[11px] font-medium text-[var(--foreground)]"
+                    >
+                      <input
+                        type="checkbox"
+                        checked={isChecked}
+                        readOnly
+                        className="h-3.5 w-3.5 rounded border-[var(--border)] text-blue-600 focus:ring-blue-500 cursor-pointer"
+                      />
+                      <span>{lead}</span>
+                    </div>
+                  )
+                })}
+              </div>
+            )}
           </div>
         </div>
 
@@ -1444,7 +1850,7 @@ export function StudentDashboardClient() {
       {/* Roster Total Count */}
       <div className="mb-2 flex justify-between items-center text-xs text-[var(--foreground-muted)] italic px-1 font-medium">
         <div>
-          {(searchQuery || tariffFilter !== 'ALL' || levelFilter !== 'ALL' || groupFilter !== 'ALL' || selectedCerts.length > 0 || selectedScores.length > 0 || tagFilter !== 'ALL' || leadByFilter !== 'ALL') && (
+          {(searchQuery || selectedTariffs.length > 0 || selectedLevels.length > 0 || selectedGroups.length > 0 || selectedCerts.length > 0 || selectedScores.length > 0 || selectedTags.length > 0 || selectedLeads.length > 0) && (
             <span>Found {filteredStudents.length} matching students</span>
           )}
         </div>
@@ -1503,7 +1909,7 @@ export function StudentDashboardClient() {
           <p className="mt-1.5 text-sm text-[var(--foreground-muted)] max-w-sm mx-auto">
             No students match your active search filters or table criteria.
           </p>
-          {!searchQuery && tariffFilter === 'ALL' && levelFilter === 'ALL' && (
+          {!searchQuery && selectedTariffs.length === 0 && selectedLevels.length === 0 && (
             <button
               onClick={() => setIsModalOpen(true)}
               className="mt-5 inline-flex items-center gap-2 rounded-[var(--radius-md)] bg-[var(--accent)] px-4 py-2 text-sm font-semibold text-white hover:bg-[var(--accent-hover)] transition-all cursor-pointer"
