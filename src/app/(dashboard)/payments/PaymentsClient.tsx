@@ -575,25 +575,27 @@ export function PaymentsClient() {
                 <button
                   key={student.id}
                   onClick={() => openAddModal(student.id)}
-                  className="text-left rounded-[var(--radius-lg)] border border-[var(--border)] bg-[var(--surface)] p-4 shadow-[var(--shadow-sm)] hover:bg-[var(--surface-elevated)] transition-all cursor-pointer"
+                  className="text-left rounded-[12px] border border-[#2d2d2d] bg-[#1a1a1a] p-4 shadow-lg hover:bg-[#222222] transition-all cursor-pointer w-full"
                 >
-                  <div className="font-bold text-sm uppercase text-[var(--foreground)] truncate">{student.full_name}</div>
-                  <div className="flex flex-wrap gap-1.5 mt-2">
-                    <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-[var(--surface-elevated)] text-[var(--foreground-muted)] border border-[var(--border)]">
+                  <div className="font-bold text-[13px] uppercase text-[#e5e5e5] truncate tracking-wide">
+                    {student.full_name}
+                  </div>
+                  <div className="flex flex-wrap gap-1.5 mt-3">
+                    <span className="text-[10px] font-bold px-2 py-1 rounded-[6px] bg-[#0066cc] text-white">
                       {student.id}
                     </span>
                     {student.tariff && (
-                      <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-[var(--accent-subtle)] text-[var(--accent)] border border-[var(--accent)]/20">
+                      <span className="text-[10px] font-bold px-2.5 py-1 rounded-[6px] bg-[#10b981] text-white">
                         {student.tariff}
                       </span>
                     )}
-                  </div>
-                  <div className="mt-3 flex items-center justify-between">
-                    <span className={`text-sm font-extrabold ${isOwing ? 'text-rose-500' : 'text-emerald-500'}`}>
-                      {formatCurrency(student.balance)}
+                    <span className={`text-[10px] font-bold px-2.5 py-1 rounded-[6px] text-white ${isOwing ? 'bg-[#ef4444]' : 'bg-[#10b981]'}`}>
+                      {student.balance > 0 ? '+' : ''}{formatAmount(student.balance)}
                     </span>
                     {student.discount > 0 && (
-                      <span className="text-[10px] font-bold text-amber-500">-{formatAmount(student.discount)} disc.</span>
+                      <span className="text-[10px] font-bold px-2.5 py-1 rounded-[6px] bg-[#be185d] text-white">
+                        {formatAmount(student.discount)}
+                      </span>
                     )}
                   </div>
                 </button>
