@@ -575,9 +575,9 @@ export function PaymentsClient() {
                 <button
                   key={student.id}
                   onClick={() => openAddModal(student.id)}
-                  className="text-left rounded-[12px] border border-[#2d2d2d] bg-[#1a1a1a] p-4 shadow-lg hover:bg-[#222222] transition-all cursor-pointer w-full"
+                  className="text-left rounded-[12px] border border-[var(--border)] bg-[var(--surface)] p-4 shadow-md hover:bg-[var(--surface-elevated)] transition-all cursor-pointer w-full"
                 >
-                  <div className="font-bold text-[13px] uppercase text-[#e5e5e5] truncate tracking-wide">
+                  <div className="font-bold text-[13px] uppercase text-[var(--foreground)] truncate tracking-wide">
                     {student.full_name}
                   </div>
                   <div className="flex flex-wrap gap-1.5 mt-3">
