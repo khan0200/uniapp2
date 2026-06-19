@@ -417,6 +417,8 @@ export function StudentDashboardClient() {
               <option value="TOPIK">TOPIK</option>
               <option value="IELTS">IELTS</option>
               <option value="TOEFL">TOEFL</option>
+              <option value="CEFR">CEFR</option>
+              <option value="SAT">SAT</option>
               <option value="SKA">SKA</option>
               <option value="NO CERTIFICATE">NO CERTIFICATE</option>
             </select>

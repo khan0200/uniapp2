@@ -12,7 +12,7 @@ export interface Profile {
 
 export type StudentLevel = 'COLLEGE' | 'BACHELOR' | 'MASTERS' | 'MASTER NO CERTIFICATE' | 'LANGUAGE COURSE'
 export type StudentTariff = 'STANDART' | 'PREMIUM' | 'VISA PLUS' | 'E-VISA' | 'REGIONAL VISA'
-export type StudentLanguageCertificate = 'TOPIK' | 'IELTS' | 'TOEFL' | 'SKA' | 'NO CERTIFICATE'
+export type StudentLanguageCertificate = 'TOPIK' | 'IELTS' | 'TOEFL' | 'CEFR' | 'SAT' | 'SKA' | 'NO CERTIFICATE'
 
 export interface Student {
   // 1. Personal & Contact Information

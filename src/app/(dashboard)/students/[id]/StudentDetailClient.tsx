@@ -37,21 +37,24 @@ export function StudentDetailClient({ studentId }: StudentDetailClientProps) {
   const [levelOptions, setLevelOptions] = useState<string[]>(['COLLEGE', 'BACHELOR', 'MASTERS', 'MASTER NO CERTIFICATE', 'LANGUAGE COURSE'])
   const [groupOptions, setGroupOptions] = useState<string[]>(['2026 BAHOR', '2026 KUZ', '2027 BAHOR'])
   const [leadByOptions, setLeadByOptions] = useState<string[]>(['Ali Uncle', 'Cornell', 'Headway', 'SeoulStudy', 'UP Marhamat'])
+  const [universityOptions, setUniversityOptions] = useState<string[]>([])
 
   // Fetch settings filter options
   const fetchFilterOptions = async () => {
     try {
-      const [tariffsRes, levelsRes, groupsRes, leadsRes] = await Promise.all([
+      const [tariffsRes, levelsRes, groupsRes, leadsRes, universitiesRes] = await Promise.all([
         supabase.from('tariff_options').select('name'),
         supabase.from('education_levels').select('name'),
         supabase.from('student_groups').select('name'),
-        supabase.from('lead_sources').select('name')
+        supabase.from('lead_sources').select('name'),
+        supabase.from('universities').select('name')
       ])
 
       if (tariffsRes.data && tariffsRes.data.length > 0) setTariffOptions((tariffsRes.data as any[]).map(t => t.name))
       if (levelsRes.data && levelsRes.data.length > 0) setLevelOptions((levelsRes.data as any[]).map(l => l.name))
       if (groupsRes.data && groupsRes.data.length > 0) setGroupOptions((groupsRes.data as any[]).map(g => g.name))
       if (leadsRes.data && leadsRes.data.length > 0) setLeadByOptions((leadsRes.data as any[]).map(l => l.name))
+      if (universitiesRes.data && universitiesRes.data.length > 0) setUniversityOptions((universitiesRes.data as any[]).map(u => u.name))
     } catch (err) {
       console.error('Error fetching filter options in details:', err)
     }
@@ -272,6 +275,7 @@ export function StudentDetailClient({ studentId }: StudentDetailClientProps) {
       selectOptions?: string[]
       badgeColor?: string
       titleColor?: string
+      forceBorderColor?: 'blue' | 'red'
     } = {}
   ) => {
     const isEditing = editingField === field
@@ -281,6 +285,11 @@ export function StudentDetailClient({ studentId }: StudentDetailClientProps) {
     const copyable = options.copyable !== false
     const editable = options.editable !== false
 
+    const isMissing = value === null || value === undefined || String(value).trim() === '' || String(value).trim() === '—'
+    const borderLeftColor = options.forceBorderColor 
+      ? (options.forceBorderColor === 'red' ? 'border-l-rose-500 dark:border-l-rose-600' : 'border-l-blue-500 dark:border-l-blue-600')
+      : (isMissing ? 'border-l-rose-500 dark:border-l-rose-600' : 'border-l-blue-500 dark:border-l-blue-600')
+
     return (
       <div 
         onDoubleClick={() => {
@@ -288,7 +297,7 @@ export function StudentDetailClient({ studentId }: StudentDetailClientProps) {
             handleStartEditing(String(field), value, options.type === 'select' ? options.selectOptions?.[0] : '')
           }
         }} 
-        className="bg-[var(--surface)] border border-[var(--border)] rounded-[var(--radius-md)] px-3 py-2 flex flex-col justify-between min-h-[58px] text-[var(--foreground)] shadow-[var(--shadow-sm)] hover:border-[var(--accent)]/50 transition-all animate-in fade-in duration-200 cursor-pointer"
+        className={`bg-[var(--surface)] border border-[var(--border)] rounded-[var(--radius-md)] px-3 py-2 flex flex-col justify-between min-h-[58px] text-[var(--foreground)] shadow-[var(--shadow-sm)] hover:border-[var(--accent)]/50 transition-all animate-in fade-in duration-200 cursor-pointer border-l-4 ${borderLeftColor}`}
         title={`${editable ? 'Double-click to edit. ' : ''}${copyable && value ? 'Single-click value to copy.' : ''}`}
       >
         <div className="flex items-center justify-between gap-2">
@@ -380,8 +389,8 @@ export function StudentDetailClient({ studentId }: StudentDetailClientProps) {
           ) : (
             isCopied ? (
               <span className="text-xs font-bold text-[var(--success)] animate-pulse">Copied!</span>
-            ) : options.badgeColor ? (
-              <span className={`inline-flex px-2 py-0.5 rounded-md text-[10px] font-bold uppercase ${options.badgeColor}`}>
+            ) : (options.badgeColor && !isMissing) ? (
+              <span className={`inline-flex px-1.5 py-0.5 rounded-[4px] text-[10px] font-bold uppercase ${options.badgeColor}`}>
                 {displayValue}
               </span>
             ) : (
@@ -398,11 +407,13 @@ export function StudentDetailClient({ studentId }: StudentDetailClientProps) {
     label: string,
     certField: keyof Student,
     scoreField: keyof Student,
-    certsAllowed: string[]
+    certsAllowed: string[],
+    certColor: string = 'bg-[#de350b]'
   ) => {
     const isEditing = editingField === certField
     const certVal = selectedStudent?.[certField] as string
     const scoreVal = selectedStudent?.[scoreField] as string
+    const isMissing = !certVal || certVal === 'NO CERTIFICATE' || certVal.trim() === ''
 
     return (
       <div 
@@ -411,7 +422,9 @@ export function StudentDetailClient({ studentId }: StudentDetailClientProps) {
             handleStartEditing(String(certField), certVal, certsAllowed[0]);
           }
         }}
-        className="bg-[var(--surface)] border border-[var(--border)] rounded-[var(--radius-md)] px-3 py-2 flex flex-col justify-between min-h-[58px] text-[var(--foreground)] shadow-[var(--shadow-sm)] hover:border-[var(--accent)]/50 transition-all cursor-pointer"
+        className={`bg-[var(--surface)] border border-[var(--border)] rounded-[var(--radius-md)] px-3 py-2 flex flex-col justify-between min-h-[58px] text-[var(--foreground)] shadow-[var(--shadow-sm)] hover:border-[var(--accent)]/50 transition-all cursor-pointer border-l-4 ${
+          isMissing ? 'border-l-rose-500 dark:border-l-rose-600' : 'border-l-blue-500 dark:border-l-blue-600'
+        }`}
         title="Double-click to edit. Single-click value to copy."
       >
         <div className="flex items-center justify-between gap-2">
@@ -542,8 +555,8 @@ export function StudentDetailClient({ studentId }: StudentDetailClientProps) {
               <span className="text-xs font-bold text-[var(--success)] animate-pulse">Copied!</span>
             ) : certVal && certVal !== 'NO CERTIFICATE' ? (
               <div className="inline-flex items-center text-[10px] font-bold rounded-[4px] overflow-hidden shadow-sm">
-                <span className="bg-[#de350b] text-white px-1.5 py-0.2 uppercase">{certVal}</span>
-                <span className="bg-[#0052cc] text-white px-1.5 py-0.2">SCORE: {scoreVal || '—'}</span>
+                <span className={`${certColor} text-white px-1.5 py-0.5 uppercase`}>{certVal}</span>
+                <span className="bg-[#0052cc] text-white px-1.5 py-0.5">SCORE: {scoreVal || '—'}</span>
               </div>
             ) : (
               <span className="text-[10px] font-semibold text-[var(--foreground-subtle)] uppercase">NO CERTIFICATE</span>
@@ -565,13 +578,20 @@ export function StudentDetailClient({ studentId }: StudentDetailClientProps) {
     const statusVal = selectedStudent?.[statusField] as string
 
     const getStatusBadgeClass = (status: string) => {
-      if (!status) return 'bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-300'
+      if (!status) return 'bg-gray-500 text-white'
       const statusUpper = status.toUpperCase()
-      if (statusUpper === 'APPLIED') return 'bg-amber-50 text-amber-700 border border-amber-205 dark:bg-amber-950/40 dark:border-amber-900/30 dark:text-amber-300'
-      if (statusUpper === 'ACCEPTED') return 'bg-emerald-50 text-emerald-700 border border-emerald-250 dark:bg-emerald-950/40 dark:border-emerald-900/30 dark:text-emerald-300'
-      if (statusUpper === 'FAILED' || statusUpper === 'REJECTED') return 'bg-rose-50 text-rose-700 border border-rose-205 dark:bg-rose-950/40 dark:border-rose-900/30 dark:text-rose-300'
-      return 'bg-blue-50 text-blue-700 border border-blue-205 dark:bg-blue-950/40 dark:border-blue-900/30 dark:text-blue-300'
+      if (statusUpper === 'ACCEPTED' || statusUpper === 'FINISHED' || statusUpper === 'ADMITTED') {
+        return 'bg-[#36b37e] text-white'
+      }
+      if (statusUpper === 'FAILED' || statusUpper === 'REJECTED') {
+        return 'bg-[#ff5630] text-white'
+      }
+      if (statusUpper === 'APPLIED' || statusUpper === 'APPLYING') {
+        return 'bg-[#ffab00] text-white'
+      }
+      return 'bg-[#0052cc] text-white'
     }
+    const isMissing = !uniVal || uniVal.trim() === ''
 
     return (
       <div 
@@ -580,7 +600,9 @@ export function StudentDetailClient({ studentId }: StudentDetailClientProps) {
             handleStartEditing(String(uniField), uniVal);
           }
         }}
-        className="bg-[var(--surface)] border border-[var(--border)] rounded-[var(--radius-md)] px-3 py-2 flex flex-col justify-between min-h-[58px] text-[var(--foreground)] shadow-[var(--shadow-sm)] hover:border-[var(--accent)]/50 transition-all cursor-pointer"
+        className={`bg-[var(--surface)] border border-[var(--border)] rounded-[var(--radius-md)] px-3 py-2 flex flex-col justify-between min-h-[58px] text-[var(--foreground)] shadow-[var(--shadow-sm)] hover:border-[var(--accent)]/50 transition-all cursor-pointer border-l-4 ${
+          isMissing ? 'border-l-rose-500 dark:border-l-rose-600' : 'border-l-blue-500 dark:border-l-blue-600'
+        }`}
         title="Double-click to edit. Single-click value to copy."
       >
         <div className="flex items-center justify-between gap-2">
@@ -630,17 +652,17 @@ export function StudentDetailClient({ studentId }: StudentDetailClientProps) {
               onClick={(e) => e.stopPropagation()}
               onKeyDown={async (e) => {
                 if (e.key === 'Enter') {
-                  const uniEl = document.getElementById('edit-uni-name-input') as HTMLInputElement
+                  const uniEl = document.getElementById('edit-uni-name-select') as HTMLSelectElement
                   const statusEl = document.getElementById('edit-uni-status-select') as HTMLSelectElement
-                  const uniInput = uniEl ? uniEl.value.trim() : ''
+                  const uniInput = uniEl ? uniEl.value : ''
                   const statusInput = statusEl ? statusEl.value : 'Chosen'
                   try {
                     const { error } = await (supabase
                       .from('students') as any)
-                      .update({ [uniField]: uniInput, [statusField]: statusInput, jarayon_updated_at: new Date().toISOString() })
+                      .update({ [uniField]: uniInput || null, [statusField]: statusInput, jarayon_updated_at: new Date().toISOString() })
                       .eq('id', selectedStudent!.id)
                     if (error) throw error
-                    const updated = { ...selectedStudent!, [uniField]: uniInput, [statusField]: statusInput, jarayon_updated_at: new Date().toISOString() }
+                    const updated = { ...selectedStudent!, [uniField]: uniInput || null, [statusField]: statusInput, jarayon_updated_at: new Date().toISOString() }
                     setSelectedStudent(updated)
                     setEditingField(null)
                   } catch (err: any) {
@@ -651,18 +673,21 @@ export function StudentDetailClient({ studentId }: StudentDetailClientProps) {
                 }
               }}
             >
-              <input
-                type="text"
-                id="edit-uni-name-input"
+              <select
+                id="edit-uni-name-select"
                 defaultValue={uniVal || ''}
-                placeholder="University Name"
-                className="bg-[var(--surface-elevated)] text-[10px] text-[var(--foreground)] px-2 py-0.5 rounded border border-[var(--border)] w-full focus:outline-none"
+                className="bg-[var(--surface-elevated)] text-[10px] text-[var(--foreground)] px-2 py-0.5 rounded border border-[var(--border)] w-full focus:outline-none font-medium cursor-pointer"
                 autoFocus
-              />
+              >
+                <option value="">None Selected</option>
+                {universityOptions.map(opt => (
+                  <option key={opt} value={opt}>{opt}</option>
+                ))}
+              </select>
               <select
                 id="edit-uni-status-select"
                 defaultValue={statusVal || 'Chosen'}
-                className="bg-[var(--surface-elevated)] text-[10px] text-[var(--foreground)] px-2 py-0.5 rounded border border-[var(--border)] w-full focus:outline-none"
+                className="bg-[var(--surface-elevated)] text-[10px] text-[var(--foreground)] px-2 py-0.5 rounded border border-[var(--border)] w-full focus:outline-none cursor-pointer"
               >
                 <option value="Chosen">Chosen</option>
                 <option value="Applying">Applying</option>
@@ -674,17 +699,17 @@ export function StudentDetailClient({ studentId }: StudentDetailClientProps) {
                 <button
                   onClick={async (e) => {
                     e.stopPropagation();
-                    const uniEl = document.getElementById('edit-uni-name-input') as HTMLInputElement
+                    const uniEl = document.getElementById('edit-uni-name-select') as HTMLSelectElement
                     const statusEl = document.getElementById('edit-uni-status-select') as HTMLSelectElement
-                    const uniInput = uniEl ? uniEl.value.trim() : ''
+                    const uniInput = uniEl ? uniEl.value : ''
                     const statusInput = statusEl ? statusEl.value : 'Chosen'
                     try {
                       const { error } = await (supabase
                         .from('students') as any)
-                        .update({ [uniField]: uniInput, [statusField]: statusInput, jarayon_updated_at: new Date().toISOString() })
+                        .update({ [uniField]: uniInput || null, [statusField]: statusInput, jarayon_updated_at: new Date().toISOString() })
                         .eq('id', selectedStudent!.id)
                       if (error) throw error
-                      const updated = { ...selectedStudent!, [uniField]: uniInput, [statusField]: statusInput, jarayon_updated_at: new Date().toISOString() }
+                      const updated = { ...selectedStudent!, [uniField]: uniInput || null, [statusField]: statusInput, jarayon_updated_at: new Date().toISOString() }
                       setSelectedStudent(updated)
                       setEditingField(null)
                     } catch (err: any) {
@@ -711,9 +736,9 @@ export function StudentDetailClient({ studentId }: StudentDetailClientProps) {
               <span className="text-xs font-bold text-[var(--success)] animate-pulse">Copied!</span>
             ) : uniVal ? (
               <div className="flex flex-col gap-0.5 w-full">
-                <span className="text-[11px] font-semibold tracking-wide text-[var(--foreground)] truncate max-w-[150px]" title={uniVal}>{uniVal}</span>
+                <span className="text-[11px] font-semibold tracking-wide text-[var(--foreground)]" title={uniVal}>{uniVal}</span>
                 <div className="flex">
-                  <span className={`inline-flex px-1.5 py-0.2 rounded-[4px] text-[8px] font-extrabold uppercase border ${getStatusBadgeClass(statusVal)}`}>
+                  <span className={`inline-flex px-1.5 py-0.5 rounded-[4px] text-[8px] font-extrabold uppercase border ${getStatusBadgeClass(statusVal)}`}>
                     {statusVal || 'Chosen'}
                   </span>
                 </div>
@@ -730,9 +755,12 @@ export function StudentDetailClient({ studentId }: StudentDetailClientProps) {
   // Render auto calculated Family/Given Name cards (ReadOnly copyable only)
   const renderAutoNameCard = (label: string, value: string, field: 'family_name' | 'given_name') => {
     const isCopied = copiedField === field
+    const isMissing = !value || value.trim() === '' || value.trim() === '—'
     return (
       <div 
-        className="bg-[var(--surface)] border border-[var(--border)] rounded-[var(--radius-md)] px-3 py-2 flex flex-col justify-between min-h-[58px] text-[var(--foreground)] shadow-[var(--shadow-sm)] hover:border-[var(--accent)]/50 transition-all cursor-pointer animate-in fade-in duration-200"
+        className={`bg-[var(--surface)] border border-[var(--border)] rounded-[var(--radius-md)] px-3 py-2 flex flex-col justify-between min-h-[58px] text-[var(--foreground)] shadow-[var(--shadow-sm)] hover:border-[var(--accent)]/50 transition-all cursor-pointer animate-in fade-in duration-200 border-l-4 ${
+          isMissing ? 'border-l-rose-500 dark:border-l-rose-600' : 'border-l-blue-500 dark:border-l-blue-600'
+        }`}
         title={value ? 'Single-click value to copy.' : ''}
       >
         <div className="flex items-center justify-between gap-2">
@@ -810,8 +838,8 @@ export function StudentDetailClient({ studentId }: StudentDetailClientProps) {
   }
 
   return (
-    <PageShell className="p-3 gap-3 h-full overflow-hidden">
-      <div className="h-full bg-background text-[var(--foreground)] transition-colors flex flex-col gap-2.5 min-h-0">
+    <PageShell className="p-3 gap-3">
+      <div className="bg-background text-[var(--foreground)] transition-colors flex flex-col gap-2.5">
         {/* Header Action Bar (Highly compact) */}
         <div className="flex items-center justify-between gap-4 pb-2 border-b border-[var(--border)] flex-shrink-0">
           <Link
@@ -869,9 +897,9 @@ export function StudentDetailClient({ studentId }: StudentDetailClientProps) {
         </div>
 
         {/* Main Dashboard Layout (3-Column Grid) */}
-        <div className="flex-1 min-h-0 grid grid-cols-1 lg:grid-cols-[1.4fr_1fr_1fr] gap-3 overflow-y-auto lg:overflow-hidden pb-1">
+        <div className="grid grid-cols-1 lg:grid-cols-[1.4fr_1.5fr_0.5fr] gap-3 pb-1">
           {/* Column 1: Personal Info & Contact Info */}
-          <div className="flex flex-col gap-3 lg:overflow-y-auto pr-1">
+          <div className="flex flex-col gap-3">
             {/* Personal & Passport Block */}
             <div className="bg-[var(--surface)] border border-[var(--border)] rounded-lg p-2.5 shadow-[var(--shadow-sm)] flex flex-col gap-2">
               <div className="flex items-center gap-1.5 pb-1 border-b border-[var(--border)]">
@@ -892,11 +920,20 @@ export function StudentDetailClient({ studentId }: StudentDetailClientProps) {
                   titleColor: 'text-[var(--accent)]' 
                 })}
                 {renderDetailCard('Birthday', 'birthday', selectedStudent.birthday, { type: 'date', titleColor: 'text-[var(--accent)]' })}
-                {renderDetailCard('Passport', 'passport', selectedStudent.passport, { titleColor: 'text-[var(--accent)]' })}
-                {renderDetailCard('Date of Issue', 'passport_issue_date', selectedStudent.passport_issue_date, { type: 'date', titleColor: 'text-[var(--accent)]' })}
-                {renderDetailCard('Date of Expiration', 'passport_expire_date', selectedStudent.passport_expire_date, { type: 'date', titleColor: 'text-[var(--accent)]' })}
+                <div className="sm:col-span-2 grid grid-cols-1 sm:grid-cols-3 gap-2">
+                  {renderDetailCard('Passport', 'passport', selectedStudent.passport, { titleColor: 'text-[var(--accent)]' })}
+                  {renderDetailCard('Date of Issue', 'passport_issue_date', selectedStudent.passport_issue_date, { type: 'date', titleColor: 'text-[var(--accent)]' })}
+                  {renderDetailCard('Date of Expiration', 'passport_expire_date', selectedStudent.passport_expire_date, { type: 'date', titleColor: 'text-[var(--accent)]' })}
+                </div>
+
                 <div className="sm:col-span-2">
                   {renderDetailCard('Address', 'address', selectedStudent.address, { titleColor: 'text-[var(--accent)]' })}
+                </div>
+                <div className="sm:col-span-2">
+                  {renderDetailCard('Notes', 'notes', selectedStudent.notes, { titleColor: 'text-[var(--accent)]' })}
+                </div>
+                <div className="sm:col-span-2">
+                  {renderDetailCard('Educational Background', 'educational_background', selectedStudent.educational_background, { titleColor: 'text-[var(--accent)]' })}
                 </div>
               </div>
             </div>
@@ -909,20 +946,28 @@ export function StudentDetailClient({ studentId }: StudentDetailClientProps) {
                   Contact & Parents
                 </h3>
               </div>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                {renderDetailCard('Student Number 1', 'phone1', selectedStudent.phone1, { titleColor: 'text-[var(--accent)]' })}
-                {renderDetailCard('Student Number 2', 'phone2', selectedStudent.phone2, { titleColor: 'text-[var(--accent)]' })}
-                <div className="sm:col-span-2">
-                  {renderDetailCard('Email', 'email', selectedStudent.email, { titleColor: 'text-[var(--accent)]' })}
+              <div className="flex flex-col gap-2">
+                <div className="grid grid-cols-1 sm:grid-cols-4 gap-2">
+                  <div className="sm:col-span-1">
+                    {renderDetailCard('Student Number 1', 'phone1', selectedStudent.phone1, { titleColor: 'text-[var(--accent)]' })}
+                  </div>
+                  <div className="sm:col-span-1">
+                    {renderDetailCard('Student Number 2', 'phone2', selectedStudent.phone2, { titleColor: 'text-[var(--accent)]' })}
+                  </div>
+                  <div className="sm:col-span-2">
+                    {renderDetailCard('Email', 'email', selectedStudent.email, { titleColor: 'text-[var(--accent)]' })}
+                  </div>
                 </div>
-                {renderDetailCard('Father Phone', 'father_phone', selectedStudent.father_phone, { titleColor: 'text-[var(--danger)]' })}
-                {renderDetailCard('Mother Phone', 'mother_phone', selectedStudent.mother_phone, { titleColor: 'text-[var(--danger)]' })}
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                  {renderDetailCard('Father Phone', 'father_phone', selectedStudent.father_phone, { titleColor: 'text-[var(--danger)]' })}
+                  {renderDetailCard('Mother Phone', 'mother_phone', selectedStudent.mother_phone, { titleColor: 'text-[var(--danger)]' })}
+                </div>
               </div>
             </div>
           </div>
 
           {/* Column 2: Academic & Universities */}
-          <div className="flex flex-col gap-3 lg:overflow-y-auto pr-1">
+          <div className="flex flex-col gap-3">
             {/* Academic & Languages Block */}
             <div className="bg-[var(--surface)] border border-[var(--border)] rounded-lg p-2.5 shadow-[var(--shadow-sm)] flex flex-col gap-2">
               <div className="flex items-center gap-1.5 pb-1 border-b border-[var(--border)]">
@@ -931,34 +976,32 @@ export function StudentDetailClient({ studentId }: StudentDetailClientProps) {
                   Academic & Languages
                 </h3>
               </div>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                {renderDetailCard('Tariff', 'tariff', selectedStudent.tariff, { 
-                  type: 'select', 
-                  selectOptions: tariffOptions,
-                  badgeColor: 'bg-emerald-50 text-emerald-700 border border-emerald-250 dark:bg-emerald-950/40 dark:text-emerald-300 dark:border-emerald-900/30',
-                  titleColor: 'text-[var(--accent)]'
-                })}
-                {renderDetailCard('Education Level', 'level', selectedStudent.level, { 
-                  type: 'select', 
-                  selectOptions: levelOptions,
-                  badgeColor: 'bg-blue-50 text-blue-700 border border-blue-250 dark:bg-blue-900/40 dark:border-blue-850 dark:text-blue-300',
-                  titleColor: 'text-[var(--accent)]'
-                })}
-                <div className="sm:col-span-2">
+              <div className="flex flex-col gap-2">
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+                  {renderDetailCard('Tariff', 'tariff', selectedStudent.tariff, { 
+                    type: 'select', 
+                    selectOptions: tariffOptions,
+                    badgeColor: 'bg-[#00875a] text-white',
+                    titleColor: 'text-[var(--accent)]'
+                  })}
+                  {renderDetailCard('Education Level', 'level', selectedStudent.level, { 
+                    type: 'select', 
+                    selectOptions: levelOptions,
+                    badgeColor: 'bg-[#0052cc] text-white',
+                    titleColor: 'text-[var(--accent)]'
+                  })}
                   {renderDetailCard('Education Level 2', 'level2', selectedStudent.level2, { 
                     type: 'select', 
                     selectOptions: levelOptions,
-                    badgeColor: 'bg-amber-50 text-amber-700 border border-amber-250 dark:bg-amber-950/40 dark:border-amber-850 dark:text-amber-300',
+                    badgeColor: 'bg-[#ff9900] text-white',
                     titleColor: 'text-[var(--accent)]'
                   })}
                 </div>
-                <div className="sm:col-span-2">
-                  {renderDetailCard('Educational Background', 'educational_background', selectedStudent.educational_background, { titleColor: 'text-[var(--accent)]' })}
-                </div>
-                <div className="sm:col-span-2 grid grid-cols-1 gap-2">
-                  {renderCertificateCard('Language Certificate 1', 'language_certificate', 'certificate_score', ['TOPIK', 'IELTS', 'TOEFL', 'SKA', 'NO CERTIFICATE'])}
-                  {renderCertificateCard('Language Certificate 2', 'language_certificate_2', 'certificate_score_2', ['TOPIK', 'IELTS', 'TOEFL', 'SKA', 'NO CERTIFICATE'])}
-                  {renderCertificateCard('Language Certificate 3', 'language_certificate_3', 'certificate_score_3', ['TOPIK', 'IELTS', 'TOEFL', 'SKA', 'NO CERTIFICATE'])}
+
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+                  {renderCertificateCard('Language Certificate 1', 'language_certificate', 'certificate_score', ['TOPIK', 'IELTS', 'TOEFL', 'CEFR', 'SAT', 'SKA', 'NO CERTIFICATE'], 'bg-[#de350b]')}
+                  {renderCertificateCard('Language Certificate 2', 'language_certificate_2', 'certificate_score_2', ['TOPIK', 'IELTS', 'TOEFL', 'CEFR', 'SAT', 'SKA', 'NO CERTIFICATE'], 'bg-[#00b8d9]')}
+                  {renderCertificateCard('Language Certificate 3', 'language_certificate_3', 'certificate_score_3', ['TOPIK', 'IELTS', 'TOEFL', 'CEFR', 'SAT', 'SKA', 'NO CERTIFICATE'], 'bg-[#ff5630]')}
                 </div>
               </div>
             </div>
@@ -971,22 +1014,16 @@ export function StudentDetailClient({ studentId }: StudentDetailClientProps) {
                   Universities & Docs
                 </h3>
               </div>
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+              <div className="grid grid-cols-1 gap-2">
                 {renderUniversityCardDetails('University 1', 'university_1', 'university_1_status')}
                 {renderUniversityCardDetails('University 2', 'university_2', 'university_2_status')}
                 {renderUniversityCardDetails('University 3', 'university_3', 'university_3_status')}
-                <div className="sm:col-span-3">
-                  {renderDetailCard('Missing Documents', 'pick_needed', selectedStudent.pick_needed?.join(', '), { 
-                    badgeColor: 'bg-purple-50 text-purple-700 border border-purple-250 dark:bg-purple-950/40 dark:text-purple-350 dark:border-purple-900/30',
-                    titleColor: 'text-[var(--accent)]'
-                  })}
-                </div>
               </div>
             </div>
           </div>
 
           {/* Column 3: System & Finance */}
-          <div className="flex flex-col gap-3 lg:overflow-y-auto pr-1">
+          <div className="flex flex-col gap-3">
             {/* System & Finance Block */}
             <div className="bg-[var(--surface)] border border-[var(--border)] rounded-lg p-2.5 shadow-[var(--shadow-sm)] flex flex-col gap-2">
               <div className="flex items-center gap-1.5 pb-1 border-b border-[var(--border)]">
@@ -995,7 +1032,7 @@ export function StudentDetailClient({ studentId }: StudentDetailClientProps) {
                   System & Finance
                 </h3>
               </div>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+              <div className="grid grid-cols-1 gap-2">
                 {/* Office Location Card */}
                 <div 
                   onDoubleClick={() => {
@@ -1091,15 +1128,13 @@ export function StudentDetailClient({ studentId }: StudentDetailClientProps) {
 
                 {/* Student Balance Card */}
                 <div 
-                  onDoubleClick={() => {
-                    if (editingField !== 'balance') {
-                      handleStartEditing('balance', selectedStudent.balance)
-                    }
-                  }}
                   className={`rounded-[var(--radius-md)] p-2.5 text-white flex flex-col justify-between min-h-[50px] cursor-pointer ${
                     selectedStudent.balance < 0 ? 'bg-rose-500 dark:bg-rose-600' : 'bg-emerald-500 dark:bg-emerald-600'
                   }`}
-                  title="Double-click to edit. Single-click value to copy."
+                  title="Single-click value to copy."
+                  onClick={() => {
+                    handleCopy('balance', String(selectedStudent.balance))
+                  }}
                 >
                   <div className="flex items-center justify-between">
                     <span className="text-[9px] uppercase font-bold tracking-wider text-white opacity-95 flex items-center gap-1">
@@ -1107,94 +1142,41 @@ export function StudentDetailClient({ studentId }: StudentDetailClientProps) {
                       Balance
                     </span>
                     <div className="flex items-center gap-1">
-                      {editingField !== 'balance' && (
-                        <button
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            handleCopy('balance', String(selectedStudent.balance))
-                          }}
-                          className="p-0.5 hover:bg-black/10 rounded transition-all cursor-pointer text-white"
-                          title="Copy balance"
-                        >
-                          {copiedField === 'balance' ? (
-                            <CheckCircle2 className="h-3 w-3 text-white" />
-                          ) : (
-                            <Copy className="h-3 w-3" />
-                          )}
-                        </button>
-                      )}
-                      {editingField !== 'balance' && (
-                        <button
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            handleStartEditing('balance', selectedStudent.balance)
-                          }}
-                          className="p-0.5 hover:bg-black/10 rounded transition-all cursor-pointer text-white hover:text-white"
-                        >
-                          <Pencil className="h-3 w-3" />
-                        </button>
-                      )}
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleCopy('balance', String(selectedStudent.balance))
+                        }}
+                        className="p-0.5 hover:bg-black/10 rounded transition-all cursor-pointer text-white"
+                        title="Copy balance"
+                      >
+                        {copiedField === 'balance' ? (
+                          <CheckCircle2 className="h-3 w-3 text-white" />
+                        ) : (
+                          <Copy className="h-3 w-3" />
+                        )}
+                      </button>
                     </div>
                   </div>
-                  <div 
-                    className="mt-0.5 flex items-center min-h-[22px] w-full"
-                    onClick={() => {
-                      if (editingField !== 'balance') {
-                        handleCopy('balance', String(selectedStudent.balance))
-                      }
-                    }}
-                  >
-                    {editingField === 'balance' ? (
-                      <div 
-                        className="flex items-center gap-1.5 w-full"
-                        onClick={(e) => e.stopPropagation()}
-                        onKeyDown={(e) => {
-                          if (e.key === 'Enter') handleSaveField('balance')
-                          else if (e.key === 'Escape') handleCancelEditing()
-                        }}
-                      >
-                        <input
-                          type="number"
-                          value={editValue}
-                          onChange={(e) => setEditValue(Number(e.target.value))}
-                          className="bg-black/20 text-xs text-white px-2 py-0.5 rounded border border-white/20 focus:outline-none w-full font-bold"
-                          autoFocus
-                        />
-                        <button
-                          onClick={() => handleSaveField('balance')}
-                          className="p-0.5 hover:bg-black/10 rounded text-emerald-250 cursor-pointer"
-                        >
-                          <CheckCircle2 className="h-4 w-4" />
-                        </button>
-                        <button
-                          onClick={handleCancelEditing}
-                          className="p-0.5 hover:bg-black/10 rounded text-rose-250 cursor-pointer"
-                        >
-                          <X className="h-4 w-4" />
-                        </button>
-                      </div>
+                  <div className="mt-0.5 flex items-center min-h-[22px] w-full">
+                    {copiedField === 'balance' ? (
+                      <span className="text-xs font-bold text-white animate-pulse">Copied!</span>
                     ) : (
-                      copiedField === 'balance' ? (
-                        <span className="text-xs font-bold text-white animate-pulse">Copied!</span>
-                      ) : (
-                        <span className="text-xs font-bold tracking-wide">
-                          {formatCurrency(selectedStudent.balance)}
-                        </span>
-                      )
+                      <span className="text-xs font-bold tracking-wide">
+                        {formatCurrency(selectedStudent.balance)}
+                      </span>
                     )}
                   </div>
                 </div>
 
                 {/* Payments Done Card */}
                 <div 
-                  onDoubleClick={() => {
-                    if (editingField !== 'payments_done') {
-                      const amount = selectedStudent.balance < 0 ? Math.abs(selectedStudent.balance) : 0
-                      handleStartEditing('payments_done', amount)
-                    }
-                  }}
                   className="bg-emerald-500 dark:bg-emerald-600 rounded-[var(--radius-md)] p-2.5 text-white flex flex-col justify-between min-h-[50px] cursor-pointer"
-                  title="Double-click to edit. Single-click value to copy."
+                  title="Single-click value to copy."
+                  onClick={() => {
+                    const amount = selectedStudent.balance < 0 ? Math.abs(selectedStudent.balance) : 0
+                    handleCopy('payments_done', String(amount))
+                  }}
                 >
                   <div className="flex items-center justify-between">
                     <span className="text-[9px] uppercase font-bold tracking-wider text-white opacity-95 flex items-center gap-1">
@@ -1202,98 +1184,43 @@ export function StudentDetailClient({ studentId }: StudentDetailClientProps) {
                       Payments Done
                     </span>
                     <div className="flex items-center gap-1">
-                      {editingField !== 'payments_done' && (
-                        <button
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            const amount = selectedStudent.balance < 0 ? Math.abs(selectedStudent.balance) : 0
-                            handleCopy('payments_done', String(amount))
-                          }}
-                          className="p-0.5 hover:bg-black/10 rounded transition-all cursor-pointer text-white"
-                          title="Copy payments done"
-                        >
-                          {copiedField === 'payments_done' ? (
-                            <CheckCircle2 className="h-3 w-3 text-white" />
-                          ) : (
-                            <Copy className="h-3 w-3" />
-                          )}
-                        </button>
-                      )}
-                      {editingField !== 'payments_done' && (
-                        <button
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            const amount = selectedStudent.balance < 0 ? Math.abs(selectedStudent.balance) : 0
-                            handleStartEditing('payments_done', amount)
-                          }}
-                          className="p-0.5 hover:bg-black/10 rounded transition-all cursor-pointer text-white hover:text-white"
-                        >
-                          <Pencil className="h-3 w-3" />
-                        </button>
-                      )}
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          const amount = selectedStudent.balance < 0 ? Math.abs(selectedStudent.balance) : 0
+                          handleCopy('payments_done', String(amount))
+                        }}
+                        className="p-0.5 hover:bg-black/10 rounded transition-all cursor-pointer text-white"
+                        title="Copy payments done"
+                      >
+                        {copiedField === 'payments_done' ? (
+                          <CheckCircle2 className="h-3 w-3 text-white" />
+                        ) : (
+                          <Copy className="h-3 w-3" />
+                        )}
+                      </button>
                     </div>
                   </div>
-                  <div 
-                    className="mt-0.5 flex items-center min-h-[22px] w-full"
-                    onClick={() => {
-                      if (editingField !== 'payments_done') {
-                        const amount = selectedStudent.balance < 0 ? Math.abs(selectedStudent.balance) : 0
-                        handleCopy('payments_done', String(amount))
-                      }
-                    }}
-                  >
-                    {editingField === 'payments_done' ? (
-                      <div 
-                        className="flex items-center gap-1.5 w-full"
-                        onClick={(e) => e.stopPropagation()}
-                        onKeyDown={(e) => {
-                          if (e.key === 'Enter') handleSaveField('payments_done')
-                          else if (e.key === 'Escape') handleCancelEditing()
-                        }}
-                      >
-                        <input
-                          type="number"
-                          value={editValue}
-                          onChange={(e) => setEditValue(Number(e.target.value))}
-                          className="bg-black/20 text-xs text-white px-2 py-0.5 rounded border border-white/20 focus:outline-none w-full font-bold"
-                          autoFocus
-                        />
-                        <button
-                          onClick={() => handleSaveField('payments_done')}
-                          className="p-0.5 hover:bg-black/10 rounded text-emerald-250 cursor-pointer"
-                        >
-                          <CheckCircle2 className="h-4 w-4" />
-                        </button>
-                        <button
-                          onClick={handleCancelEditing}
-                          className="p-0.5 hover:bg-black/10 rounded text-rose-250 cursor-pointer"
-                        >
-                          <X className="h-4 w-4" />
-                        </button>
-                      </div>
+                  <div className="mt-0.5 flex items-center min-h-[22px] w-full">
+                    {copiedField === 'payments_done' ? (
+                      <span className="text-xs font-bold text-white animate-pulse">Copied!</span>
                     ) : (
-                      copiedField === 'payments_done' ? (
-                        <span className="text-xs font-bold text-white animate-pulse">Copied!</span>
-                      ) : (
-                        <span className="text-xs font-bold tracking-wide">
-                          {selectedStudent.balance < 0
-                            ? formatCurrency(Math.abs(selectedStudent.balance))
-                            : formatCurrency(0)}
-                        </span>
-                      )
+                      <span className="text-xs font-bold tracking-wide">
+                        {selectedStudent.balance < 0
+                          ? formatCurrency(Math.abs(selectedStudent.balance))
+                          : formatCurrency(0)}
+                      </span>
                     )}
                   </div>
                 </div>
 
                 {/* Discount Card */}
                 <div 
-                  onDoubleClick={() => {
-                    if (editingField !== 'discount') {
-                      handleStartEditing('discount', selectedStudent.discount)
-                    }
-                  }}
                   className="bg-orange-500 dark:bg-orange-600 rounded-[var(--radius-md)] p-2.5 text-white flex flex-col justify-between min-h-[50px] cursor-pointer"
-                  title="Double-click to edit. Single-click value to copy."
+                  title="Single-click value to copy."
+                  onClick={() => {
+                    handleCopy('discount', String(selectedStudent.discount || 0))
+                  }}
                 >
                   <div className="flex items-center justify-between">
                     <span className="text-[9px] uppercase font-bold tracking-wider text-white opacity-95 flex items-center gap-1">
@@ -1301,80 +1228,29 @@ export function StudentDetailClient({ studentId }: StudentDetailClientProps) {
                       Discount
                     </span>
                     <div className="flex items-center gap-1">
-                      {editingField !== 'discount' && (
-                        <button
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            handleCopy('discount', String(selectedStudent.discount || 0))
-                          }}
-                          className="p-0.5 hover:bg-black/10 rounded transition-all cursor-pointer text-white"
-                          title="Copy discount amount"
-                        >
-                          {copiedField === 'discount' ? (
-                            <CheckCircle2 className="h-3 w-3 text-white" />
-                          ) : (
-                            <Copy className="h-3 w-3" />
-                          )}
-                        </button>
-                      )}
-                      {editingField !== 'discount' && (
-                        <button
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            handleStartEditing('discount', selectedStudent.discount)
-                          }}
-                          className="p-0.5 hover:bg-black/10 rounded transition-all cursor-pointer text-white hover:text-white"
-                        >
-                          <Pencil className="h-3 w-3" />
-                        </button>
-                      )}
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleCopy('discount', String(selectedStudent.discount || 0))
+                        }}
+                        className="p-0.5 hover:bg-black/10 rounded transition-all cursor-pointer text-white"
+                        title="Copy discount amount"
+                      >
+                        {copiedField === 'discount' ? (
+                          <CheckCircle2 className="h-3 w-3 text-white" />
+                        ) : (
+                          <Copy className="h-3 w-3" />
+                        )}
+                      </button>
                     </div>
                   </div>
-                  <div 
-                    className="mt-0.5 flex items-center min-h-[22px] w-full"
-                    onClick={() => {
-                      if (editingField !== 'discount') {
-                        handleCopy('discount', String(selectedStudent.discount || 0))
-                      }
-                    }}
-                  >
-                    {editingField === 'discount' ? (
-                      <div 
-                        className="flex items-center gap-1.5 w-full"
-                        onClick={(e) => e.stopPropagation()}
-                        onKeyDown={(e) => {
-                          if (e.key === 'Enter') handleSaveField('discount')
-                          else if (e.key === 'Escape') handleCancelEditing()
-                        }}
-                      >
-                        <input
-                          type="number"
-                          value={editValue}
-                          onChange={(e) => setEditValue(Number(e.target.value))}
-                          className="bg-black/20 text-xs text-white px-2 py-0.5 rounded border border-white/20 focus:outline-none w-full font-bold"
-                          autoFocus
-                        />
-                        <button
-                          onClick={() => handleSaveField('discount')}
-                          className="p-0.5 hover:bg-black/10 rounded text-emerald-250 cursor-pointer"
-                        >
-                          <CheckCircle2 className="h-4 w-4" />
-                        </button>
-                        <button
-                          onClick={handleCancelEditing}
-                          className="p-0.5 hover:bg-black/10 rounded text-rose-250 cursor-pointer"
-                        >
-                          <X className="h-4 w-4" />
-                        </button>
-                      </div>
+                  <div className="mt-0.5 flex items-center min-h-[22px] w-full">
+                    {copiedField === 'discount' ? (
+                      <span className="text-xs font-bold text-white animate-pulse">Copied!</span>
                     ) : (
-                      copiedField === 'discount' ? (
-                        <span className="text-xs font-bold text-white animate-pulse">Copied!</span>
-                      ) : (
-                        <span className="text-xs font-bold tracking-wide">
-                          {formatCurrency(selectedStudent.discount || 0)}
-                        </span>
-                      )
+                      <span className="text-xs font-bold tracking-wide">
+                        {formatCurrency(selectedStudent.discount || 0)}
+                      </span>
                     )}
                   </div>
                 </div>
@@ -1382,22 +1258,21 @@ export function StudentDetailClient({ studentId }: StudentDetailClientProps) {
                 {renderDetailCard('Group', 'student_group', selectedStudent.student_group, { 
                   type: 'select',
                   selectOptions: groupOptions,
-                  badgeColor: 'bg-rose-50 text-rose-700 border border-rose-200 dark:bg-rose-950/40 dark:text-rose-350 dark:border-rose-900/30',
+                  badgeColor: 'bg-[#6554c0] text-white',
                   titleColor: 'text-[var(--accent)]'
                 })}
 
                 {renderDetailCard('Lead By', 'lead_by', selectedStudent.lead_by, { 
                   type: 'select',
                   selectOptions: leadByOptions,
+                  badgeColor: 'bg-[#00b8d9] text-white',
                   titleColor: 'text-[var(--accent)]' 
                 })}
 
-                <div className="sm:col-span-2">
-                  {renderDetailCard('Notes', 'notes', selectedStudent.notes, { titleColor: 'text-[var(--accent)]' })}
-                </div>
+
 
                 {/* AI Document Extraction Card (Copyable / Action Link) */}
-                <div className="sm:col-span-2 bg-[var(--surface)] border border-[var(--border)] rounded-[var(--radius-md)] p-2.5 hover:bg-[var(--border-subtle)] transition-all cursor-pointer flex items-center justify-between shadow-[var(--shadow-sm)] min-h-[50px]">
+                <div className="bg-[var(--surface)] border border-[var(--border)] rounded-[var(--radius-md)] p-2.5 hover:bg-[var(--border-subtle)] transition-all cursor-pointer flex items-center justify-between shadow-[var(--shadow-sm)] min-h-[50px]">
                   <div>
                     <span className="text-[9px] uppercase font-bold tracking-wider text-[var(--foreground-muted)] block">
                       Fill By Document
@@ -1408,6 +1283,12 @@ export function StudentDetailClient({ studentId }: StudentDetailClientProps) {
                   </div>
                   <span className="text-[var(--foreground-subtle)] font-mono text-sm font-bold">&gt;</span>
                 </div>
+
+                {renderDetailCard('Missing Documents', 'pick_needed', selectedStudent.pick_needed?.join(', '), { 
+                  badgeColor: 'bg-[#5243aa] text-white',
+                  titleColor: 'text-[var(--accent)]',
+                  forceBorderColor: selectedStudent.pick_needed && selectedStudent.pick_needed.length > 0 ? 'red' : 'blue'
+                })}
               </div>
             </div>
           </div>
