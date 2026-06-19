@@ -72,6 +72,8 @@ export function Header() {
             Add Student
           </button>
         </div>
+      ) : pathname.startsWith('/students/') ? (
+        null
       ) : (
         <button
           id="header-search-btn"

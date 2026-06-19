@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
+import { useRouter } from 'next/navigation'
 import { 
   Plus, Filter, Users, X, Loader2, Search, AlertCircle, CheckCircle2, 
   Building2, User, Landmark, Tag, Layers, Award, Bookmark, UserCheck, 
@@ -14,6 +15,7 @@ import { useStudentDashboard } from '@/contexts/StudentDashboardContext'
 import { motion, AnimatePresence } from 'framer-motion'
 
 export function StudentDashboardClient() {
+  const router = useRouter()
   const supabase = createClient()
 
   // State for students list
@@ -42,12 +44,7 @@ export function StudentDashboardClient() {
   const [fullName, setFullName] = useState('')
   const [office, setOffice] = useState<'ANDIJON OFFIS' | 'TOSHKENT OFFIS'>('ANDIJON OFFIS')
 
-  // Details Modal State
-  const [selectedStudent, setSelectedStudent] = useState<Student | null>(null)
-  const [editingField, setEditingField] = useState<string | null>(null)
-  const [editValue, setEditValue] = useState<any>('')
-  const [copiedField, setCopiedField] = useState<string | null>(null)
-  const [isDeleting, setIsDeleting] = useState(false)
+
 
   // Fetch students on mount
   const fetchStudents = async () => {
@@ -70,8 +67,33 @@ export function StudentDashboardClient() {
     }
   }
 
+  // Dynamic Option States from Settings
+  const [tariffOptions, setTariffOptions] = useState<string[]>(['STANDART', 'PREMIUM', 'VISA PLUS', 'E-VISA', 'REGIONAL VISA'])
+  const [levelOptions, setLevelOptions] = useState<string[]>(['COLLEGE', 'BACHELOR', 'MASTERS', 'MASTER NO CERTIFICATE', 'LANGUAGE COURSE'])
+  const [groupOptions, setGroupOptions] = useState<string[]>([])
+  const [leadByOptions, setLeadByOptions] = useState<string[]>([])
+
+  const fetchFilterOptions = async () => {
+    try {
+      const [tariffsRes, levelsRes, groupsRes, leadsRes] = await Promise.all([
+        supabase.from('tariff_options').select('name'),
+        supabase.from('education_levels').select('name'),
+        supabase.from('student_groups').select('name'),
+        supabase.from('lead_sources').select('name')
+      ])
+
+      if (tariffsRes.data && tariffsRes.data.length > 0) setTariffOptions((tariffsRes.data as any[]).map(t => t.name))
+      if (levelsRes.data && levelsRes.data.length > 0) setLevelOptions((levelsRes.data as any[]).map(l => l.name))
+      if (groupsRes.data && groupsRes.data.length > 0) setGroupOptions((groupsRes.data as any[]).map(g => g.name))
+      if (leadsRes.data && leadsRes.data.length > 0) setLeadByOptions((leadsRes.data as any[]).map(l => l.name))
+    } catch (err) {
+      console.error('Error fetching filter options in dashboard:', err)
+    }
+  }
+
   useEffect(() => {
     fetchStudents()
+    fetchFilterOptions()
   }, [])
 
   // Handle student creation
@@ -111,7 +133,17 @@ export function StudentDashboardClient() {
           apos_hand_count: 0,
           pic_hand_count: 0,
           is_deleted: false,
-          task_tags: [] as string[]
+          task_tags: [] as string[],
+          // Explicitly set check-constrained fields to null to prevent empty string default check failures
+          gender: null,
+          birthday: null,
+          phone1: null,
+          level: null,
+          level2: null,
+          tariff: null,
+          language_certificate: null,
+          language_certificate_2: null,
+          language_certificate_3: null
         } as any)
 
       if (insertError) {
@@ -208,99 +240,7 @@ export function StudentDashboardClient() {
     document.body.removeChild(link)
   }
 
-  // Copy helper
-  const handleCopy = (field: string, text: string) => {
-    navigator.clipboard.writeText(text)
-    setCopiedField(field)
-    setTimeout(() => setCopiedField(null), 1200)
-  }
 
-  // Start inline editing
-  const handleStartEditing = (field: string, val: any) => {
-    setEditingField(field)
-    setEditValue(val || '')
-  }
-
-  // Cancel inline editing
-  const handleCancelEditing = () => {
-    setEditingField(null)
-    setEditValue('')
-  }
-
-  // Save inline edits to Supabase
-  const handleSaveField = async (field: keyof Student) => {
-    if (!selectedStudent) return
-    try {
-      let valToSave = editValue
-      if (typeof valToSave === 'string') {
-        valToSave = valToSave.trim()
-        if (['id', 'full_name', 'passport', 'address'].includes(field)) {
-          valToSave = valToSave.toUpperCase()
-        }
-      }
-
-      if (['id', 'full_name'].includes(field) && !valToSave) {
-        alert(`${field.toUpperCase().replace('_', ' ')} cannot be empty.`)
-        return
-      }
-
-      if (field === 'birthday' && valToSave) {
-        const birthdayPattern = /^\d{4}-\d{2}-\d{2}$/
-        if (!birthdayPattern.test(valToSave) || valToSave < '1980-01-01' || valToSave > '2010-12-31') {
-          alert('Birthday must be in format YYYY-MM-DD and between 1980-01-01 and 2010-12-31.')
-          return
-        }
-      }
-
-      if (field === 'phone1' && valToSave) {
-        const phonePattern = /^[0-9]{2}-[0-9]{3}-[0-9]{2}-[0-9]{2}$/
-        if (!phonePattern.test(valToSave)) {
-          alert('Phone 1 must be formatted as 00-000-00-00.')
-          return
-        }
-      }
-
-      const updateData = { [field]: valToSave }
-
-      const { error: updateError } = await (supabase
-        .from('students') as any)
-        .update(updateData)
-        .eq('id', selectedStudent.id)
-
-      if (updateError) throw updateError
-
-      const updatedStudent = { ...selectedStudent, ...updateData }
-      setSelectedStudent(updatedStudent)
-      setStudents(prev => prev.map(s => s.id === selectedStudent.id ? updatedStudent : s))
-      setEditingField(null)
-    } catch (err: any) {
-      console.error('Error updating field:', err)
-      alert(err.message || 'Failed to update field.')
-    }
-  }
-
-  // Soft Delete student
-  const handleDeleteStudent = async () => {
-    if (!selectedStudent) return
-    if (!confirm(`Are you sure you want to delete student profile "${selectedStudent.full_name}"?`)) return
-    setIsDeleting(true)
-    try {
-      const { error: deleteError } = await (supabase
-        .from('students') as any)
-        .update({ is_deleted: true })
-        .eq('id', selectedStudent.id)
-
-      if (deleteError) throw deleteError
-
-      setStudents(prev => prev.filter(s => s.id !== selectedStudent.id))
-      setSelectedStudent(null)
-    } catch (err: any) {
-      console.error('Error soft-deleting student:', err)
-      alert(err.message || 'Failed to delete student.')
-    } finally {
-      setIsDeleting(false)
-    }
-  }
 
   // Row background color selector matching visual row highlights
   const getRowBgColor = (student: Student) => {
@@ -409,342 +349,7 @@ export function StudentDashboardClient() {
     return new Intl.NumberFormat('uz-UZ').format(val) + ' UZS'
   }
 
-  // Get Initials for Details Header Avatar
-  const getInitials = (name: string) => {
-    if (!name) return 'ST'
-    const parts = name.split(' ').filter(Boolean)
-    if (parts.length === 1) return parts[0].slice(0, 2).toUpperCase()
-    return (parts[0][0] + (parts[1]?.[0] || '')).toUpperCase()
-  }
 
-  // Unified Details Card rendering helper matching mockup layout styling
-  const renderDetailCard = (
-    label: string,
-    field: keyof Student,
-    value: any,
-    options: {
-      copyable?: boolean
-      editable?: boolean
-      type?: 'text' | 'select' | 'date'
-      selectOptions?: string[]
-      badgeColor?: string
-      titleColor?: string
-    } = {}
-  ) => {
-    const isEditing = editingField === field
-    const isCopied = copiedField === field
-    const displayValue = value === null || value === undefined || value === '' ? '—' : value
-
-    return (
-      <div className="bg-[#1c1c1e] border border-gray-800 rounded-lg p-3 flex flex-col justify-between min-h-[64px] text-white">
-        <div className="flex items-center justify-between gap-2">
-          <span className={`text-[10px] uppercase font-bold tracking-wider ${options.titleColor || 'text-gray-400'}`}>
-            {label}
-          </span>
-          <div className="flex items-center gap-1.5 opacity-60 hover:opacity-100 transition-opacity">
-            {options.copyable && value && !isEditing && (
-              <button
-                onClick={() => handleCopy(String(field), String(value))}
-                className="p-1 hover:bg-gray-800 rounded transition-all cursor-pointer"
-                title="Copy value"
-              >
-                {isCopied ? (
-                  <CheckCircle2 className="h-3.5 w-3.5 text-emerald-400" />
-                ) : (
-                  <Copy className="h-3.5 w-3.5 text-gray-400" />
-                )}
-              </button>
-            )}
-            {options.editable && !isEditing && (
-              <button
-                onClick={() => handleStartEditing(String(field), value)}
-                className="p-1 hover:bg-gray-800 rounded transition-all cursor-pointer text-gray-400 hover:text-white"
-                title="Edit field"
-              >
-                <Plus className="h-3.5 w-3.5" style={{ transform: 'rotate(45deg)' }} />
-              </button>
-            )}
-          </div>
-        </div>
-
-        <div className="mt-1 flex items-center min-h-[24px]">
-          {isEditing ? (
-            <div className="flex items-center gap-2 w-full">
-              {options.type === 'select' ? (
-                <select
-                  value={editValue}
-                  onChange={(e) => setEditValue(e.target.value)}
-                  className="bg-[#2c2c2e] text-sm text-white px-2 py-1 rounded border border-gray-700 focus:outline-none focus:border-blue-500 w-full"
-                >
-                  {options.selectOptions?.map(opt => (
-                    <option key={opt} value={opt}>{opt}</option>
-                  ))}
-                </select>
-              ) : (
-                <input
-                  type={options.type === 'date' ? 'date' : 'text'}
-                  value={editValue}
-                  onChange={(e) => setEditValue(e.target.value)}
-                  className="bg-[#2c2c2e] text-sm text-white px-2 py-1 rounded border border-gray-700 focus:outline-none focus:border-blue-500 w-full"
-                  placeholder={label}
-                  autoFocus
-                />
-              )}
-              <button
-                onClick={() => handleSaveField(field)}
-                className="p-1 hover:bg-gray-800 rounded text-emerald-400 cursor-pointer"
-              >
-                <CheckCircle2 className="h-4 w-4" />
-              </button>
-              <button
-                onClick={handleCancelEditing}
-                className="p-1 hover:bg-gray-800 rounded text-rose-400 cursor-pointer"
-              >
-                <X className="h-4 w-4" />
-              </button>
-            </div>
-          ) : (
-            options.badgeColor ? (
-              <span className={`inline-flex px-2.5 py-0.5 rounded-full text-xs font-bold uppercase ${options.badgeColor}`}>
-                {displayValue}
-              </span>
-            ) : (
-              <span className="text-sm font-medium tracking-wide text-gray-200">{displayValue}</span>
-            )
-          )}
-        </div>
-      </div>
-    )
-  }
-
-  // Render Language Certificate Card (Row 7) inside Details Modal
-  const renderCertificateCard = (
-    label: string,
-    certField: keyof Student,
-    scoreField: keyof Student,
-    certsAllowed: string[]
-  ) => {
-    const isEditing = editingField === certField
-    const certVal = selectedStudent?.[certField] as string
-    const scoreVal = selectedStudent?.[scoreField] as string
-
-    return (
-      <div className="bg-[#1c1c1e] border border-gray-800 rounded-lg p-3 flex flex-col justify-between min-h-[64px] text-white">
-        <div className="flex items-center justify-between gap-2">
-          <span className="text-[10px] uppercase font-bold tracking-wider text-sky-400">{label}</span>
-          {!isEditing && (
-            <button
-              onClick={() => handleStartEditing(String(certField), certVal)}
-              className="p-1 hover:bg-gray-800 rounded transition-all cursor-pointer opacity-60 hover:opacity-100"
-              title="Edit certificate"
-            >
-              <Plus className="h-3.5 w-3.5 text-gray-400" style={{ transform: 'rotate(45deg)' }} />
-            </button>
-          )}
-        </div>
-        <div className="mt-1 flex items-center min-h-[24px] w-full">
-          {isEditing ? (
-            <div className="flex flex-col gap-1.5 w-full">
-              <select
-                value={editValue}
-                onChange={(e) => setEditValue(e.target.value)}
-                className="bg-[#2c2c2e] text-xs text-white px-2 py-1 rounded border border-gray-700 w-full"
-              >
-                {certsAllowed.map(opt => (
-                  <option key={opt} value={opt}>{opt}</option>
-                ))}
-              </select>
-              {editValue !== 'NO CERTIFICATE' && (
-                <input
-                  type="text"
-                  placeholder="Score"
-                  id="edit-score-input"
-                  defaultValue={scoreVal || ''}
-                  className="bg-[#2c2c2e] text-xs text-white px-2 py-1 rounded border border-gray-700 w-full"
-                />
-              )}
-              <div className="flex justify-end gap-1.5 mt-1">
-                <button
-                  onClick={async () => {
-                    const scoreEl = document.getElementById('edit-score-input') as HTMLInputElement
-                    const scoreInput = scoreEl ? scoreEl.value.trim() : ''
-                    try {
-                      const { error } = await (supabase
-                        .from('students') as any)
-                        .update({ [certField]: editValue, [scoreField]: scoreInput })
-                        .eq('id', selectedStudent!.id)
-                      if (error) throw error
-                      const updated = { ...selectedStudent!, [certField]: editValue, [scoreField]: scoreInput }
-                      setSelectedStudent(updated)
-                      setStudents(prev => prev.map(s => s.id === selectedStudent!.id ? updated : s))
-                      setEditingField(null)
-                    } catch (err: any) {
-                      alert(err.message)
-                    }
-                  }}
-                  className="p-1 bg-emerald-600 hover:bg-emerald-700 rounded text-white text-xs px-2 cursor-pointer font-semibold"
-                >
-                  Save
-                </button>
-                <button
-                  onClick={handleCancelEditing}
-                  className="p-1 bg-gray-700 hover:bg-gray-800 rounded text-white text-xs px-2 cursor-pointer"
-                >
-                  Cancel
-                </button>
-              </div>
-            </div>
-          ) : (
-            certVal && certVal !== 'NO CERTIFICATE' ? (
-              <div className="inline-flex items-center text-xs font-bold rounded-[4px] overflow-hidden" style={{ boxShadow: '0 1px 3px rgba(0,0,0,0.2)' }}>
-                <span className="bg-[#de350b] text-white px-2 py-0.5 uppercase">{certVal}</span>
-                <span className="bg-[#0052cc] text-white px-2 py-0.5">SCORE: {scoreVal || '—'}</span>
-              </div>
-            ) : (
-              <span className="text-sm font-medium tracking-wide text-gray-500 font-semibold">NO CERTIFICATE</span>
-            )
-          )}
-        </div>
-      </div>
-    )
-  }
-
-  // Render University status card inside Details Modal
-  const renderUniversityCardDetails = (
-    label: string,
-    uniField: keyof Student,
-    statusField: keyof Student
-  ) => {
-    const isEditing = editingField === uniField
-    const uniVal = selectedStudent?.[uniField] as string
-    const statusVal = selectedStudent?.[statusField] as string
-
-    const getStatusBadgeClass = (status: string) => {
-      if (!status) return 'bg-gray-700 text-gray-300'
-      if (status.toUpperCase() === 'APPLIED') return 'bg-amber-600 text-white'
-      if (status.toUpperCase() === 'ACCEPTED') return 'bg-emerald-600 text-white'
-      if (status.toUpperCase() === 'FAILED' || status.toUpperCase() === 'REJECTED') return 'bg-rose-600 text-white'
-      return 'bg-blue-600 text-white'
-    }
-
-    return (
-      <div className="bg-[#1c1c1e] border border-gray-800 rounded-lg p-3 flex flex-col justify-between min-h-[72px] text-white">
-        <div className="flex items-center justify-between gap-2">
-          <span className="text-[10px] uppercase font-bold tracking-wider text-sky-400">{label}</span>
-          {!isEditing && (
-            <button
-              onClick={() => handleStartEditing(String(uniField), uniVal)}
-              className="p-1 hover:bg-gray-800 rounded transition-all cursor-pointer opacity-60 hover:opacity-100"
-              title="Edit university selection"
-            >
-              <Plus className="h-3.5 w-3.5 text-gray-400" style={{ transform: 'rotate(45deg)' }} />
-            </button>
-          )}
-        </div>
-        <div className="mt-1 flex items-center min-h-[30px] w-full">
-          {isEditing ? (
-            <div className="flex flex-col gap-1.5 w-full">
-              <input
-                type="text"
-                id="edit-uni-name-input"
-                defaultValue={uniVal || ''}
-                placeholder="University Name"
-                className="bg-[#2c2c2e] text-xs text-white px-2 py-1 rounded border border-gray-700 w-full"
-              />
-              <select
-                id="edit-uni-status-select"
-                defaultValue={statusVal || 'Chosen'}
-                className="bg-[#2c2c2e] text-xs text-white px-2 py-1 rounded border border-gray-700 w-full"
-              >
-                <option value="Chosen">Chosen</option>
-                <option value="Applying">Applying</option>
-                <option value="Applied">Applied</option>
-                <option value="Accepted">Accepted</option>
-                <option value="Failed">Failed</option>
-              </select>
-              <div className="flex justify-end gap-1.5 mt-1">
-                <button
-                  onClick={async () => {
-                    const uniEl = document.getElementById('edit-uni-name-input') as HTMLInputElement
-                    const statusEl = document.getElementById('edit-uni-status-select') as HTMLSelectElement
-                    const uniInput = uniEl ? uniEl.value.trim() : ''
-                    const statusInput = statusEl ? statusEl.value : 'Chosen'
-                    try {
-                      const { error } = await (supabase
-                        .from('students') as any)
-                        .update({ [uniField]: uniInput, [statusField]: statusInput, jarayon_updated_at: new Date().toISOString() })
-                        .eq('id', selectedStudent!.id)
-                      if (error) throw error
-                      const updated = { ...selectedStudent!, [uniField]: uniInput, [statusField]: statusInput, jarayon_updated_at: new Date().toISOString() }
-                      setSelectedStudent(updated)
-                      setStudents(prev => prev.map(s => s.id === selectedStudent!.id ? updated : s))
-                      setEditingField(null)
-                    } catch (err: any) {
-                      alert(err.message)
-                    }
-                  }}
-                  className="p-1 bg-emerald-600 hover:bg-emerald-700 rounded text-white text-xs px-2 cursor-pointer font-semibold"
-                >
-                  Save
-                </button>
-                <button
-                  onClick={handleCancelEditing}
-                  className="p-1 bg-gray-700 hover:bg-gray-800 rounded text-white text-xs px-2 cursor-pointer"
-                >
-                  Cancel
-                </button>
-              </div>
-            </div>
-          ) : (
-            uniVal ? (
-              <div className="flex flex-col gap-1 w-full">
-                <span className="text-xs font-semibold tracking-wide text-gray-200">{uniVal}</span>
-                <div className="flex">
-                  <span className={`inline-flex px-2 py-0.5 rounded-[4px] text-[9px] font-extrabold uppercase ${getStatusBadgeClass(statusVal)}`}>
-                    {statusVal || 'Chosen'}
-                  </span>
-                </div>
-              </div>
-            ) : (
-              <span className="text-sm font-medium tracking-wide text-gray-500 font-semibold">None Selected</span>
-            )
-          )}
-        </div>
-      </div>
-    )
-  }
-
-  // Render auto calculated Family/Given Name cards
-  const renderAutoNameCard = (label: string, value: string, field: string) => {
-    const isCopied = copiedField === field
-    return (
-      <div className="bg-[#1c1c1e] border border-gray-800 rounded-lg p-3 flex flex-col justify-between min-h-[64px] text-white">
-        <div className="flex items-center justify-between gap-2">
-          <div className="flex items-center gap-1.5">
-            <span className="text-[10px] uppercase font-bold tracking-wider text-sky-400">
-              {label}
-            </span>
-            <span className="bg-gray-800 text-[8px] px-1 rounded font-bold text-gray-400">AUTO</span>
-          </div>
-          {value && (
-            <button
-              onClick={() => handleCopy(field, value)}
-              className="p-1 hover:bg-gray-800 rounded transition-all cursor-pointer opacity-60 hover:opacity-100 text-gray-400"
-            >
-              {isCopied ? (
-                <CheckCircle2 className="h-3.5 w-3.5 text-emerald-400" />
-              ) : (
-                <Copy className="h-3.5 w-3.5 text-gray-400" />
-              )}
-            </button>
-          )}
-        </div>
-        <div className="mt-1 flex items-center min-h-[24px]">
-          <span className="text-sm font-semibold tracking-wide text-gray-300">{value || '—'}</span>
-        </div>
-      </div>
-    )
-  }
 
   return (
     <PageShell>
@@ -761,11 +366,9 @@ export function StudentDashboardClient() {
               className="w-full pl-9 pr-7 py-2 border border-[var(--border)] rounded-[var(--radius-md)] bg-[var(--surface-elevated)] text-[var(--foreground)] focus:outline-none hover:border-blue-400 transition-all text-xs font-medium appearance-none cursor-pointer"
             >
               <option value="ALL">All Tariffs</option>
-              <option value="STANDART">STANDART</option>
-              <option value="PREMIUM">PREMIUM</option>
-              <option value="VISA PLUS">VISA PLUS</option>
-              <option value="E-VISA">E-VISA</option>
-              <option value="REGIONAL VISA">REGIONAL VISA</option>
+              {tariffOptions.map(opt => (
+                <option key={opt} value={opt}>{opt}</option>
+              ))}
             </select>
             <ChevronDown className="absolute right-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-[var(--foreground-subtle)] pointer-events-none" />
           </div>
@@ -779,11 +382,9 @@ export function StudentDashboardClient() {
               className="w-full pl-9 pr-7 py-2 border border-[var(--border)] rounded-[var(--radius-md)] bg-[var(--surface-elevated)] text-[var(--foreground)] focus:outline-none hover:border-blue-400 transition-all text-xs font-medium appearance-none cursor-pointer"
             >
               <option value="ALL">All Levels</option>
-              <option value="COLLEGE">COLLEGE</option>
-              <option value="BACHELOR">BACHELOR</option>
-              <option value="MASTERS">MASTERS</option>
-              <option value="MASTER NO CERTIFICATE">MASTER NO CERTIFICATE</option>
-              <option value="LANGUAGE COURSE">LANGUAGE COURSE</option>
+              {levelOptions.map(opt => (
+                <option key={opt} value={opt}>{opt}</option>
+              ))}
             </select>
             <ChevronDown className="absolute right-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-[var(--foreground-subtle)] pointer-events-none" />
           </div>
@@ -961,7 +562,7 @@ export function StudentDashboardClient() {
                 {filteredStudents.map((student) => (
                   <tr
                     key={student.id}
-                    onClick={() => setSelectedStudent(student)}
+                    onClick={() => router.push(`/students/${student.id}`)}
                     className={`cursor-pointer transition-colors text-sm text-[var(--foreground)] ${getRowBgColor(student)}`}
                   >
                     {/* ID Badge Column */}
@@ -1168,410 +769,7 @@ export function StudentDashboardClient() {
         )}
       </AnimatePresence>
 
-      {/* High-Fidelity Student Details Modal */}
-      <AnimatePresence>
-        {selectedStudent && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-            {/* Backdrop Overlay */}
-            <motion.div
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              onClick={() => {
-                if (!editingField) setSelectedStudent(null)
-              }}
-              className="fixed inset-0 bg-black/75 backdrop-blur-sm"
-            />
 
-            {/* Modal Dialog Panel */}
-            <motion.div
-              initial={{ opacity: 0, scale: 0.95, y: 15 }}
-              animate={{ opacity: 1, scale: 1, y: 0 }}
-              exit={{ opacity: 0, scale: 0.95, y: 15 }}
-              className="relative w-full max-w-6xl h-[90vh] overflow-hidden rounded-[var(--radius-lg)] border border-gray-800 bg-[#0a0a0a] p-6 shadow-[var(--shadow-lg)] z-10 text-white flex flex-col"
-            >
-              {/* Modal Top Bar */}
-              <div className="flex items-center justify-between pb-4 border-b border-gray-900 flex-shrink-0">
-                <div className="flex items-center gap-2 text-sm font-bold text-gray-300">
-                  <User className="h-4 w-4 text-[var(--accent)]" />
-                  Student Details
-                </div>
-                <div className="flex items-center gap-4">
-                  {/* Refresh Roster Details */}
-                  <button 
-                    onClick={fetchStudents}
-                    className="text-gray-400 hover:text-white p-1 hover:bg-gray-800 rounded transition-all cursor-pointer"
-                    title="Reload student data"
-                  >
-                    <RefreshCw className="h-4 w-4" />
-                  </button>
-                  {/* Delete student profile button */}
-                  <button 
-                    disabled={isDeleting}
-                    onClick={handleDeleteStudent}
-                    className="text-rose-500 hover:text-rose-400 p-1 hover:bg-gray-800 rounded transition-all cursor-pointer disabled:opacity-50"
-                    title="Delete student profile"
-                  >
-                    {isDeleting ? <Loader2 className="h-4 w-4 animate-spin" /> : <Trash2 className="h-4 w-4" />}
-                  </button>
-                  {/* Close modal button */}
-                  <button 
-                    onClick={() => {
-                      if (!editingField) setSelectedStudent(null)
-                    }}
-                    className="text-gray-400 hover:text-white p-1 hover:bg-gray-800/80 rounded transition-all cursor-pointer"
-                    title="Close"
-                  >
-                    <X className="h-5 w-5" />
-                  </button>
-                </div>
-              </div>
-
-              {/* Student Header Identifier Banner */}
-              <div className="py-5 flex items-center gap-4 flex-shrink-0">
-                <div className="w-14 h-14 bg-blue-600 rounded-full flex items-center justify-center font-bold text-white text-lg select-none">
-                  {getInitials(selectedStudent.full_name)}
-                </div>
-                <div>
-                  <h1 className="text-xl font-bold uppercase tracking-wide text-white">
-                    {selectedStudent.full_name}
-                  </h1>
-                  <div className="flex items-center gap-2.5 mt-1 text-xs font-semibold text-gray-400">
-                    <span>Student ID: <span className="font-mono text-blue-400 font-bold">{selectedStudent.id}</span></span>
-                    <span className="h-1.5 w-1.5 rounded-full bg-gray-600" />
-                    <span className="bg-emerald-600/20 text-emerald-400 border border-emerald-500/30 px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wide">
-                      ACTIVE
-                    </span>
-                    {selectedStudent.student_group && (
-                      <>
-                        <span className="h-1.5 w-1.5 rounded-full bg-gray-600" />
-                        <span className="text-gray-300 uppercase">{selectedStudent.student_group}</span>
-                      </>
-                    )}
-                  </div>
-                </div>
-              </div>
-
-              {/* Scrollable Three-Column Grid Details */}
-              <div className="flex-1 overflow-y-auto pr-1">
-                <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 pb-6">
-                  
-                  {/* Column 1: Academic Profile */}
-                  <div className="lg:col-span-3 space-y-3.5">
-                    <h3 className="text-xs font-bold text-gray-500 uppercase tracking-widest pl-1">
-                      Academic Profile
-                    </h3>
-                    
-                    {renderDetailCard('Student ID', 'id', selectedStudent.id, { titleColor: 'text-sky-400' })}
-                    
-                    {renderDetailCard('Tariff', 'tariff', selectedStudent.tariff, { 
-                      editable: true, 
-                      type: 'select', 
-                      selectOptions: ['STANDART', 'PREMIUM', 'VISA PLUS', 'E-VISA', 'REGIONAL VISA'],
-                      badgeColor: 'bg-emerald-650 text-white bg-emerald-700/80',
-                      titleColor: 'text-sky-400'
-                    })}
-                    
-                    {renderDetailCard('Group', 'student_group', selectedStudent.student_group, { 
-                      editable: true, 
-                      badgeColor: 'bg-rose-950/40 border border-rose-900/30 text-rose-300',
-                      titleColor: 'text-sky-400'
-                    })}
-                    
-                    {renderDetailCard('Education Level', 'level', selectedStudent.level, { 
-                      editable: true, 
-                      type: 'select', 
-                      selectOptions: ['COLLEGE', 'BACHELOR', 'MASTERS', 'MASTER NO CERTIFICATE', 'LANGUAGE COURSE'],
-                      badgeColor: 'bg-blue-900/40 border border-blue-800/30 text-blue-300',
-                      titleColor: 'text-sky-400'
-                    })}
-
-                    {renderDetailCard('Education Level 2', 'level2', selectedStudent.level2, { 
-                      editable: true, 
-                      type: 'select', 
-                      selectOptions: ['COLLEGE', 'BACHELOR', 'MASTERS', 'MASTER NO CERTIFICATE', 'LANGUAGE COURSE'],
-                      badgeColor: 'bg-amber-950/40 border border-amber-900/30 text-amber-300',
-                      titleColor: 'text-sky-400'
-                    })}
-
-                    {renderDetailCard('Lead By', 'lead_by', selectedStudent.lead_by, { editable: true, titleColor: 'text-sky-400' })}
-
-                    {renderDetailCard('Missing Documents', 'pick_needed', selectedStudent.pick_needed?.join(', '), { 
-                      badgeColor: 'bg-[#6554c0]/20 border border-[#6554c0]/30 text-purple-300',
-                      titleColor: 'text-sky-400'
-                    })}
-                  </div>
-
-                  {/* Column 2: Contact, Passport and University */}
-                  <div className="lg:col-span-6 space-y-4">
-                    <h3 className="text-xs font-bold text-gray-500 uppercase tracking-widest pl-1">
-                      Contact, Passport and University
-                    </h3>
-
-                    {/* Full name card */}
-                    {renderDetailCard('Full Name', 'full_name', selectedStudent.full_name, { copyable: true, editable: true, titleColor: 'text-sky-400' })}
-
-                    {/* Auto Generated Family/Given Names */}
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3.5">
-                      {renderAutoNameCard('Family Name', selectedStudent.full_name.split(' ')[0] || '', 'family_name')}
-                      {renderAutoNameCard('Given Name', selectedStudent.full_name.split(' ').slice(1).join(' ') || '', 'given_name')}
-                    </div>
-
-                    {/* Phone Stack */}
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3.5">
-                      {renderDetailCard('Student Number 1', 'phone1', selectedStudent.phone1, { copyable: true, editable: true, titleColor: 'text-sky-400' })}
-                      {renderDetailCard('Student Number 2', 'phone2', selectedStudent.phone2, { copyable: true, editable: true, titleColor: 'text-sky-400' })}
-                    </div>
-
-                    {/* Parents phone */}
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3.5">
-                      {renderDetailCard('Father Phone', 'father_phone', selectedStudent.father_phone, { editable: true, titleColor: 'text-rose-450 text-rose-400/80' })}
-                      {renderDetailCard('Mother Phone', 'mother_phone', selectedStudent.mother_phone, { editable: true, titleColor: 'text-rose-450 text-rose-400/80' })}
-                    </div>
-
-                    {/* Email, birthday and sex */}
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-3.5">
-                      <div className="md:col-span-2">
-                        {renderDetailCard('Email', 'email', selectedStudent.email, { copyable: true, editable: true, titleColor: 'text-sky-400' })}
-                      </div>
-                      {renderDetailCard('Sex', 'gender', selectedStudent.gender, { 
-                        editable: true, 
-                        type: 'select', 
-                        selectOptions: ['MALE', 'FEMALE'],
-                        titleColor: 'text-sky-400' 
-                      })}
-                    </div>
-
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-3.5">
-                      <div className="md:col-span-2">
-                        {renderDetailCard('Birthday', 'birthday', selectedStudent.birthday, { copyable: true, editable: true, type: 'date', titleColor: 'text-sky-400' })}
-                      </div>
-                      {renderDetailCard('Passport', 'passport', selectedStudent.passport, { copyable: true, editable: true, titleColor: 'text-sky-400' })}
-                    </div>
-
-                    {/* Passport issues dates */}
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3.5">
-                      {renderDetailCard('Date of Issue', 'passport_issue_date', selectedStudent.passport_issue_date, { copyable: true, editable: true, type: 'date', titleColor: 'text-sky-400' })}
-                      {renderDetailCard('Date of Expiration', 'passport_expire_date', selectedStudent.passport_expire_date, { copyable: true, editable: true, type: 'date', titleColor: 'text-sky-400' })}
-                    </div>
-
-                    {/* Educational background */}
-                    {renderDetailCard('Educational Background', 'educational_background', selectedStudent.educational_background, { editable: true, titleColor: 'text-sky-400' })}
-
-                    {/* Certificates rows */}
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-3.5">
-                      {renderCertificateCard('Language Certificate 1', 'language_certificate', 'certificate_score', ['TOPIK', 'IELTS', 'TOEFL', 'SKA', 'NO CERTIFICATE'])}
-                      {renderCertificateCard('Language Certificate 2', 'language_certificate_2', 'certificate_score_2', ['TOPIK', 'IELTS', 'TOEFL', 'SKA', 'NO CERTIFICATE'])}
-                      {renderCertificateCard('Language Certificate 3', 'language_certificate_3', 'certificate_score_3', ['TOPIK', 'IELTS', 'TOEFL', 'SKA', 'NO CERTIFICATE'])}
-                    </div>
-
-                    {/* Universities stack */}
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-3.5">
-                      {renderUniversityCardDetails('University 1', 'university_1', 'university_1_status')}
-                      {renderUniversityCardDetails('University 2', 'university_2', 'university_2_status')}
-                      {renderUniversityCardDetails('University 3', 'university_3', 'university_3_status')}
-                    </div>
-
-                    {/* Address & Notes */}
-                    {renderDetailCard('Address', 'address', selectedStudent.address, { copyable: true, editable: true, titleColor: 'text-sky-400' })}
-                    {renderDetailCard('Notes', 'notes', selectedStudent.notes, { editable: true, titleColor: 'text-sky-400' })}
-                  </div>
-
-                  {/* Column 3: System and Finance */}
-                  <div className="lg:col-span-3 space-y-4">
-                    <h3 className="text-xs font-bold text-gray-500 uppercase tracking-widest pl-1">
-                      System and Finance
-                    </h3>
-
-                    {/* Office card (solid blue) */}
-                    <div className="bg-blue-600 rounded-lg p-3.5 text-white flex flex-col justify-between min-h-[72px]" style={{ boxShadow: '0 4px 14px rgba(59, 127, 245, 0.3)' }}>
-                      <div className="flex items-center justify-between">
-                        <span className="text-[10px] uppercase font-bold tracking-wider text-blue-100 flex items-center gap-1">
-                          <Building2 className="h-3 w-3" />
-                          Office Location
-                        </span>
-                        {editingField !== 'office' && (
-                          <button
-                            onClick={() => handleStartEditing('office', selectedStudent.office)}
-                            className="p-1 hover:bg-blue-700/50 rounded transition-all cursor-pointer text-blue-200 hover:text-white"
-                          >
-                            <Plus className="h-3.5 w-3.5" style={{ transform: 'rotate(45deg)' }} />
-                          </button>
-                        )}
-                      </div>
-                      <div className="mt-1 flex items-center min-h-[28px]">
-                        {editingField === 'office' ? (
-                          <div className="flex items-center gap-2 w-full">
-                            <select
-                              value={editValue}
-                              onChange={(e) => setEditValue(e.target.value)}
-                              className="bg-blue-700 text-sm text-white px-2 py-1 rounded border border-blue-500 focus:outline-none w-full font-semibold"
-                            >
-                              <option value="ANDIJON OFFIS">ANDIJON OFFIS</option>
-                              <option value="TOSHKENT OFFIS">TOSHKENT OFFIS</option>
-                            </select>
-                            <button
-                              onClick={() => handleSaveField('office')}
-                              className="p-1 hover:bg-blue-700 rounded text-emerald-200 cursor-pointer"
-                            >
-                              <CheckCircle2 className="h-4 w-4" />
-                            </button>
-                            <button
-                              onClick={handleCancelEditing}
-                              className="p-1 hover:bg-blue-700 rounded text-rose-200 cursor-pointer"
-                            >
-                              <X className="h-4 w-4" />
-                            </button>
-                          </div>
-                        ) : (
-                          <span className="text-sm font-extrabold tracking-wide uppercase">{selectedStudent.office || '—'}</span>
-                        )}
-                      </div>
-                    </div>
-
-                    {/* Student Balance Card (Solid Red/Green) */}
-                    <div className={`rounded-lg p-3.5 text-white flex flex-col justify-between min-h-[72px] ${
-                      selectedStudent.balance < 0 ? 'bg-red-650 bg-rose-600' : 'bg-emerald-650 bg-emerald-600'
-                    }`} style={{ boxShadow: '0 4px 12px rgba(220, 38, 38, 0.15)' }}>
-                      <div className="flex items-center justify-between">
-                        <span className="text-[10px] uppercase font-bold tracking-wider text-red-100 opacity-90 flex items-center gap-1">
-                          <Landmark className="h-3 w-3" />
-                          Student Balance
-                        </span>
-                        {editingField !== 'balance' && (
-                          <button
-                            onClick={() => handleStartEditing('balance', selectedStudent.balance)}
-                            className="p-1 hover:bg-black/10 rounded transition-all cursor-pointer text-white/80 hover:text-white"
-                          >
-                            <Plus className="h-3.5 w-3.5" style={{ transform: 'rotate(45deg)' }} />
-                          </button>
-                        )}
-                      </div>
-                      <div className="mt-1 flex items-center min-h-[28px]">
-                        {editingField === 'balance' ? (
-                          <div className="flex items-center gap-2 w-full">
-                            <input
-                              type="number"
-                              value={editValue}
-                              onChange={(e) => setEditValue(Number(e.target.value))}
-                              className="bg-black/20 text-sm text-white px-2 py-1 rounded border border-white/20 focus:outline-none w-full font-bold"
-                            />
-                            <button
-                              onClick={() => handleSaveField('balance')}
-                              className="p-1 hover:bg-black/10 rounded text-emerald-200 cursor-pointer"
-                            >
-                              <CheckCircle2 className="h-4 w-4" />
-                            </button>
-                            <button
-                              onClick={handleCancelEditing}
-                              className="p-1 hover:bg-black/10 rounded text-rose-200 cursor-pointer"
-                            >
-                              <X className="h-4 w-4" />
-                            </button>
-                          </div>
-                        ) : (
-                          <span className="text-sm font-extrabold tracking-wide">
-                            {formatCurrency(selectedStudent.balance)}
-                          </span>
-                        )}
-                      </div>
-                    </div>
-
-                    {/* Payments Done Card (Solid Green) */}
-                    <div className="bg-emerald-600 rounded-lg p-3.5 text-white flex flex-col justify-between min-h-[72px]" style={{ boxShadow: '0 4px 12px rgba(5, 150, 105, 0.15)' }}>
-                      <span className="text-[10px] uppercase font-bold tracking-wider text-emerald-100 opacity-90 flex items-center gap-1">
-                        <CheckSquare className="h-3 w-3" />
-                        Payments Done
-                      </span>
-                      <div className="mt-1 flex items-center min-h-[28px]">
-                        <span className="text-sm font-extrabold tracking-wide">
-                          {selectedStudent.balance < 0 
-                            ? formatCurrency(Math.abs(selectedStudent.balance)) 
-                            : formatCurrency(0)}
-                        </span>
-                      </div>
-                    </div>
-
-                    {/* Discount Card (Solid Amber) */}
-                    <div className="bg-[#e67e22] rounded-lg p-3.5 text-white flex flex-col justify-between min-h-[72px]">
-                      <div className="flex items-center justify-between">
-                        <span className="text-[10px] uppercase font-bold tracking-wider text-orange-100 opacity-90 flex items-center gap-1">
-                          <Tag className="h-3 w-3" />
-                          Discount
-                        </span>
-                        {editingField !== 'discount' && (
-                          <button
-                            onClick={() => handleStartEditing('discount', selectedStudent.discount)}
-                            className="p-1 hover:bg-black/10 rounded transition-all cursor-pointer text-white/80 hover:text-white"
-                          >
-                            <Plus className="h-3.5 w-3.5" style={{ transform: 'rotate(45deg)' }} />
-                          </button>
-                        )}
-                      </div>
-                      <div className="mt-1 flex items-center min-h-[28px]">
-                        {editingField === 'discount' ? (
-                          <div className="flex items-center gap-2 w-full">
-                            <input
-                              type="number"
-                              value={editValue}
-                              onChange={(e) => setEditValue(Number(e.target.value))}
-                              className="bg-black/20 text-sm text-white px-2 py-1 rounded border border-white/20 focus:outline-none w-full font-bold"
-                            />
-                            <button
-                              onClick={() => handleSaveField('discount')}
-                              className="p-1 hover:bg-black/10 rounded text-emerald-200 cursor-pointer"
-                            >
-                              <CheckCircle2 className="h-4 w-4" />
-                            </button>
-                            <button
-                              onClick={handleCancelEditing}
-                              className="p-1 hover:bg-black/10 rounded text-rose-200 cursor-pointer"
-                            >
-                              <X className="h-4 w-4" />
-                            </button>
-                          </div>
-                        ) : (
-                          <span className="text-sm font-extrabold tracking-wide">
-                            {formatCurrency(selectedStudent.discount || 0)}
-                          </span>
-                        )}
-                      </div>
-                    </div>
-
-                    {/* AI Document Extraction Link Card */}
-                    <div className="bg-[#1c1c1e] border border-gray-800 rounded-lg p-3.5 hover:bg-gray-800/50 transition-all cursor-pointer flex items-center justify-between">
-                      <div>
-                        <span className="text-[10px] uppercase font-bold tracking-wider text-gray-500 block">
-                          Fill By Document
-                        </span>
-                        <span className="text-xs font-bold text-gray-300 mt-0.5 block">
-                          AI Document Extraction
-                        </span>
-                      </div>
-                      <span className="text-gray-600 font-mono text-sm font-bold">&gt;</span>
-                    </div>
-
-                  </div>
-
-                </div>
-              </div>
-
-              {/* Modal Bottom Bar */}
-              <div className="pt-4 border-t border-gray-900 flex justify-end flex-shrink-0">
-                <button
-                  onClick={() => {
-                    if (!editingField) setSelectedStudent(null)
-                  }}
-                  className="px-6 py-2 bg-gray-900 hover:bg-gray-800 border border-gray-800 rounded-lg text-sm font-semibold tracking-wide cursor-pointer transition-all text-gray-300 hover:text-white"
-                >
-                  Close
-                </button>
-              </div>
-
-            </motion.div>
-          </div>
-        )}
-      </AnimatePresence>
     </PageShell>
   )
 }
