@@ -9,10 +9,7 @@ export const metadata: Metadata = {
 
 export default function DocumentsPage() {
   return (
-    <PageShell
-      title="Documents"
-      description="Manage student missing document checklists, toggle statuses, and adjust count overrides."
-    >
+    <PageShell>
       <DocumentsClient />
     </PageShell>
   )

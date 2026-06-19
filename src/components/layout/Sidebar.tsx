@@ -56,7 +56,7 @@ export function Sidebar() {
 
   return (
     <aside
-      className="relative flex flex-col h-full w-[76px] bg-[#131122] border-r border-white/5 overflow-hidden flex-shrink-0"
+      className="relative flex flex-col h-full w-[76px] bg-[#111315] border-r border-white/5 overflow-hidden flex-shrink-0"
       aria-label="Main navigation"
     >
       {/* ── Header / Logo ─────────────────────────────────── */}

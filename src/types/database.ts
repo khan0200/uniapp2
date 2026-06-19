@@ -81,6 +81,23 @@ export interface Student {
   task_tags: string[]
 }
 
+export type PaymentMethod = 'Karta J.A' | 'Karta Abdulaziz' | 'Naqd' | 'Karta M.A' | 'Bank' | 'Discount' | 'Withdrawal'
+export type PaymentReceivedBy = 'ABDULAZIZ' | 'MUSLIHIDDIN' | 'BAXTIYOR' | 'MUHAMMADALI' | 'JASUR' | 'ADMIN' | 'System'
+
+export interface Payment {
+  id: string
+  amount: number
+  method: string
+  received_by: string
+  notes: string | null
+  is_discount: boolean
+  is_withdrawal: boolean
+  student_id: string | null
+  student_name: string | null
+  created_at: string
+  updated_at: string
+}
+
 export type Database = {
   public: {
     Tables: {
@@ -88,6 +105,33 @@ export type Database = {
         Row: Profile
         Insert: Omit<Profile, 'created_at' | 'updated_at'>
         Update: Partial<Omit<Profile, 'id' | 'created_at'>>
+      }
+      payments: {
+        Row: Payment
+        Insert: {
+          id?: string
+          amount: number
+          method: string
+          received_by: string
+          notes?: string | null
+          is_discount?: boolean
+          is_withdrawal?: boolean
+          student_id?: string | null
+          student_name?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          amount?: number
+          method?: string
+          received_by?: string
+          notes?: string | null
+          is_discount?: boolean
+          is_withdrawal?: boolean
+          student_id?: string | null
+          student_name?: string | null
+          updated_at?: string
+        }
       }
       students: {
         Row: Student

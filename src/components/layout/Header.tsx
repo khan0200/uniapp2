@@ -81,6 +81,17 @@ export function Header() {
             Add Student
           </button>
         </div>
+      ) : pathname === '/documents' ? (
+        <div className="relative">
+          <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[var(--foreground-muted)]" />
+          <input
+            type="text"
+            placeholder="Search by name, ID or phone..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            className="pl-9 pr-4 py-2 text-sm border border-[var(--border)] bg-[var(--background)] rounded-[var(--radius-md)] text-[var(--foreground)] placeholder-[var(--foreground-muted)] focus:outline-none focus:border-[var(--accent)] focus:ring-1 focus:ring-[var(--accent)] transition-all w-60 md:w-72"
+          />
+        </div>
       ) : pathname.startsWith('/students/') ? (
         null
       ) : (

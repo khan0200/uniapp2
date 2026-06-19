@@ -1925,7 +1925,7 @@ export function StudentDashboardClient() {
           <div className="overflow-x-auto">
             <table className="w-full border-collapse text-left">
               <thead>
-                <tr className="border-b border-[var(--border)] bg-[var(--background)] text-[11px] font-bold uppercase tracking-wider text-[var(--foreground-muted)] dark:text-[var(--foreground)] select-none">
+                <tr className="border-b border-[var(--border)] bg-[var(--surface-elevated)] text-[11px] font-bold uppercase tracking-wider text-[var(--foreground-muted)] dark:text-[var(--foreground)] select-none">
                   <th 
                     className="px-6 py-3.5 w-24 cursor-pointer select-none hover:bg-[var(--surface-elevated)] transition-colors rounded-tl-[var(--radius-lg)]"
                     onClick={() => setSortOrder(prev => prev === 'asc' ? 'desc' : 'asc')}

@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { 
@@ -24,6 +24,7 @@ export function StudentDetailClient({ studentId }: StudentDetailClientProps) {
 
   // State for student details
   const [selectedStudent, setSelectedStudent] = useState<Student | null>(null)
+  const [payments, setPayments] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
@@ -62,19 +63,30 @@ export function StudentDetailClient({ studentId }: StudentDetailClientProps) {
     }
   }
 
+  const TARIFF_PRICES: Record<string, number> = {
+    'STANDART': 13000000,
+    'PREMIUM': 32500000,
+    'VISA PLUS': 65000000,
+    'E-VISA (TIL SERTIFIKATISIZ)': 24000000,
+    'E-VISA (TIL SERTIFIKATLI)': 16000000,
+    'REGIONAL VISA': 2000000,
+    'ZERO RISK': 18500000,
+    'E-VISA': 2000000,
+  }
+
   // Fetch student details on mount
   const fetchStudent = async () => {
     try {
       setLoading(true)
       setError(null)
-      const { data, error: fetchError } = await supabase
-        .from('students')
-        .select('*')
-        .eq('id', studentId)
-        .single()
+      const [studentRes, paymentsRes] = await Promise.all([
+        supabase.from('students').select('*').eq('id', studentId).single(),
+        supabase.from('payments').select('*').eq('student_id', studentId).order('created_at', { ascending: false })
+      ])
 
-      if (fetchError) throw fetchError
-      setSelectedStudent(data)
+      if (studentRes.error) throw studentRes.error
+      setSelectedStudent(studentRes.data)
+      setPayments(paymentsRes.data || [])
     } catch (err: any) {
       console.error('Error fetching student details:', err)
       setError(err.message || 'Failed to load student details. Student may not exist.')
@@ -87,6 +99,33 @@ export function StudentDetailClient({ studentId }: StudentDetailClientProps) {
     fetchStudent()
     fetchFilterOptions()
   }, [studentId])
+
+  const computedPaymentsDone = useMemo(() => {
+    const hasHistory = payments.length > 0
+    if (hasHistory) {
+      return payments
+        .filter(p => !p.is_discount && !p.is_withdrawal && p.amount > 0)
+        .reduce((sum, p) => sum + Number(p.amount), 0)
+    }
+    
+    // Fallback: Tariff Price + Balance - Discount
+    if (!selectedStudent) return 0
+    const tariffPrice = TARIFF_PRICES[selectedStudent.tariff || ''] || 0
+    const discount = selectedStudent.discount || 0
+    const paid = tariffPrice + (selectedStudent.balance || 0) - discount
+    return Math.max(0, paid)
+  }, [payments, selectedStudent])
+
+  const computedDiscount = useMemo(() => {
+    const hasHistory = payments.length > 0
+    if (hasHistory) {
+      const totalDisc = payments
+        .filter(p => p.is_discount && p.amount > 0)
+        .reduce((sum, p) => sum + Number(p.amount), 0)
+      if (totalDisc > 0) return totalDisc
+    }
+    return selectedStudent?.discount || 0
+  }, [payments, selectedStudent])
 
   // Copy helper
   const handleCopy = (field: string, text: string) => {
@@ -1309,8 +1348,7 @@ export function StudentDetailClient({ studentId }: StudentDetailClientProps) {
                   className="bg-emerald-500 dark:bg-emerald-600 rounded-[var(--radius-md)] p-2.5 text-white flex flex-col justify-between min-h-[50px] cursor-pointer"
                   title="Single-click value to copy."
                   onClick={() => {
-                    const amount = selectedStudent.balance < 0 ? Math.abs(selectedStudent.balance) : 0
-                    handleCopy('payments_done', String(amount))
+                    handleCopy('payments_done', String(computedPaymentsDone))
                   }}
                 >
                   <div className="flex items-center justify-between">
@@ -1322,8 +1360,7 @@ export function StudentDetailClient({ studentId }: StudentDetailClientProps) {
                       <button
                         onClick={(e) => {
                           e.stopPropagation();
-                          const amount = selectedStudent.balance < 0 ? Math.abs(selectedStudent.balance) : 0
-                          handleCopy('payments_done', String(amount))
+                          handleCopy('payments_done', String(computedPaymentsDone))
                         }}
                         className="p-0.5 hover:bg-black/10 rounded transition-all cursor-pointer text-white"
                         title="Copy payments done"
@@ -1341,9 +1378,7 @@ export function StudentDetailClient({ studentId }: StudentDetailClientProps) {
                       <span className="text-xs font-bold text-white animate-pulse">Copied!</span>
                     ) : (
                       <span className="text-xs font-bold tracking-wide">
-                        {selectedStudent.balance < 0
-                          ? formatCurrency(Math.abs(selectedStudent.balance))
-                          : formatCurrency(0)}
+                        {formatCurrency(computedPaymentsDone)}
                       </span>
                     )}
                   </div>
@@ -1354,7 +1389,7 @@ export function StudentDetailClient({ studentId }: StudentDetailClientProps) {
                   className="bg-orange-500 dark:bg-orange-600 rounded-[var(--radius-md)] p-2.5 text-white flex flex-col justify-between min-h-[50px] cursor-pointer"
                   title="Single-click value to copy."
                   onClick={() => {
-                    handleCopy('discount', String(selectedStudent.discount || 0))
+                    handleCopy('discount', String(computedDiscount))
                   }}
                 >
                   <div className="flex items-center justify-between">
@@ -1366,7 +1401,7 @@ export function StudentDetailClient({ studentId }: StudentDetailClientProps) {
                       <button
                         onClick={(e) => {
                           e.stopPropagation();
-                          handleCopy('discount', String(selectedStudent.discount || 0))
+                          handleCopy('discount', String(computedDiscount))
                         }}
                         className="p-0.5 hover:bg-black/10 rounded transition-all cursor-pointer text-white"
                         title="Copy discount amount"
@@ -1384,7 +1419,7 @@ export function StudentDetailClient({ studentId }: StudentDetailClientProps) {
                       <span className="text-xs font-bold text-white animate-pulse">Copied!</span>
                     ) : (
                       <span className="text-xs font-bold tracking-wide">
-                        {formatCurrency(selectedStudent.discount || 0)}
+                        {formatCurrency(computedDiscount)}
                       </span>
                     )}
                   </div>

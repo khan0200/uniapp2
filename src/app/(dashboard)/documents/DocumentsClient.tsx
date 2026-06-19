@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import { createClient } from '@/lib/supabase/client'
+import { useStudentDashboard } from '@/contexts/StudentDashboardContext'
 import { type Student } from '@/types/database'
 import { 
   Folder, ChevronDown, ChevronUp, CheckCircle2, ShieldAlert,
@@ -11,6 +12,7 @@ import {
 
 export function DocumentsClient() {
   const supabase = createClient()
+  const { searchQuery } = useStudentDashboard()
 
   // States
   const [students, setStudents] = useState<Student[]>([])
@@ -140,17 +142,23 @@ export function DocumentsClient() {
 
   const getDocColor = (docName: string) => {
     if (docName === "FULL OK") {
-      return { bg: 'rgba(16, 185, 129, 0.15)', text: '#10b981', border: 'rgba(16, 185, 129, 0.25)' }
+      return { bg: '#10b981', text: '#ffffff', border: 'rgba(255,255,255,0.15)' }
     }
-    // High contrast color mappings matching screenshot
-    const mappings: Record<string, { bg: string; text: string; border: string }> = {
-      "APOS": { bg: 'rgba(99, 102, 241, 0.15)', text: '#6366f1', border: 'rgba(99, 102, 241, 0.25)' },
-      "BC": { bg: 'rgba(20, 184, 166, 0.15)', text: '#14b8a6', border: 'rgba(20, 184, 166, 0.25)' },
-      "MC": { bg: 'rgba(59, 130, 246, 0.15)', text: '#3b82f6', border: 'rgba(59, 130, 246, 0.25)' },
-      "AJRASHGANLIK": { bg: 'rgba(236, 72, 153, 0.15)', text: '#ec4899', border: 'rgba(236, 72, 153, 0.25)' },
-      "Foreign passport": { bg: 'rgba(245, 158, 11, 0.15)', text: '#f59e0b', border: 'rgba(245, 158, 11, 0.25)' }
+    const colors = [
+      { bg: '#ef4444', text: '#ffffff', border: 'rgba(255,255,255,0.15)' },
+      { bg: '#10b981', text: '#ffffff', border: 'rgba(255,255,255,0.15)' },
+      { bg: '#f59e0b', text: '#ffffff', border: 'rgba(255,255,255,0.15)' },
+      { bg: '#6366f1', text: '#ffffff', border: 'rgba(255,255,255,0.15)' },
+      { bg: '#db2777', text: '#ffffff', border: 'rgba(255,255,255,0.15)' },
+      { bg: '#ea580c', text: '#ffffff', border: 'rgba(255,255,255,0.15)' },
+      { bg: '#2563eb', text: '#ffffff', border: 'rgba(255,255,255,0.15)' },
+      { bg: '#8b5cf6', text: '#ffffff', border: 'rgba(255,255,255,0.15)' },
+    ]
+    let hash = 0
+    for (let i = 0; i < docName.length; i++) {
+      hash = docName.charCodeAt(i) + ((hash << 5) - hash)
     }
-    return mappings[docName] || { bg: 'rgba(100, 116, 139, 0.15)', text: '#64748b', border: 'rgba(100, 116, 139, 0.25)' }
+    return colors[Math.abs(hash) % colors.length]
   }
 
   const getDocRemainingCount = (s: Student, docName: string): number => {
@@ -376,50 +384,20 @@ export function DocumentsClient() {
       if (!matchesMissing) return false
     }
 
+    // 7. Search query matching
+    if (searchQuery) {
+      const matchesSearch =
+        student.id.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        student.full_name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        (student.phone1 && student.phone1.includes(searchQuery)) ||
+        (student.phone2 && student.phone2.includes(searchQuery))
+      if (!matchesSearch) return false
+    }
+
     return true
   })
 
   const sortedStudents = [...filteredStudents].sort((a, b) => compareStudentNames(a, b, sortOrder))
-
-  // Render Pill badges
-  const renderMissingPills = (s: Student) => {
-    const missingDocs = getEffectiveMissingDocs(s)
-    if (missingDocs.includes("FULL OK")) {
-      return (
-        <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-extrabold uppercase bg-emerald-500/10 text-emerald-600 dark:bg-emerald-950/20 dark:text-emerald-400 border border-emerald-500/20">
-          <CheckCircle2 className="h-3 w-3" /> FULL OK
-        </span>
-      )
-    }
-    
-    const items = missingDocs.filter(d => d !== "FULL OK" && !(d === "MARRIAGE CERTIFICATE" && s.has_mc === false))
-    if (items.length === 0) {
-      return <span className="text-xs text-[var(--foreground-muted)] italic font-medium">No missing documents</span>
-    }
-
-    return (
-      <div className="flex flex-wrap gap-1.5 items-center">
-        {items.map(d => {
-          let label = d
-          if (d === "BIRTH CERTIFICATE") label = "BC"
-          else if (d === "MARRIAGE CERTIFICATE") label = "MC"
-          else if (d === "APOSTILLE") label = "APOS"
-          else if (d === "3.5x4.5") label = "PIC"
-
-          const colors = getDocColor(label)
-          return (
-            <span 
-              key={d} 
-              className="inline-flex px-2 py-0.5 rounded-full text-[9px] font-extrabold tracking-wide uppercase shadow-sm"
-              style={{ backgroundColor: colors.bg, color: colors.text, border: `1.5px solid ${colors.border}` }}
-            >
-              {label}
-            </span>
-          )
-        })}
-      </div>
-    )
-  }
 
   // Render Pill badges
   const renderMissingPills = (s: Student) => {
@@ -448,10 +426,10 @@ export function DocumentsClient() {
 
           const colors = getDocColor(label)
           return (
-            <span 
-              key={d} 
+            <span
+              key={d}
               className="inline-flex px-2 py-0.5 rounded-full text-[9px] font-extrabold tracking-wide uppercase shadow-sm text-white border-none"
-              style={{ backgroundColor: colors.text }}
+              style={{ backgroundColor: colors.bg }}
             >
               {label}
             </span>
@@ -462,10 +440,12 @@ export function DocumentsClient() {
   }
 
   // Render cell counter statuses
+  const DOC_BADGE_BASE = "h-6 w-6 shrink-0 rounded-full inline-flex items-center justify-center leading-none font-bold text-[10px] shadow-sm border"
+
   const renderDocCell = (s: Student, docName: string) => {
     if (docName === "MARRIAGE CERTIFICATE" && s.has_mc === false) {
       return (
-        <span className="h-6 w-6 rounded-full flex items-center justify-center font-extrabold text-[9px] bg-[var(--border-subtle)] text-[var(--foreground-muted)] border border-[var(--border)] shadow-sm">
+        <span className={`${DOC_BADGE_BASE} bg-[var(--border-subtle)] text-[var(--foreground-muted)] border-[var(--border)]`}>
           N/A
         </span>
       )
@@ -477,7 +457,7 @@ export function DocumentsClient() {
 
     if (isMissing) {
       return (
-        <span className="h-6 w-6 rounded-full flex items-center justify-center font-bold text-xs bg-rose-500 text-white shadow-sm border border-rose-600/10">
+        <span className={`${DOC_BADGE_BASE} bg-rose-500 text-white border-rose-600/10`}>
           0
         </span>
       )
@@ -486,14 +466,14 @@ export function DocumentsClient() {
     const remaining = getDocRemainingCount(s, docName)
     if (remaining === 0) {
       return (
-        <span className="h-6 w-6 rounded-full flex items-center justify-center font-bold text-xs bg-amber-500 text-white shadow-sm border border-amber-600/10">
+        <span className={`${DOC_BADGE_BASE} bg-amber-500 text-white border-amber-600/10`}>
           0
         </span>
       )
     }
 
     return (
-      <span className="h-6 w-6 rounded-full flex items-center justify-center font-bold text-xs bg-emerald-500 text-white shadow-sm border border-emerald-600/10">
+      <span className={`${DOC_BADGE_BASE} bg-emerald-500 text-white border-emerald-600/10`}>
         {remaining}
       </span>
     )
@@ -756,7 +736,7 @@ export function DocumentsClient() {
           <div className="overflow-x-auto">
             <table className="w-full border-collapse text-left">
               <thead>
-                <tr className="border-b border-[var(--border)] bg-[var(--background)] text-[11px] font-bold uppercase tracking-wider text-[var(--foreground-muted)] dark:text-[var(--foreground)] select-none">
+                <tr className="border-b border-[var(--border)] bg-[var(--surface-elevated)] text-[11px] font-bold uppercase tracking-wider text-[var(--foreground-muted)] dark:text-[var(--foreground)] select-none">
                   <th 
                     className="px-6 py-3.5 cursor-pointer hover:bg-[var(--surface-elevated)] transition-colors"
                     onClick={() => setSortOrder(prev => prev === 'asc' ? 'desc' : 'asc')}
@@ -782,9 +762,9 @@ export function DocumentsClient() {
                   <tr 
                     key={student.id} 
                     onClick={() => { setSelectedStudent(student); setIsModalOpen(true) }}
-                    className={`cursor-pointer hover:bg-[var(--border-subtle)] transition-colors text-sm text-[var(--foreground)] ${student.is_deleted ? 'bg-rose-500/5 dark:bg-rose-950/10' : ''}`}
+                    className={`cursor-pointer hover:bg-[var(--surface-hover)] transition-colors text-sm text-[var(--foreground)] ${student.is_deleted ? 'bg-rose-500/5 dark:bg-rose-950/10' : ''}`}
                   >
-                    <td className="px-6 py-4">
+                    <td className="px-6 py-4 align-middle">
                       <div className="flex items-center gap-1.5">
                         {student.is_deleted && <ShieldAlert className="h-3.5 w-3.5 text-rose-500 shrink-0" />}
                         <span className="font-bold uppercase tracking-wide text-xs">{student.full_name}</span>
@@ -793,20 +773,20 @@ export function DocumentsClient() {
                         {getGhostText(student)}
                       </span>
                     </td>
-                    <td className="px-6 py-4">
+                    <td className="px-6 py-4 align-middle">
                       {renderMissingPills(student)}
                     </td>
-                    <td className="px-4 py-4 flex items-center justify-center">
-                      {renderDocCell(student, "BIRTH CERTIFICATE")}
+                    <td className="px-4 py-4 align-middle">
+                      <div className="flex items-center justify-center">{renderDocCell(student, "BIRTH CERTIFICATE")}</div>
                     </td>
-                    <td className="px-4 py-4">
-                      <div className="flex justify-center">{renderDocCell(student, "MARRIAGE CERTIFICATE")}</div>
+                    <td className="px-4 py-4 align-middle">
+                      <div className="flex items-center justify-center">{renderDocCell(student, "MARRIAGE CERTIFICATE")}</div>
                     </td>
-                    <td className="px-4 py-4">
-                      <div className="flex justify-center">{renderDocCell(student, "APOSTILLE")}</div>
+                    <td className="px-4 py-4 align-middle">
+                      <div className="flex items-center justify-center">{renderDocCell(student, "APOSTILLE")}</div>
                     </td>
-                    <td className="px-4 py-4">
-                      <div className="flex justify-center">{renderDocCell(student, "3.5x4.5")}</div>
+                    <td className="px-4 py-4 align-middle">
+                      <div className="flex items-center justify-center">{renderDocCell(student, "3.5x4.5")}</div>
                     </td>
                   </tr>
                 ))}
