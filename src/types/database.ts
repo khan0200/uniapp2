@@ -26,7 +26,9 @@ export interface Student {
   phone1: string | null
   phone2: string | null
   father_phone: string | null
+  father_job: string | null
   mother_phone: string | null
+  mother_job: string | null
   email: string | null
   address: string | null
 
@@ -99,7 +101,9 @@ export type Database = {
           phone1?: string | null
           phone2?: string | null
           father_phone?: string | null
+          father_job?: string | null
           mother_phone?: string | null
+          mother_job?: string | null
           email?: string | null
           address?: string | null
           level?: StudentLevel | null
@@ -149,7 +153,9 @@ export type Database = {
           phone1?: string | null
           phone2?: string | null
           father_phone?: string | null
+          father_job?: string | null
           mother_phone?: string | null
+          mother_job?: string | null
           email?: string | null
           address?: string | null
           level?: StudentLevel | null

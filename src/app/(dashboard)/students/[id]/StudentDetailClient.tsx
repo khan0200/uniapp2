@@ -961,6 +961,8 @@ export function StudentDetailClient({ studentId }: StudentDetailClientProps) {
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                   {renderDetailCard('Father Phone', 'father_phone', selectedStudent.father_phone, { titleColor: 'text-[var(--danger)]' })}
                   {renderDetailCard('Mother Phone', 'mother_phone', selectedStudent.mother_phone, { titleColor: 'text-[var(--danger)]' })}
+                  {renderDetailCard('Father Job', 'father_job', selectedStudent.father_job, { titleColor: 'text-[var(--danger)]' })}
+                  {renderDetailCard('Mother Job', 'mother_job', selectedStudent.mother_job, { titleColor: 'text-[var(--danger)]' })}
                 </div>
               </div>
             </div>

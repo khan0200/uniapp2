@@ -135,7 +135,9 @@ CREATE TABLE IF NOT EXISTS public.students (
   phone1                 TEXT        CHECK (phone1 IS NULL OR phone1 ~ '^[0-9]{2}-[0-9]{3}-[0-9]{2}-[0-9]{2}$'),
   phone2                 TEXT,
   father_phone           TEXT,
+  father_job             TEXT,
   mother_phone           TEXT,
+  mother_job             TEXT,
   email                  TEXT,
   address                TEXT        CHECK (address IS NULL OR address = UPPER(address)),
 
