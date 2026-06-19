@@ -11,6 +11,7 @@ import {
 import { createClient } from '@/lib/supabase/client'
 import { type Student, type StudentLevel, type StudentTariff, type StudentLanguageCertificate } from '@/types/database'
 import { PageShell } from '@/components/ui/PageShell'
+import * as XLSX from 'xlsx-js-style'
 import { useStudentDashboard } from '@/contexts/StudentDashboardContext'
 import { motion, AnimatePresence } from 'framer-motion'
 
@@ -164,6 +165,446 @@ export function StudentDashboardClient() {
   }, [activeCertForScore])
   const [tagFilter, setTagFilter] = useState<string | 'ALL'>('ALL')
   const [leadByFilter, setLeadByFilter] = useState<string | 'ALL'>('ALL')
+
+  // Excel Export Modal States
+  const [isExcelModalOpen, setIsExcelModalOpen] = useState(false)
+  const [excelSearchQuery, setExcelSearchQuery] = useState('')
+  const [excelSearchType, setExcelSearchType] = useState<'all' | 'id' | 'name' | 'phone' | 'university'>('all')
+  const [excelTariffFilter, setExcelTariffFilter] = useState<string>('ALL')
+  const [excelLevelFilter, setExcelLevelFilter] = useState<string>('ALL')
+  const [excelGroupFilter, setExcelGroupFilter] = useState<string>('ALL')
+  const [excelCertFilter, setExcelCertFilter] = useState<string>('ALL')
+  const [excelTagFilter, setExcelTagFilter] = useState<string>('ALL')
+  const [selectedExcelIds, setSelectedExcelIds] = useState<string[]>([])
+
+  const excelFilteredStudents = students.filter(student => {
+    if (student.is_deleted) return false
+
+    // Search query matching
+    let matchesSearch = false
+    if (!excelSearchQuery.trim()) {
+      matchesSearch = true
+    } else {
+      const q = excelSearchQuery.toLowerCase().trim()
+      const idMatch = student.id.toLowerCase().includes(q)
+      const nameMatch = student.full_name.toLowerCase().includes(q)
+      const phoneMatch = !!(student.phone1?.includes(excelSearchQuery) || student.phone2?.includes(excelSearchQuery))
+      const emailMatch = !!(student.email?.toLowerCase().includes(q))
+      const uniMatch = !!(student.university_1?.toLowerCase().includes(q) || student.university_2?.toLowerCase().includes(q) || student.university_3?.toLowerCase().includes(q))
+      const certMatch = !!(student.language_certificate?.toLowerCase().includes(q) || student.certificate_score?.toLowerCase().includes(q))
+
+      if (excelSearchType === 'all') {
+        matchesSearch = idMatch || nameMatch || phoneMatch || emailMatch || uniMatch || certMatch
+      } else if (excelSearchType === 'id') {
+        matchesSearch = idMatch
+      } else if (excelSearchType === 'name') {
+        matchesSearch = nameMatch
+      } else if (excelSearchType === 'phone') {
+        matchesSearch = phoneMatch
+      } else if (excelSearchType === 'university') {
+        matchesSearch = uniMatch
+      }
+    }
+    if (!matchesSearch) return false
+
+    // Tariff filter
+    let matchesTariff = false
+    if (excelTariffFilter === 'ALL') {
+      matchesTariff = true
+    } else if (excelTariffFilter === 'NO_TARIFF') {
+      matchesTariff = !student.tariff
+    } else {
+      matchesTariff = student.tariff === excelTariffFilter as any
+    }
+    if (!matchesTariff) return false
+
+    // Level filter
+    let matchesLevel = false
+    if (excelLevelFilter === 'ALL') {
+      matchesLevel = true
+    } else if (excelLevelFilter === 'NO_LEVEL') {
+      matchesLevel = !student.level && !student.level2
+    } else {
+      matchesLevel = student.level === excelLevelFilter as any || student.level2 === excelLevelFilter as any
+    }
+    if (!matchesLevel) return false
+
+    // Group filter
+    let matchesGroup = false
+    if (excelGroupFilter === 'ALL') {
+      matchesGroup = true
+    } else if (excelGroupFilter === 'NO_GROUP') {
+      matchesGroup = !student.student_group || student.student_group === ''
+    } else {
+      matchesGroup = student.student_group === excelGroupFilter
+    }
+    if (!matchesGroup) return false
+
+    // Certificate filter
+    let matchesCert = false
+    if (excelCertFilter === 'ALL') {
+      matchesCert = true
+    } else if (excelCertFilter === 'NO CERTIFICATE') {
+      matchesCert = !student.language_certificate || student.language_certificate === 'NO CERTIFICATE'
+    } else {
+      matchesCert = student.language_certificate === excelCertFilter ||
+                    student.language_certificate_2 === excelCertFilter ||
+                    student.language_certificate_3 === excelCertFilter
+    }
+    if (!matchesCert) return false
+
+    // Tags filter
+    let matchesTag = false
+    if (excelTagFilter === 'ALL') {
+      matchesTag = true
+    } else if (excelTagFilter === 'Custom') {
+      const predefined = ['Call', 'Apply', 'Documents', 'Payment']
+      matchesTag = student.task_tags && student.task_tags.some(t => !predefined.includes(t))
+    } else {
+      matchesTag = student.task_tags && student.task_tags.includes(excelTagFilter)
+    }
+    return matchesTag
+  })
+
+  // Helper to style SheetJS worksheets beautifully
+  const styleWorksheet = (ws: any, isStudentSingle: boolean = false) => {
+    if (!ws) return
+
+    // Get range of sheet
+    const ref = ws['!ref']
+    if (!ref) return
+    
+    // Parse range manually or use decode_range helper safely
+    const decodeRange = (rangeStr: string) => {
+      const parts = rangeStr.split(':')
+      const start = parts[0]
+      const end = parts[1] || parts[0]
+      
+      const parseCell = (cellStr: string) => {
+        const match = cellStr.match(/^([A-Z]+)([0-9]+)$/)
+        if (!match) return { c: 0, r: 0 }
+        
+        let c = 0
+        const colStr = match[1]
+        for (let i = 0; i < colStr.length; i++) {
+          c = c * 26 + (colStr.charCodeAt(i) - 64)
+        }
+        return { c: c - 1, r: parseInt(match[2], 10) - 1 }
+      }
+      
+      return { s: parseCell(start), e: parseCell(end) }
+    }
+
+    const encodeCell = (cell: { c: number; r: number }) => {
+      let colStr = ''
+      let temp = cell.c
+      while (temp >= 0) {
+        colStr = String.fromCharCode((temp % 26) + 65) + colStr
+        temp = Math.floor(temp / 26) - 1
+      }
+      return colStr + (cell.r + 1)
+    }
+
+    const range = decodeRange(ref)
+
+    // Styles definition using Segoe UI font for high compatibility and aesthetics
+    const headerStyle = {
+      font: { name: 'Segoe UI', sz: 11, bold: true, color: { rgb: 'FFFFFF' } },
+      fill: { fgColor: { rgb: '1F497D' } }, // Premium Deep Navy Blue
+      alignment: { horizontal: 'center', vertical: 'center', wrapText: true },
+      border: {
+        top: { style: 'thin', color: { rgb: '1F497D' } },
+        bottom: { style: 'medium', color: { rgb: '000000' } },
+        left: { style: 'thin', color: { rgb: '1F497D' } },
+        right: { style: 'thin', color: { rgb: '1F497D' } }
+      }
+    }
+
+    const centerStyleEven = {
+      font: { name: 'Segoe UI', sz: 10 },
+      fill: { fgColor: { rgb: 'F2F6FB' } }, // Subtle light blue-gray for zebra striping
+      alignment: { horizontal: 'center', vertical: 'center' },
+      border: {
+        top: { style: 'thin', color: { rgb: 'D9D9D9' } },
+        bottom: { style: 'thin', color: { rgb: 'D9D9D9' } },
+        left: { style: 'thin', color: { rgb: 'D9D9D9' } },
+        right: { style: 'thin', color: { rgb: 'D9D9D9' } }
+      }
+    }
+
+    const centerStyleOdd = {
+      font: { name: 'Segoe UI', sz: 10 },
+      fill: { fgColor: { rgb: 'FFFFFF' } },
+      alignment: { horizontal: 'center', vertical: 'center' },
+      border: {
+        top: { style: 'thin', color: { rgb: 'D9D9D9' } },
+        bottom: { style: 'thin', color: { rgb: 'D9D9D9' } },
+        left: { style: 'thin', color: { rgb: 'D9D9D9' } },
+        right: { style: 'thin', color: { rgb: 'D9D9D9' } }
+      }
+    }
+
+    const leftStyleEven = {
+      font: { name: 'Segoe UI', sz: 10 },
+      fill: { fgColor: { rgb: 'F2F6FB' } },
+      alignment: { horizontal: 'left', vertical: 'center' },
+      border: {
+        top: { style: 'thin', color: { rgb: 'D9D9D9' } },
+        bottom: { style: 'thin', color: { rgb: 'D9D9D9' } },
+        left: { style: 'thin', color: { rgb: 'D9D9D9' } },
+        right: { style: 'thin', color: { rgb: 'D9D9D9' } }
+      }
+    }
+
+    const leftStyleOdd = {
+      font: { name: 'Segoe UI', sz: 10 },
+      fill: { fgColor: { rgb: 'FFFFFF' } },
+      alignment: { horizontal: 'left', vertical: 'center' },
+      border: {
+        top: { style: 'thin', color: { rgb: 'D9D9D9' } },
+        bottom: { style: 'thin', color: { rgb: 'D9D9D9' } },
+        left: { style: 'thin', color: { rgb: 'D9D9D9' } },
+        right: { style: 'thin', color: { rgb: 'D9D9D9' } }
+      }
+    }
+
+    const rightStyleEven = {
+      font: { name: 'Segoe UI', sz: 10 },
+      fill: { fgColor: { rgb: 'F2F6FB' } },
+      alignment: { horizontal: 'right', vertical: 'center' },
+      border: {
+        top: { style: 'thin', color: { rgb: 'D9D9D9' } },
+        bottom: { style: 'thin', color: { rgb: 'D9D9D9' } },
+        left: { style: 'thin', color: { rgb: 'D9D9D9' } },
+        right: { style: 'thin', color: { rgb: 'D9D9D9' } }
+      }
+    }
+
+    const rightStyleOdd = {
+      font: { name: 'Segoe UI', sz: 10 },
+      fill: { fgColor: { rgb: 'FFFFFF' } },
+      alignment: { horizontal: 'right', vertical: 'center' },
+      border: {
+        top: { style: 'thin', color: { rgb: 'D9D9D9' } },
+        bottom: { style: 'thin', color: { rgb: 'D9D9D9' } },
+        left: { style: 'thin', color: { rgb: 'D9D9D9' } },
+        right: { style: 'thin', color: { rgb: 'D9D9D9' } }
+      }
+    }
+
+    // Loop through all cell coordinates in range
+    for (let R = range.s.r; R <= range.e.r; ++R) {
+      for (let C = range.s.c; C <= range.e.c; ++C) {
+        const cellRef = encodeCell({ r: R, c: C })
+        let cell = ws[cellRef]
+        if (!cell) {
+          // Create an empty text cell placeholder to display clean borders
+          cell = { t: 's', v: '' }
+          ws[cellRef] = cell
+        }
+
+        // Header row formatting
+        if (R === 0 && !isStudentSingle) {
+          cell.s = headerStyle
+          continue
+        }
+
+        // Data Row Styling (Odd / Even zebra striping and alignment rules)
+        const isEven = R % 2 === 0
+        let style = isEven ? leftStyleEven : leftStyleOdd
+
+        // Horizontal list coordinates
+        const colHeaderCell = ws[encodeCell({ r: 0, c: C })]
+        const headerName = colHeaderCell ? String(colHeaderCell.v).toUpperCase() : ''
+
+        if (
+          headerName === 'NO' ||
+          headerName === 'STUDENT ID' ||
+          headerName === 'SEX' ||
+          headerName === 'BIRTHDAY' ||
+          headerName === 'PASSPORT' ||
+          headerName === 'DATE OF ISSUE' ||
+          headerName === 'DATE OF EXPIRATION' ||
+          headerName.includes('STATUS') ||
+          headerName.includes('SCORE') ||
+          headerName === 'PRIORITY' ||
+          headerName === 'DATE & TIME' ||
+          headerName === 'DATE' ||
+          headerName.includes('PHONE') ||
+          headerName.includes('TARIFF') ||
+          headerName.includes('GROUP') ||
+          headerName.includes('OFFICE') ||
+          headerName.includes('LEAD') ||
+          headerName.includes('LEVEL')
+        ) {
+          style = isEven ? centerStyleEven : centerStyleOdd
+        } else if (headerName.includes('UZS') || headerName.includes('BALANCE') || headerName.includes('DISCOUNT') || headerName.includes('AMOUNT')) {
+          style = isEven ? rightStyleEven : rightStyleOdd
+          if (cell.v !== '' && cell.v !== null && cell.v !== undefined) {
+            const num = parseFloat(String(cell.v).replace(/,/g, ''))
+            if (!isNaN(num)) {
+              cell.t = 'n'
+              cell.v = num
+              cell.z = '#,##0'
+            }
+          }
+        }
+
+        cell.s = style
+      }
+    }
+
+    // Apply row heights (Header: 28px, Rows: 22px for spacious touch)
+    const rowHeights = []
+    rowHeights.push({ hpx: 28 }) // Header row
+    for (let R = 1; R <= range.e.r; ++R) {
+      rowHeights.push({ hpx: 22 })
+    }
+    ws['!rows'] = rowHeights
+  }
+
+  // Download selected students as Excel
+  const downloadSelectedAsExcel = () => {
+    if (selectedExcelIds.length === 0) {
+      alert('Please select at least one student!')
+      return
+    }
+
+    // Get student data for selected IDs
+    const selectedStudents = students.filter((s) => selectedExcelIds.includes(s.id))
+
+    // Prepare data for Excel
+    const excelData = selectedStudents.map((s, index) => ({
+      No: index + 1,
+      'Student ID': s.id || '',
+      'Full Name': s.full_name || '',
+      'Phone 1': s.phone1 || '',
+      'Phone 2': s.phone2 || '',
+      'Father Phone': s.father_phone || '',
+      'Mother Phone': s.mother_phone || '',
+      Email: s.email || '',
+      Birthday: s.birthday || '',
+      Sex: s.gender || '',
+      Passport: s.passport || '',
+      'Date of Issue': s.passport_issue_date || '',
+      'Date of Expiration': s.passport_expire_date || '',
+      'Education Level 1': s.level || '',
+      'Education Level 2': s.level2 || '',
+      Tariff: s.tariff || '',
+      Group: s.student_group || '',
+      'Lead by': s.lead_by || '',
+      Office: s.office || '',
+      'Educational Background': s.educational_background || '',
+      'University 1': s.university_1 || '',
+      'University 1 Status': s.university_1_status || '',
+      'University 2': s.university_2 || '',
+      'University 2 Status': s.university_2_status || '',
+      'University 3': s.university_3 || '',
+      'University 3 Status': s.university_3_status || '',
+      'Language Certificate 1': s.language_certificate || '',
+      'Score 1': s.certificate_score || '',
+      'Language Certificate 2': s.language_certificate_2 || '',
+      'Score 2': s.certificate_score_2 || '',
+      'Language Certificate 3': s.language_certificate_3 || '',
+      'Score 3': s.certificate_score_3 || '',
+      Address: s.address || '',
+      Notes: s.notes || '',
+      Priority: s.row_color || '',
+      'Balance (UZS)': s.balance !== undefined ? s.balance : '',
+      'Discount (UZS)': s.discount !== undefined ? s.discount : '',
+    }))
+
+    // Create workbook and worksheet
+    const ws = XLSX.utils.json_to_sheet(excelData)
+    const wb = XLSX.utils.book_new()
+    XLSX.utils.book_append_sheet(wb, ws, 'Students')
+
+    // Set column widths
+    ws['!cols'] = [
+      { wch: 5 },  // No
+      { wch: 12 }, // Student ID
+      { wch: 35 }, // Full Name
+      { wch: 15 }, // Phone 1
+      { wch: 15 }, // Phone 2
+      { wch: 15 }, // Father Phone
+      { wch: 15 }, // Mother Phone
+      { wch: 25 }, // Email
+      { wch: 12 }, // Birthday
+      { wch: 6 },  // Sex
+      { wch: 12 }, // Passport
+      { wch: 12 }, // Date of Issue
+      { wch: 12 }, // Date of Expiration
+      { wch: 20 }, // Education Level 1
+      { wch: 20 }, // Education Level 2
+      { wch: 15 }, // Tariff
+      { wch: 15 }, // Group
+      { wch: 15 }, // Lead by
+      { wch: 15 }, // Office
+      { wch: 35 }, // Educational Background
+      { wch: 30 }, // University 1
+      { wch: 18 }, // University 1 Status
+      { wch: 30 }, // University 2
+      { wch: 18 }, // University 2 Status
+      { wch: 30 }, // University 3
+      { wch: 18 }, // University 3 Status
+      { wch: 20 }, // Language Certificate 1
+      { wch: 8 },  // Score 1
+      { wch: 20 }, // Language Certificate 2
+      { wch: 8 },  // Score 2
+      { wch: 20 }, // Language Certificate 3
+      { wch: 8 },  // Score 3
+      { wch: 40 }, // Address
+      { wch: 30 }, // Notes
+      { wch: 12 }, // Priority
+      { wch: 15 }, // Balance
+      { wch: 15 }  // Discount
+    ]
+
+    // Apply premium styling
+    styleWorksheet(ws, false)
+
+    // Generate filename
+    const dateStr = new Date().toISOString().split('T')[0]
+    const filename = `Students_Export_${dateStr}.xlsx`
+
+    // Download
+    XLSX.writeFile(wb, filename)
+
+    // Close modal
+    setIsExcelModalOpen(false)
+  }
+
+  // Auto-sync initial select checklist when modal opens or query changes
+  useEffect(() => {
+    if (isExcelModalOpen) {
+      setSelectedExcelIds(excelFilteredStudents.map(s => s.id))
+    }
+  }, [isExcelModalOpen, excelSearchQuery, excelSearchType, excelTariffFilter, excelLevelFilter, excelGroupFilter, excelCertFilter, excelTagFilter])
+
+  const handleToggleExcelStudent = (id: string) => {
+    setSelectedExcelIds(prev =>
+      prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]
+    )
+  }
+
+  const handleToggleSelectAllExcel = () => {
+    const allFilteredIds = excelFilteredStudents.map(s => s.id)
+    const allSelected = allFilteredIds.every(id => selectedExcelIds.includes(id))
+    
+    if (allSelected) {
+      setSelectedExcelIds(prev => prev.filter(id => !allFilteredIds.includes(id)))
+    } else {
+      setSelectedExcelIds(prev => {
+        const added = allFilteredIds.filter(id => !prev.includes(id))
+        return [...prev, ...added]
+      })
+    }
+  }
+
+  const allFilteredIds = excelFilteredStudents.map(s => s.id)
+  const checkedFilteredCount = allFilteredIds.filter(id => selectedExcelIds.includes(id)).length
+  const isAllExcelSelected = allFilteredIds.length > 0 && checkedFilteredCount === allFilteredIds.length
+  const isExcelIndeterminate = checkedFilteredCount > 0 && checkedFilteredCount < allFilteredIds.length
 
   // Modal form state
   const [submitting, setSubmitting] = useState(false)
@@ -989,9 +1430,12 @@ export function StudentDashboardClient() {
 
         {/* Excel Export Button */}
         <button
-          onClick={handleExportCSV}
+          onClick={() => {
+            setIsExcelModalOpen(true)
+            setSelectedExcelIds(excelFilteredStudents.map(s => s.id))
+          }}
           className="flex-shrink-0 flex items-center justify-center p-2 rounded-[var(--radius-md)] border border-emerald-600/30 bg-emerald-50 hover:bg-emerald-100/70 text-emerald-700 dark:bg-emerald-950/20 dark:border-emerald-800/40 dark:text-emerald-400 transition-all cursor-pointer shadow-sm select-none"
-          title="Export Roster to Excel/CSV"
+          title="Export Roster to Excel"
         >
           <FileSpreadsheet className="h-4.5 w-4.5" />
         </button>
@@ -1648,6 +2092,311 @@ export function StudentDashboardClient() {
           </div>
         )
       })()}
+
+      {/* Export to Excel Modal */}
+      <AnimatePresence>
+        {isExcelModalOpen && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+            {/* Backdrop Overlay */}
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => setIsExcelModalOpen(false)}
+              className="fixed inset-0 bg-black/60 backdrop-blur-sm"
+            />
+
+            {/* Modal Panel */}
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95, y: 15 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: 15 }}
+              className="relative w-full max-w-5xl overflow-hidden rounded-[var(--radius-lg)] border border-[var(--border)] bg-[var(--surface-elevated)] p-6 shadow-[var(--shadow-lg)] z-10 flex flex-col max-h-[90vh]"
+            >
+              {/* Close Button */}
+              <button
+                onClick={() => setIsExcelModalOpen(false)}
+                className="absolute right-4 top-4 rounded-[var(--radius-sm)] p-1.5 text-[var(--foreground-muted)] hover:bg-[var(--border-subtle)] hover:text-[var(--foreground)] transition-all cursor-pointer"
+              >
+                <X className="h-5 w-5" />
+              </button>
+
+              <h2 className="text-xl font-bold text-[var(--foreground)] mb-1 flex items-center gap-2">
+                <FileSpreadsheet className="h-5 w-5 text-emerald-600 dark:text-emerald-400" />
+                Download as Excel
+              </h2>
+              <p className="text-xs text-[var(--foreground-muted)] mb-5">
+                Filter and select specific students to compile into a styled Excel workbook.
+              </p>
+
+              {/* ── Search and Filter Controls Row ────────────────── */}
+              <div className="mb-4 space-y-3 bg-[var(--surface)] border border-[var(--border)] rounded-[var(--radius-md)] p-4 shadow-inner">
+                {/* Search Bar Group */}
+                <div className="flex flex-col md:flex-row gap-3">
+                  <div className="w-full md:w-1/3">
+                    <label className="block text-[10px] font-bold uppercase tracking-wider text-[var(--foreground-muted)] mb-1">
+                      Search Type
+                    </label>
+                    <select
+                      value={excelSearchType}
+                      onChange={(e) => setExcelSearchType(e.target.value as any)}
+                      className="w-full px-3 py-1.5 border border-[var(--border)] rounded-[var(--radius-sm)] bg-[var(--surface-elevated)] text-[var(--foreground)] focus:outline-none text-xs font-semibold"
+                    >
+                      <option value="all">All Fields</option>
+                      <option value="id">ID</option>
+                      <option value="name">Name</option>
+                      <option value="phone">Phone</option>
+                      <option value="university">University</option>
+                    </select>
+                  </div>
+                  <div className="flex-1">
+                    <label className="block text-[10px] font-bold uppercase tracking-wider text-[var(--foreground-muted)] mb-1">
+                      Search Query
+                    </label>
+                    <div className="relative">
+                      <Search className="absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-[var(--foreground-subtle)] pointer-events-none" />
+                      <input
+                        type="text"
+                        placeholder="Search students..."
+                        value={excelSearchQuery}
+                        onChange={(e) => setExcelSearchQuery(e.target.value)}
+                        className="w-full pl-8 pr-3 py-1.5 border border-[var(--border)] rounded-[var(--radius-sm)] bg-[var(--surface-elevated)] text-[var(--foreground)] placeholder-[var(--foreground-subtle)] focus:outline-none text-xs font-medium"
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                {/* Filters Group */}
+                <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
+                  {/* Tariff */}
+                  <div>
+                    <label className="block text-[10px] font-bold uppercase tracking-wider text-[var(--foreground-muted)] mb-1">
+                      Tariff
+                    </label>
+                    <select
+                      value={excelTariffFilter}
+                      onChange={(e) => setExcelTariffFilter(e.target.value)}
+                      className="w-full px-2.5 py-1.5 border border-[var(--border)] rounded-[var(--radius-sm)] bg-[var(--surface-elevated)] text-[var(--foreground)] focus:outline-none text-xs font-semibold"
+                    >
+                      <option value="ALL">All Tariffs</option>
+                      <option value="NO_TARIFF">No Tariff</option>
+                      {tariffOptions.map(opt => (
+                        <option key={opt} value={opt}>{opt}</option>
+                      ))}
+                    </select>
+                  </div>
+
+                  {/* Level */}
+                  <div>
+                    <label className="block text-[10px] font-bold uppercase tracking-wider text-[var(--foreground-muted)] mb-1">
+                      Level
+                    </label>
+                    <select
+                      value={excelLevelFilter}
+                      onChange={(e) => setExcelLevelFilter(e.target.value)}
+                      className="w-full px-2.5 py-1.5 border border-[var(--border)] rounded-[var(--radius-sm)] bg-[var(--surface-elevated)] text-[var(--foreground)] focus:outline-none text-xs font-semibold"
+                    >
+                      <option value="ALL">All Levels</option>
+                      <option value="NO_LEVEL">No Level</option>
+                      {levelOptions.map(opt => (
+                        <option key={opt} value={opt}>{opt}</option>
+                      ))}
+                    </select>
+                  </div>
+
+                  {/* Group */}
+                  <div>
+                    <label className="block text-[10px] font-bold uppercase tracking-wider text-[var(--foreground-muted)] mb-1">
+                      Group
+                    </label>
+                    <select
+                      value={excelGroupFilter}
+                      onChange={(e) => setExcelGroupFilter(e.target.value)}
+                      className="w-full px-2.5 py-1.5 border border-[var(--border)] rounded-[var(--radius-sm)] bg-[var(--surface-elevated)] text-[var(--foreground)] focus:outline-none text-xs font-semibold"
+                    >
+                      <option value="ALL">All Groups</option>
+                      <option value="NO_GROUP">No Group</option>
+                      {groupOptions.map(opt => (
+                        <option key={opt} value={opt}>{opt}</option>
+                      ))}
+                    </select>
+                  </div>
+
+                  {/* Certificate */}
+                  <div>
+                    <label className="block text-[10px] font-bold uppercase tracking-wider text-[var(--foreground-muted)] mb-1">
+                      Certificate
+                    </label>
+                    <select
+                      value={excelCertFilter}
+                      onChange={(e) => setExcelCertFilter(e.target.value)}
+                      className="w-full px-2.5 py-1.5 border border-[var(--border)] rounded-[var(--radius-sm)] bg-[var(--surface-elevated)] text-[var(--foreground)] focus:outline-none text-xs font-semibold"
+                    >
+                      <option value="ALL">All Certificates</option>
+                      <option value="NO CERTIFICATE">NO CERTIFICATE</option>
+                      {certOptions.map(opt => (
+                        <option key={opt} value={opt}>{opt}</option>
+                      ))}
+                    </select>
+                  </div>
+
+                  {/* Tags */}
+                  <div>
+                    <label className="block text-[10px] font-bold uppercase tracking-wider text-[var(--foreground-muted)] mb-1">
+                      Tasks/Tags
+                    </label>
+                    <select
+                      value={excelTagFilter}
+                      onChange={(e) => setExcelTagFilter(e.target.value)}
+                      className="w-full px-2.5 py-1.5 border border-[var(--border)] rounded-[var(--radius-sm)] bg-[var(--surface-elevated)] text-[var(--foreground)] focus:outline-none text-xs font-semibold"
+                    >
+                      <option value="ALL">All Tasks/Tags</option>
+                      <option value="Call">📞 Call</option>
+                      <option value="Apply">🎓 Apply</option>
+                      <option value="Documents">📄 Documents</option>
+                      <option value="Payment">💰 Payment</option>
+                      <option value="Custom">Custom Tags</option>
+                    </select>
+                  </div>
+                </div>
+              </div>
+
+              {/* ── Selection Count Header ──────────────────────── */}
+              <div className="flex justify-between items-center mb-3 pb-2 border-b border-[var(--border)]">
+                <span className="font-bold text-xs text-[var(--foreground-muted)] uppercase tracking-wider">
+                  Select Students to Export
+                </span>
+                <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-500 text-white shadow-sm">
+                  {checkedFilteredCount}/{excelFilteredStudents.length} SELECTED
+                </span>
+              </div>
+
+              {/* ── Scrollable Student Grid Table ───────────────── */}
+              <div className="flex-1 overflow-y-auto border border-[var(--border)] rounded-[var(--radius-md)] bg-[var(--surface)] shadow-inner max-h-[350px]">
+                <table className="w-full border-collapse text-left text-xs font-medium">
+                  <thead className="sticky top-0 bg-[var(--surface-elevated)] border-b border-[var(--border)] text-[10px] font-bold uppercase tracking-wider text-[var(--foreground-muted)] z-10">
+                    <tr>
+                      <th className="px-4 py-2.5 text-center w-12">
+                        <input
+                          type="checkbox"
+                          checked={isAllExcelSelected}
+                          ref={(input) => {
+                            if (input) input.indeterminate = isExcelIndeterminate
+                          }}
+                          onChange={handleToggleSelectAllExcel}
+                          className="h-3.5 w-3.5 rounded border-[var(--border)] text-blue-600 focus:ring-blue-500 cursor-pointer"
+                        />
+                      </th>
+                      <th className="px-4 py-2.5 w-20">ID</th>
+                      <th className="px-4 py-2.5">Full Name</th>
+                      <th className="px-4 py-2.5">Level</th>
+                      <th className="px-4 py-2.5 text-center w-24">Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-[var(--border)]">
+                    {excelFilteredStudents.length === 0 ? (
+                      <tr>
+                        <td colSpan={5} className="px-6 py-12 text-center text-[var(--foreground-subtle)] font-semibold italic">
+                          No students match the active export search filters.
+                        </td>
+                      </tr>
+                    ) : (
+                      excelFilteredStudents.map(student => {
+                        const isChecked = selectedExcelIds.includes(student.id)
+                        const bgObj = getRowBgStyleAndClass(student)
+                        return (
+                          <tr
+                            key={student.id}
+                            onClick={() => handleToggleExcelStudent(student.id)}
+                            className={`cursor-pointer hover:bg-[var(--border-subtle)] transition-colors ${isChecked ? 'bg-blue-500/5 dark:bg-blue-500/10' : ''}`}
+                            style={bgObj.style}
+                          >
+                            <td className="px-4 py-3.5 text-center" onClick={(e) => e.stopPropagation()}>
+                              <input
+                                type="checkbox"
+                                checked={isChecked}
+                                onChange={() => handleToggleExcelStudent(student.id)}
+                                className="h-3.5 w-3.5 rounded border-[var(--border)] text-blue-600 focus:ring-blue-500 cursor-pointer"
+                              />
+                            </td>
+                            <td className="px-4 py-3.5">
+                              <div className="flex items-center justify-center w-10 h-6 text-[10px] font-bold bg-[#007aff] text-white rounded-[4px] shadow-sm">
+                                {student.id}
+                              </div>
+                            </td>
+                            <td className="px-4 py-3.5">
+                              <div className="font-bold uppercase tracking-wide text-xs text-[var(--foreground)]">
+                                {student.full_name}
+                              </div>
+                              {student.tariff && (
+                                <span className="inline-block mt-0.5 text-[8px] bg-[var(--surface-elevated)] border border-[var(--border)] text-[var(--foreground-subtle)] px-1 rounded font-bold uppercase tracking-wider">
+                                  {student.tariff}
+                                </span>
+                              )}
+                            </td>
+                            <td className="px-4 py-3.5">
+                              <div className="flex flex-wrap gap-1">
+                                {student.level && (
+                                  <span className={`inline-flex items-center px-1.5 py-0.5 rounded-full text-[9px] font-bold uppercase tracking-wide ${getLevelBadgeStyles(student.level)}`}>
+                                    {student.level}
+                                  </span>
+                                )}
+                                {student.level2 && (
+                                  <span className="inline-flex items-center px-1.5 py-0.5 rounded-full text-[9px] font-bold uppercase tracking-wide bg-[#ffab00] text-gray-900">
+                                    {student.level2}
+                                  </span>
+                                )}
+                              </div>
+                              {renderCertificatePills(student)}
+                            </td>
+                            <td className="px-4 py-3.5" onClick={(e) => e.stopPropagation()}>
+                              <div className="flex items-center justify-center gap-1.5">
+                                {(student.task_tags || []).map((tag, tagIdx) => {
+                                  const icon = getCustomTagIcon(tag)
+                                  return (
+                                    <span 
+                                      key={tagIdx} 
+                                      className="inline-flex items-center justify-center w-5.5 h-5.5 text-[11px] bg-[var(--surface-elevated)] border border-[var(--border)] rounded shadow-sm"
+                                      title={tag}
+                                    >
+                                      {icon}
+                                    </span>
+                                  )
+                                })}
+                              </div>
+                            </td>
+                          </tr>
+                        )
+                      })
+                    )}
+                  </tbody>
+                </table>
+              </div>
+
+              {/* ── Footer Action Buttons ───────────────────────── */}
+              <div className="mt-5 pt-3 border-t border-[var(--border)] flex justify-end gap-3">
+                <button
+                  type="button"
+                  onClick={() => setIsExcelModalOpen(false)}
+                  className="px-4 py-2 border border-[var(--border)] rounded-[var(--radius-md)] bg-transparent text-[var(--foreground-muted)] hover:bg-[var(--border-subtle)] hover:text-[var(--foreground)] text-xs font-bold uppercase tracking-wider transition-all cursor-pointer"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  onClick={downloadSelectedAsExcel}
+                  disabled={selectedExcelIds.length === 0}
+                  className="flex items-center justify-center gap-1.5 px-4 py-2 bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 text-white text-xs font-bold uppercase tracking-wider rounded-[var(--radius-md)] transition-all cursor-pointer select-none"
+                  style={{ boxShadow: '0 4px 12px rgba(16, 185, 129, 0.2)' }}
+                >
+                  <FileSpreadsheet className="h-4 w-4" />
+                  Download Excel
+                </button>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
 
     </PageShell>
   )
