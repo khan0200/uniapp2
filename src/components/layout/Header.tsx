@@ -92,7 +92,7 @@ export function Header() {
             className="pl-9 pr-4 py-2 text-sm border border-[var(--border)] bg-[var(--background)] rounded-[var(--radius-md)] text-[var(--foreground)] placeholder-[var(--foreground-muted)] focus:outline-none focus:border-[var(--accent)] focus:ring-1 focus:ring-[var(--accent)] transition-all w-60 md:w-72"
           />
         </div>
-      ) : pathname.startsWith('/students/') ? (
+      ) : pathname.startsWith('/students/') || pathname.startsWith('/payments') ? (
         null
       ) : (
         <button
