@@ -71,7 +71,6 @@ export function StudentDetailClient({ studentId }: StudentDetailClientProps) {
         .from('students')
         .select('*')
         .eq('id', studentId)
-        .eq('is_deleted', false)
         .single()
 
       if (fetchError) throw fetchError
@@ -288,6 +287,29 @@ export function StudentDetailClient({ studentId }: StudentDetailClientProps) {
     } catch (err: any) {
       console.error('Error soft-deleting student:', err)
       alert(err.message || 'Failed to delete student.')
+    } finally {
+      setIsDeleting(false)
+    }
+  }
+
+  // Restore student
+  const handleRestoreStudent = async () => {
+    if (!selectedStudent) return
+    if (!confirm(`Are you sure you want to restore student profile "${selectedStudent.full_name}"?`)) return
+    setIsDeleting(true)
+    try {
+      const { error: restoreError } = await (supabase
+        .from('students') as any)
+        .update({ is_deleted: false })
+        .eq('id', selectedStudent.id)
+
+      if (restoreError) throw restoreError
+
+      alert('Student profile restored successfully.')
+      await fetchStudent()
+    } catch (err: any) {
+      console.error('Error restoring student:', err)
+      alert(err.message || 'Failed to restore student.')
     } finally {
       setIsDeleting(false)
     }
@@ -961,15 +983,27 @@ export function StudentDetailClient({ studentId }: StudentDetailClientProps) {
               <RefreshCw className="h-3.5 w-3.5 text-[var(--accent)]" />
               Reload
             </button>
-            <button 
-              disabled={isDeleting}
-              onClick={handleDeleteStudent}
-              className="inline-flex items-center gap-1 text-[var(--danger)] hover:bg-[var(--border-subtle)] hover:text-red-600 px-2.5 py-1.5 bg-[var(--surface-elevated)] border border-[var(--border)] rounded-md text-xs font-semibold transition-all shadow-[var(--shadow-sm)] cursor-pointer disabled:opacity-50"
-              title="Delete student profile"
-            >
-              {isDeleting ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Trash2 className="h-3.5 w-3.5" />}
-              Delete
-            </button>
+            {selectedStudent.is_deleted ? (
+              <button 
+                disabled={isDeleting}
+                onClick={handleRestoreStudent}
+                className="inline-flex items-center gap-1 text-emerald-600 dark:text-emerald-400 hover:bg-[var(--border-subtle)] px-2.5 py-1.5 bg-[var(--surface-elevated)] border border-[var(--border)] rounded-md text-xs font-semibold transition-all shadow-[var(--shadow-sm)] cursor-pointer disabled:opacity-50"
+                title="Restore student profile"
+              >
+                {isDeleting ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <RefreshCw className="h-3.5 w-3.5 text-emerald-600 dark:text-emerald-400" />}
+                Restore
+              </button>
+            ) : (
+              <button 
+                disabled={isDeleting}
+                onClick={handleDeleteStudent}
+                className="inline-flex items-center gap-1 text-[var(--danger)] hover:bg-[var(--border-subtle)] hover:text-red-600 px-2.5 py-1.5 bg-[var(--surface-elevated)] border border-[var(--border)] rounded-md text-xs font-semibold transition-all shadow-[var(--shadow-sm)] cursor-pointer disabled:opacity-50"
+                title="Delete student profile"
+              >
+                {isDeleting ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Trash2 className="h-3.5 w-3.5" />}
+                Delete
+              </button>
+            )}
           </div>
         </div>
 
@@ -985,9 +1019,15 @@ export function StudentDetailClient({ studentId }: StudentDetailClientProps) {
             <div className="flex items-center gap-2 text-[10px] font-semibold text-[var(--foreground-muted)] mt-0.5">
               <span>ID: <span className="font-mono text-[var(--accent)] font-bold">{selectedStudent.id}</span></span>
               <span className="h-1 w-1 rounded-full bg-[var(--foreground-subtle)]" />
-              <span className="bg-emerald-500/10 text-emerald-600 border border-emerald-500/20 px-1.5 py-0.2 rounded-full text-[8px] font-extrabold uppercase">
-                ACTIVE
-              </span>
+              {selectedStudent.is_deleted ? (
+                <span className="bg-rose-500/10 text-rose-600 border border-rose-500/20 px-1.5 py-0.2 rounded-full text-[8px] font-extrabold uppercase animate-pulse">
+                  DELETED
+                </span>
+              ) : (
+                <span className="bg-emerald-500/10 text-emerald-600 border border-emerald-500/20 px-1.5 py-0.2 rounded-full text-[8px] font-extrabold uppercase">
+                  ACTIVE
+                </span>
+              )}
               {selectedStudent.student_group && (
                 <>
                   <span className="h-1 w-1 rounded-full bg-[var(--foreground-subtle)]" />
