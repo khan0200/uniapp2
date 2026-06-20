@@ -18,6 +18,104 @@ interface StudentDetailClientProps {
   studentId: string
 }
 
+// Phonetic Latin -> Hangul transliteration for quick-copy purposes only.
+// This is an approximation, not a verified official transliteration, and
+// it never gets written back to Supabase.
+const CHO = ['ㄱ', 'ㄲ', 'ㄴ', 'ㄷ', 'ㄸ', 'ㄹ', 'ㅁ', 'ㅂ', 'ㅃ', 'ㅅ', 'ㅆ', 'ㅇ', 'ㅈ', 'ㅉ', 'ㅊ', 'ㅋ', 'ㅌ', 'ㅍ', 'ㅎ']
+const JUNG = ['ㅏ', 'ㅐ', 'ㅑ', 'ㅒ', 'ㅓ', 'ㅔ', 'ㅕ', 'ㅖ', 'ㅗ', 'ㅘ', 'ㅙ', 'ㅚ', 'ㅛ', 'ㅜ', 'ㅝ', 'ㅞ', 'ㅟ', 'ㅠ', 'ㅡ', 'ㅢ', 'ㅣ']
+const JONG = ['', 'ㄱ', 'ㄲ', 'ㄳ', 'ㄴ', 'ㄵ', 'ㄶ', 'ㄷ', 'ㄹ', 'ㄺ', 'ㄻ', 'ㄼ', 'ㄽ', 'ㄾ', 'ㄿ', 'ㅀ', 'ㅁ', 'ㅂ', 'ㅄ', 'ㅅ', 'ㅆ', 'ㅇ', 'ㅈ', 'ㅊ', 'ㅋ', 'ㅌ', 'ㅍ', 'ㅎ']
+
+function composeHangul(cho: string, jung: string, jong: string = ''): string {
+  const choIdx = CHO.indexOf(cho)
+  const jungIdx = JUNG.indexOf(jung)
+  const jongIdx = JONG.indexOf(jong)
+  if (choIdx === -1 || jungIdx === -1 || jongIdx === -1) return ''
+  return String.fromCharCode(0xac00 + choIdx * 21 * 28 + jungIdx * 28 + jongIdx)
+}
+
+// Consonant digraphs/letters mapped to an initial Hangul consonant, with an
+// explicit length so we don't need to infer it from the pattern itself.
+const CONSONANT_MAP: { letters: string; cho: string }[] = [
+  { letters: 'kh', cho: 'ㅋ' }, { letters: 'ph', cho: 'ㅍ' }, { letters: 'th', cho: 'ㅌ' },
+  { letters: 'ch', cho: 'ㅊ' }, { letters: 'sh', cho: 'ㅅ' }, { letters: 'zh', cho: 'ㅈ' },
+  { letters: 'ng', cho: 'ㅇ' },
+  { letters: 'b', cho: 'ㅂ' }, { letters: 'p', cho: 'ㅍ' }, { letters: 'v', cho: 'ㅂ' },
+  { letters: 'd', cho: 'ㄷ' }, { letters: 't', cho: 'ㅌ' },
+  { letters: 'g', cho: 'ㄱ' }, { letters: 'k', cho: 'ㅋ' },
+  { letters: 'j', cho: 'ㅈ' }, { letters: 'z', cho: 'ㅈ' },
+  { letters: 's', cho: 'ㅅ' }, { letters: 'c', cho: 'ㅅ' },
+  { letters: 'm', cho: 'ㅁ' }, { letters: 'n', cho: 'ㄴ' },
+  { letters: 'l', cho: 'ㄹ' }, { letters: 'r', cho: 'ㄹ' },
+  { letters: 'h', cho: 'ㅎ' }, { letters: 'f', cho: 'ㅍ' },
+  { letters: 'q', cho: 'ㅋ' }, { letters: 'x', cho: 'ㅅ' },
+  { letters: 'y', cho: 'ㅇ' }, { letters: 'w', cho: 'ㅇ' },
+].sort((a, b) => b.letters.length - a.letters.length) // longest match first
+
+const VOWEL_MAP: { letters: string; jung: string }[] = [
+  { letters: 'oo', jung: 'ㅜ' }, { letters: 'ee', jung: 'ㅣ' },
+  { letters: 'ai', jung: 'ㅐ' }, { letters: 'ay', jung: 'ㅐ' },
+  { letters: 'ya', jung: 'ㅑ' }, { letters: 'yo', jung: 'ㅛ' }, { letters: 'yu', jung: 'ㅠ' },
+  { letters: 'a', jung: 'ㅏ' }, { letters: 'e', jung: 'ㅔ' }, { letters: 'i', jung: 'ㅣ' },
+  { letters: 'o', jung: 'ㅗ' }, { letters: 'u', jung: 'ㅜ' }, { letters: 'y', jung: 'ㅣ' },
+].sort((a, b) => b.letters.length - a.letters.length)
+
+const FINAL_CONSONANT_MAP: Record<string, string> = {
+  n: 'ㄴ', m: 'ㅁ', l: 'ㄹ', r: 'ㄹ', k: 'ㄱ', g: 'ㄱ', t: 'ㄷ', d: 'ㄷ', p: 'ㅂ', b: 'ㅂ', s: 'ㅅ',
+}
+
+function transliterateWordToHangul(word: string): string {
+  const lower = word.toLowerCase().replace(/[^a-z]/g, '')
+  if (!lower) return word
+
+  let i = 0
+  let result = ''
+
+  while (i < lower.length) {
+    const rest = lower.slice(i)
+
+    const consonantMatch = CONSONANT_MAP.find(m => rest.startsWith(m.letters))
+    const cho = consonantMatch?.cho ?? 'ㅇ'
+    const consonantLen = consonantMatch ? consonantMatch.letters.length : 0
+
+    const afterConsonant = rest.slice(consonantLen)
+    const vowelMatch = VOWEL_MAP.find(m => afterConsonant.startsWith(m.letters))
+
+    if (!vowelMatch) {
+      // No vowel follows — attach a silent "eu" to render the consonant alone.
+      result += composeHangul(cho, 'ㅡ') || ''
+      i += Math.max(consonantLen, 1)
+      continue
+    }
+
+    let totalConsumed = consonantLen + vowelMatch.letters.length
+    let jong = ''
+
+    // A consonant that's followed by another consonant+vowel (i.e. starts
+    // the next syllable) closes out this syllable as a final consonant.
+    const afterVowel = lower.slice(i + totalConsumed)
+    const closingLetter = afterVowel[0]
+    const nextIsConsonant = closingLetter && /[a-z]/.test(closingLetter) && !VOWEL_MAP.some(v => afterVowel.startsWith(v.letters))
+    if (nextIsConsonant && FINAL_CONSONANT_MAP[closingLetter]) {
+      jong = FINAL_CONSONANT_MAP[closingLetter]
+      totalConsumed += 1
+    }
+
+    result += composeHangul(cho, vowelMatch.jung, jong) || ''
+    i += totalConsumed
+  }
+
+  return result || word
+}
+
+function transliterateNameToHangul(name: string): string {
+  if (!name) return name
+  return name
+    .split(' ')
+    .filter(Boolean)
+    .map(word => transliterateWordToHangul(word))
+    .join(' ')
+}
+
 export function StudentDetailClient({ studentId }: StudentDetailClientProps) {
   const supabase = createClient()
   const router = useRouter()
@@ -34,6 +132,10 @@ export function StudentDetailClient({ studentId }: StudentDetailClientProps) {
   const [copiedField, setCopiedField] = useState<string | null>(null)
   const [isDeleting, setIsDeleting] = useState(false)
   const [activeStatusDropdown, setActiveStatusDropdown] = useState<string | null>(null)
+  const [nameLanguage, setNameLanguage] = useState<'EN' | 'KR'>('EN')
+  const [koreanNames, setKoreanNames] = useState<{ full: string; family: string; given: string } | null>(null)
+  const [isTranslatingNames, setIsTranslatingNames] = useState(false)
+  const [translateError, setTranslateError] = useState<string | null>(null)
 
   // Dynamic Select Options from Settings
   const [tariffOptions, setTariffOptions] = useState<string[]>(['STANDART', 'PREMIUM', 'VISA PLUS', 'E-VISA', 'REGIONAL VISA'])
@@ -117,6 +219,9 @@ export function StudentDetailClient({ studentId }: StudentDetailClientProps) {
   useEffect(() => {
     fetchStudent()
     fetchFilterOptions()
+    setNameLanguage('EN')
+    setKoreanNames(null)
+    setTranslateError(null)
   }, [studentId])
 
   const computedPaymentsDone = useMemo(() => {
@@ -136,6 +241,67 @@ export function StudentDetailClient({ studentId }: StudentDetailClientProps) {
     navigator.clipboard.writeText(text)
     setCopiedField(field)
     setTimeout(() => setCopiedField(null), 1200)
+  }
+
+  // Fetch an AI-powered Korean transliteration of the Full Name only.
+  // Family/Given Name are derived by splitting the translated full name,
+  // mirroring how the English versions split selectedStudent.full_name.
+  // Falls back to the local phonetic approximation if no AI key is
+  // configured or the request fails. Never writes anything to Supabase.
+  const handleShowKorean = async () => {
+    if (!selectedStudent) return
+    setNameLanguage('KR')
+    if (koreanNames) return // already fetched for this student
+
+    const fullName = selectedStudent.full_name || ''
+
+    const splitTranslatedFullName = (translatedFull: string) => {
+      const parts = translatedFull.split(' ').filter(Boolean)
+      return {
+        full: translatedFull,
+        family: parts[0] || '',
+        given: parts.slice(1).join(' '),
+      }
+    }
+
+    let aiSettings: any = null
+    try {
+      const stored = localStorage.getItem('ai_settings')
+      if (stored) aiSettings = JSON.parse(stored)
+    } catch {
+      aiSettings = null
+    }
+
+    const provider = aiSettings?.provider || 'gemini'
+    const apiKey = provider === 'openai' ? aiSettings?.openaiApiKey : aiSettings?.apiKey
+    const model = provider === 'openai' ? aiSettings?.openaiModel : aiSettings?.model
+
+    if (!apiKey) {
+      setTranslateError(null)
+      setKoreanNames(splitTranslatedFullName(transliterateNameToHangul(fullName)))
+      return
+    }
+
+    setIsTranslatingNames(true)
+    setTranslateError(null)
+    try {
+      const response = await fetch('/api/translate-name', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ names: [fullName], provider, apiKey, model }),
+      })
+      const data = await response.json()
+      if (!response.ok) throw new Error(data.error || 'Translation failed')
+
+      const [full] = data.results || []
+      setKoreanNames(splitTranslatedFullName(full || transliterateNameToHangul(fullName)))
+    } catch (err: any) {
+      console.error('AI name translation failed, falling back to local transliteration:', err)
+      setTranslateError(err.message || 'AI translation failed — showing approximate transliteration instead.')
+      setKoreanNames(splitTranslatedFullName(transliterateNameToHangul(fullName)))
+    } finally {
+      setIsTranslatingNames(false)
+    }
   }
 
   const uppercaseFields = new Set([
@@ -968,13 +1134,13 @@ export function StudentDetailClient({ studentId }: StudentDetailClientProps) {
       }
 
   // Render auto calculated Family/Given Name cards (ReadOnly copyable only)
-  const renderAutoNameCard = (label: string, value: string, field: 'family_name' | 'given_name') => {
+  const renderAutoNameCard = (label: string, value: string, field: 'family_name' | 'given_name', isLoading: boolean = false) => {
     const isCopied = copiedField === field
-    const isMissing = !value || value.trim() === '' || value.trim() === '—'
+    const isMissing = !isLoading && (!value || value.trim() === '' || value.trim() === '—')
     return (
       <div
         className={`group relative bg-[var(--surface)] border border-[#E5E7EB] dark:border-[var(--border)] border-l-[3px] ${isMissing ? 'border-l-rose-600' : 'border-l-[var(--accent)]'} rounded-[var(--radius-md)] px-2.5 py-1.5 flex flex-col justify-between min-h-[58px] text-[var(--foreground)] hover:bg-[var(--surface-elevated)] transition-all duration-200 cursor-pointer`}
-        title={value ? 'Single-click value to copy.' : ''}
+        title={value && !isLoading ? 'Single-click value to copy.' : ''}
       >
         {isMissing && (
           <span className="wave-dot" style={{ position: 'absolute', top: '50%', right: '6px', transform: 'translateY(-50%)', height: '8px', width: '8px', borderRadius: '9999px', backgroundColor: '#e11d48', color: '#e11d48' }} />
@@ -987,7 +1153,7 @@ export function StudentDetailClient({ studentId }: StudentDetailClientProps) {
             <span className="bg-[var(--border-subtle)] border border-[var(--border)] text-[9.5px] px-1.5 py-0.2 rounded font-bold text-[var(--foreground-muted)] uppercase">AUTO</span>
           </div>
           <div className="flex items-center gap-1.5 opacity-0 group-hover:opacity-100 focus-within:opacity-100 transition-opacity">
-            {value && (
+            {value && !isLoading && (
               <button
                 onClick={(e) => {
                   e.stopPropagation();
@@ -1008,13 +1174,15 @@ export function StudentDetailClient({ studentId }: StudentDetailClientProps) {
         <div
           className="mt-0.5 flex items-center min-h-[20px]"
           onClick={() => {
-            if (value) {
+            if (value && !isLoading) {
               handleCopy(field, value);
             }
           }}
         >
           {isCopied ? (
             <span className="text-[15px] font-bold text-[var(--success)] animate-pulse">Copied!</span>
+          ) : isLoading ? (
+            <span className="text-[14px] font-medium italic text-[#64748B]">{value}</span>
           ) : value ? (
             <span className="text-[15px] font-semibold tracking-wide text-[#0F172A] dark:text-[var(--foreground)]">{value}</span>
           ) : (
@@ -1138,18 +1306,43 @@ export function StudentDetailClient({ studentId }: StudentDetailClientProps) {
           <div className="flex flex-col gap-3">
             {/* Personal & Passport Block */}
             <div className="bg-[var(--background)] border border-[var(--border)] rounded-lg p-2.5 shadow-[var(--shadow-md)] flex flex-col gap-2">
-              <div className="flex items-center gap-1.5 pb-1 border-b border-[var(--border)]">
-                <User className="h-3.5 w-3.5 text-[var(--accent)]" />
-                <h3 className="text-[13px] font-semibold uppercase tracking-wide text-[#64748B]">
-                  Personal & Passport
-                </h3>
+              <div className="flex items-center justify-between gap-1.5 pb-1 border-b border-[var(--border)]">
+                <div className="flex items-center gap-1.5">
+                  <User className="h-3.5 w-3.5 text-[var(--accent)]" />
+                  <h3 className="text-[13px] font-semibold uppercase tracking-wide text-[#64748B]">
+                    Personal & Passport
+                  </h3>
+                </div>
+                <div className="flex items-center gap-1.5">
+                  {isTranslatingNames && <Loader2 className="h-3 w-3 animate-spin text-[var(--accent)]" />}
+                  <div className="flex items-center rounded-md border border-[var(--border)] overflow-hidden text-[10.5px] font-bold">
+                    <button
+                      onClick={() => setNameLanguage('EN')}
+                      className={`px-2 py-0.5 cursor-pointer transition-all ${nameLanguage === 'EN' ? 'bg-[var(--accent)] text-white' : 'bg-[var(--surface)] text-[#64748B] hover:bg-[var(--surface-elevated)]'}`}
+                      title="Show names in original Latin script"
+                    >
+                      EN
+                    </button>
+                    <button
+                      onClick={handleShowKorean}
+                      disabled={isTranslatingNames}
+                      className={`px-2 py-0.5 cursor-pointer transition-all border-l border-[var(--border)] disabled:opacity-60 ${nameLanguage === 'KR' ? 'bg-[var(--accent)] text-white' : 'bg-[var(--surface)] text-[#64748B] hover:bg-[var(--surface-elevated)]'}`}
+                      title="Show names transliterated to Korean using AI (copy-only — does not change saved data)"
+                    >
+                      KR
+                    </button>
+                  </div>
+                </div>
               </div>
+              {nameLanguage === 'KR' && translateError && (
+                <div className="text-[10.5px] font-medium text-amber-600 -mt-1">{translateError}</div>
+              )}
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-1.5">
                 <div className="sm:col-span-2">
-                  {renderDetailCard('Full Name', 'full_name', selectedStudent.full_name, { titleColor: 'text-[var(--accent)]' })}
+                  {renderDetailCard('Full Name', 'full_name', nameLanguage === 'KR' ? (koreanNames?.full ?? (isTranslatingNames ? 'Translating...' : '')) : selectedStudent.full_name, { titleColor: 'text-[var(--accent)]', editable: nameLanguage === 'EN' && !isTranslatingNames, copyable: !(nameLanguage === 'KR' && isTranslatingNames) })}
                 </div>
-                {renderAutoNameCard('Family Name', selectedStudent.full_name.split(' ')[0] || '', 'family_name')}
-                {renderAutoNameCard('Given Name', selectedStudent.full_name.split(' ').slice(1).join(' ') || '', 'given_name')}
+                {renderAutoNameCard('Family Name', nameLanguage === 'KR' ? (koreanNames?.family ?? (isTranslatingNames ? 'Translating...' : '')) : (selectedStudent.full_name.split(' ')[0] || ''), 'family_name', nameLanguage === 'KR' && isTranslatingNames)}
+                {renderAutoNameCard('Given Name', nameLanguage === 'KR' ? (koreanNames?.given ?? (isTranslatingNames ? 'Translating...' : '')) : (selectedStudent.full_name.split(' ').slice(1).join(' ') || ''), 'given_name', nameLanguage === 'KR' && isTranslatingNames)}
                 <div className="sm:col-span-2 grid grid-cols-1 sm:grid-cols-4 gap-1.5">
                   <div className="sm:col-span-1">
                     {renderDetailCard('Sex', 'gender', selectedStudent.gender, {
