@@ -88,16 +88,21 @@ export function StudentDashboardClient() {
   const router = useRouter()
   const supabase = createClient()
 
-  // State for students list
-  const [students, setStudents] = useState<Student[]>([])
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState<string | null>(null)
   const [currentPage, setCurrentPage] = useState(1)
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('asc')
   const [activeTooltip, setActiveTooltip] = useState<{ studentId: string; tagKey: string } | null>(null)
 
   // Context shared state
-  const { searchQuery, isAddStudentModalOpen: isModalOpen, setIsAddStudentModalOpen: setIsModalOpen } = useStudentDashboard()
+  const { 
+    searchQuery, 
+    isAddStudentModalOpen: isModalOpen, 
+    setIsAddStudentModalOpen: setIsModalOpen,
+    students,
+    setStudents,
+    loading,
+    error,
+    fetchStudents
+  } = useStudentDashboard()
 
   // Search & Filters state
   // Multi-select array states
@@ -705,25 +710,7 @@ export function StudentDashboardClient() {
 
 
 
-  // Fetch students on mount
-  const fetchStudents = async () => {
-    try {
-      setLoading(true)
-      setError(null)
-      const { data, error: fetchError } = await supabase
-        .from('students')
-        .select('*')
-        .order('created_at', { ascending: false })
 
-      if (fetchError) throw fetchError
-      setStudents(data || [])
-    } catch (err: any) {
-      console.error('Error fetching students:', err)
-      setError(err.message || 'Failed to load students. Please try again.')
-    } finally {
-      setLoading(false)
-    }
-  }
 
   // Dynamic Option States from Settings
   const [tariffOptions, setTariffOptions] = useState<string[]>(['STANDART', 'PREMIUM', 'VISA PLUS', 'E-VISA', 'REGIONAL VISA'])
@@ -810,7 +797,7 @@ export function StudentDashboardClient() {
       .eq('id', studentId)
     if (updateError) {
       console.error('Error updating student color:', updateError)
-      fetchStudents()
+      fetchStudents(true)
     }
   }
 
@@ -828,7 +815,7 @@ export function StudentDashboardClient() {
       .eq('id', studentId)
     if (updateError) {
       console.error('Error updating student tags:', updateError)
-      fetchStudents()
+      fetchStudents(true)
     }
   }
 
@@ -853,7 +840,7 @@ export function StudentDashboardClient() {
       .eq('id', studentId)
     if (updateError) {
       console.error('Error updating student tags:', updateError)
-      fetchStudents()
+      fetchStudents(true)
     }
   }
 
@@ -923,7 +910,7 @@ export function StudentDashboardClient() {
       .eq('id', studentId)
     if (updateError) {
       console.error('Error clearing flags and color:', updateError)
-      fetchStudents()
+      fetchStudents(true)
     }
   }
 
@@ -989,7 +976,7 @@ export function StudentDashboardClient() {
       setFullName('')
       setOffice('ANDIJON OFFIS')
 
-      await fetchStudents()
+      await fetchStudents(true)
 
       setTimeout(() => {
         setIsModalOpen(false)
@@ -1899,7 +1886,7 @@ export function StudentDashboardClient() {
           <h3 className="text-base font-semibold text-[var(--foreground)]">Failed to Load Students</h3>
           <p className="mt-1 text-sm text-[var(--foreground-muted)]">{error}</p>
           <button
-            onClick={fetchStudents}
+            onClick={() => fetchStudents(true)}
             className="mt-4 px-4 py-2 bg-[var(--accent)] text-white text-sm font-semibold rounded-[var(--radius-md)] hover:bg-[var(--accent-hover)] transition-all cursor-pointer"
           >
             Try Again
