@@ -77,6 +77,15 @@ export function StudentDetailClient({ studentId }: StudentDetailClientProps) {
     'E-VISA': 2000000,
   }
 
+  const getTariffPrice = (tariff: string | null, languageCertificate: string | null) => {
+    if (!tariff) return 0
+    if (tariff === 'E-VISA') {
+      const hasCert = languageCertificate && languageCertificate !== 'NO CERTIFICATE'
+      return hasCert ? 16000000 : 24000000
+    }
+    return TARIFF_PRICES[tariff] || 0
+  }
+
   // Fetch student details on mount
   const fetchStudent = async () => {
     try {
@@ -113,7 +122,7 @@ export function StudentDetailClient({ studentId }: StudentDetailClientProps) {
     
     // Fallback: Tariff Price + Balance - Discount
     if (!selectedStudent) return 0
-    const tariffPrice = TARIFF_PRICES[selectedStudent.tariff || ''] || 0
+    const tariffPrice = getTariffPrice(selectedStudent.tariff, selectedStudent.language_certificate)
     const discount = selectedStudent.discount || 0
     const paid = tariffPrice + (selectedStudent.balance || 0) - discount
     return Math.max(0, paid)
@@ -291,7 +300,25 @@ export function StudentDetailClient({ studentId }: StudentDetailClientProps) {
         valToSave = null
       }
 
-      const updateData = { [field]: valToSave }
+      const updateData: any = { [field]: valToSave }
+
+      // Recalculate balance when tariff or language certificate changes
+      if (
+        (field === 'tariff' && selectedStudent.tariff !== valToSave) ||
+        (field === 'language_certificate' && selectedStudent.tariff === 'E-VISA' && selectedStudent.language_certificate !== valToSave)
+      ) {
+        const currentTariff = field === 'tariff' ? valToSave : selectedStudent.tariff
+        const currentCert = field === 'language_certificate' ? valToSave : selectedStudent.language_certificate
+
+        const oldPrice = getTariffPrice(selectedStudent.tariff, selectedStudent.language_certificate)
+        const newPrice = getTariffPrice(currentTariff, currentCert)
+
+        const balanceDiff = oldPrice - newPrice
+        if (balanceDiff !== 0) {
+          const newBalance = (selectedStudent.balance || 0) + balanceDiff
+          updateData.balance = newBalance
+        }
+      }
 
       const { error: updateError } = await (supabase
         .from('students') as any)
