@@ -94,6 +94,7 @@ export function StudentDashboardClient() {
   const [error, setError] = useState<string | null>(null)
   const [currentPage, setCurrentPage] = useState(1)
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('asc')
+  const [activeTooltip, setActiveTooltip] = useState<{ studentId: string; tagKey: string } | null>(null)
 
   // Context shared state
   const { searchQuery, isAddStudentModalOpen: isModalOpen, setIsAddStudentModalOpen: setIsModalOpen } = useStudentDashboard()
@@ -648,6 +649,16 @@ export function StudentDashboardClient() {
       setSelectedExcelIds(excelFilteredStudents.map(s => s.id))
     }
   }, [isExcelModalOpen, excelSearchQuery, excelSearchType, excelTariffFilter, excelLevelFilter, excelGroupFilter, excelCertFilter, excelTagFilter])
+
+  // Dismiss active action tag tooltip on global click
+  useEffect(() => {
+    if (!activeTooltip) return
+    const handleGlobalClick = () => {
+      setActiveTooltip(null)
+    }
+    window.addEventListener('click', handleGlobalClick)
+    return () => window.removeEventListener('click', handleGlobalClick)
+  }, [activeTooltip])
 
   const handleToggleExcelStudent = (id: string) => {
     setSelectedExcelIds(prev =>
@@ -1923,11 +1934,19 @@ export function StudentDashboardClient() {
         // Redesigned Students Data Table
         <div className="rounded-[var(--radius-lg)] border border-[var(--border)] bg-[var(--surface)] overflow-hidden shadow-[var(--shadow-sm)]">
           <div className="overflow-x-auto">
-            <table className="w-full border-collapse text-left">
+            <table className="w-full table-fixed border-collapse text-left">
+              <colgroup>
+                <col style={{ width: '2rem' }} />
+                <col style={{ width: '28%' }} />
+                <col style={{ width: '13%' }} />
+                <col style={{ width: '11%' }} />
+                <col style={{ width: '17%' }} />
+                <col style={{ width: '12%' }} />
+              </colgroup>
               <thead>
                 <tr className="border-b border-[var(--border)] bg-[var(--surface-elevated)] text-[11px] font-bold uppercase tracking-wider text-[var(--foreground-muted)] dark:text-[var(--foreground)] select-none">
                   <th 
-                    className="px-6 py-3.5 w-24 cursor-pointer select-none hover:bg-[var(--surface-elevated)] transition-colors rounded-tl-[var(--radius-lg)]"
+                    className="px-1 py-3.5 cursor-pointer select-none hover:bg-[var(--surface-elevated)] transition-colors rounded-tl-[var(--radius-lg)]"
                     onClick={() => setSortOrder(prev => prev === 'asc' ? 'desc' : 'asc')}
                   >
                     <span className="flex items-center gap-1 font-bold text-[11px] uppercase tracking-wider text-[var(--foreground-muted)] dark:text-[var(--foreground)]">
@@ -1939,11 +1958,11 @@ export function StudentDashboardClient() {
                       )}
                     </span>
                   </th>
-                  <th className="px-6 py-3.5">Full Name</th>
-                  <th className="px-6 py-3.5">Phone</th>
-                  <th className="px-6 py-3.5">Level</th>
-                  <th className="px-6 py-3.5">University</th>
-                  <th className="px-6 py-3.5 text-center w-28">Actions</th>
+                  <th className="px-1 py-3.5 w-[18%]">Full Name</th>
+                  <th className="px-6 py-3.5 w-[12%]">Phone</th>
+                  <th className="px-6 py-3.5 w-[10%]">Level</th>
+                  <th className="px-6 py-3.5 w-[32%]">University</th>
+                  <th className="px-6 py-3.5 text-left w-[12%]">Actions</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-[var(--border)]">
@@ -1957,14 +1976,14 @@ export function StudentDashboardClient() {
                       style={bgObj.style}
                     >
                       {/* ID Badge Column */}
-                      <td className="px-6 py-4">
+                      <td className="px-2 py-4">
                         <div className="flex items-center justify-center w-10 h-6.5 text-[11px] font-bold bg-[#007aff] text-white rounded-[4px] shadow-sm select-all">
                           {student.id}
                         </div>
                       </td>
 
                       {/* Full Name & Tariff Info Column */}
-                      <td className="px-6 py-4">
+                      <td className="px-2 py-4">
                         <div className="font-bold uppercase tracking-wide text-xs text-[var(--foreground)]">
                           {student.full_name}
                         </div>
@@ -2008,7 +2027,7 @@ export function StudentDashboardClient() {
 
                       {/* Actions Column (Color Ball + Task Tags) */}
                       <td className="px-6 py-4" onClick={(e) => e.stopPropagation()}>
-                        <div className="flex items-center gap-3 select-none">
+                        <div className="flex items-center justify-start gap-3 select-none whitespace-nowrap flex-nowrap">
                           {/* Color Ball Wrapper */}
                           <div 
                             className="flex items-center justify-center w-6.5 h-6.5 rounded-full border cursor-pointer hover:scale-105 active:scale-95 transition-all shadow-sm relative bg-[var(--surface-elevated)]"
@@ -2030,16 +2049,41 @@ export function StudentDashboardClient() {
                           </div>
 
                           {/* Task Tags Container */}
-                          <div className="flex items-center gap-1.5 flex-wrap">
+                          <div className="flex items-center gap-1.5 flex-nowrap shrink-0">
                             {(student.task_tags || []).map((tag, tagIdx) => {
                               const icon = getCustomTagIcon(tag)
                               return (
                                 <span 
                                   key={tagIdx} 
-                                  className="inline-flex items-center justify-center w-6.5 h-6.5 text-[13px] bg-[var(--surface-elevated)] border border-[var(--border)] rounded-[6px] shadow-sm"
+                                  className="inline-flex items-center justify-center w-6.5 h-6.5 text-[13px] bg-[var(--surface-elevated)] border border-[var(--border)] rounded-[6px] shadow-sm relative cursor-pointer select-none"
                                   title={tag}
+                                  onClick={(e) => {
+                                    e.stopPropagation()
+                                    if (activeTooltip?.studentId === student.id && activeTooltip?.tagKey === tag) {
+                                      setActiveTooltip(null)
+                                    } else {
+                                      setActiveTooltip({ studentId: student.id, tagKey: tag })
+                                    }
+                                  }}
                                 >
                                   {icon}
+
+                                  {/* iOS-styled Tooltip */}
+                                  <AnimatePresence>
+                                    {activeTooltip?.studentId === student.id && activeTooltip?.tagKey === tag && (
+                                      <motion.div
+                                        initial={{ opacity: 0, scale: 0.8, y: 5, x: '-50%' }}
+                                        animate={{ opacity: 1, scale: 1, y: 0, x: '-50%' }}
+                                        exit={{ opacity: 0, scale: 0.8, y: 5, x: '-50%' }}
+                                        className="absolute bottom-full left-1/2 mb-2 px-2.5 py-1 bg-black/90 dark:bg-zinc-800 border border-white/10 dark:border-zinc-700/50 text-[10px] font-bold text-white rounded-[6px] shadow-[0_4px_12px_rgba(0,0,0,0.15)] whitespace-nowrap z-50 pointer-events-none"
+                                        style={{ originX: 0.5, originY: 1 }}
+                                      >
+                                        {tag}
+                                        {/* Tooltip Triangle Arrow */}
+                                        <div className="absolute top-full left-1/2 -translate-x-1/2 w-0 h-0 border-l-[4px] border-l-transparent border-r-[4px] border-r-transparent border-t-[4.5px] border-t-black/90 dark:border-t-zinc-800" />
+                                      </motion.div>
+                                    )}
+                                  </AnimatePresence>
                                 </span>
                               )
                             })}
@@ -2234,270 +2278,298 @@ export function StudentDashboardClient() {
         )}
       </AnimatePresence>
 
-      {/* Actions Popover Overlay Backdrop */}
-      {popoverAnchor && (
-        <div 
-          className="fixed inset-0 z-40 bg-transparent" 
-          onClick={() => {
-            setPopoverAnchor(null)
-            setEditingTag(null)
-            setIsEmojiPickerOpen(false)
-          }}
-        />
-      )}
+      {/* Actions Modal */}
+      <AnimatePresence>
+        {popoverAnchor && (() => {
+          const student = students.find(s => s.id === popoverAnchor.studentId)
+          if (!student) return null
 
-      {/* Actions Popover Panel */}
-      {popoverAnchor && (() => {
-        const student = students.find(s => s.id === popoverAnchor.studentId)
-        if (!student) return null
+          return (
+            <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+              {/* Backdrop Overlay */}
+              <motion.div
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                onClick={() => {
+                  setPopoverAnchor(null)
+                  setEditingTag(null)
+                  setIsEmojiPickerOpen(false)
+                }}
+                className="fixed inset-0 bg-black/60 backdrop-blur-sm"
+              />
 
-        return (
-          <div 
-            className="absolute z-50 w-72 bg-[var(--surface-elevated)] border border-[var(--border)] rounded-[var(--radius-lg)] p-4 shadow-[var(--shadow-lg)] text-xs text-[var(--foreground)] flex flex-col gap-4 animate-in fade-in zoom-in duration-150"
-            style={{
-              top: `${popoverAnchor.rect.bottom + window.scrollY + 6}px`,
-              left: `${Math.max(10, Math.min(window.innerWidth - 300, popoverAnchor.rect.left + window.scrollX - 120))}px`,
-            }}
-            onClick={(e) => e.stopPropagation()}
-          >
-            {/* ── Select Color Section ───────────────────── */}
-            <div>
-              <div className="font-bold text-[var(--foreground-muted)] uppercase tracking-wider text-[10px] mb-2">
-                Select Color
-              </div>
-              <div className="grid grid-cols-6 gap-2">
-                {Object.entries(ROW_COLOR_MAP).map(([name, data]) => {
-                  const isActive = student.row_color?.toUpperCase() === name
-                  return (
-                    <button
-                      key={name}
-                      onClick={() => handleUpdateColor(student.id, name)}
-                      className={`w-6.5 h-6.5 rounded-full border cursor-pointer transition-all hover:scale-110 active:scale-95 ${
-                        isActive ? 'ring-2 ring-[var(--accent)] ring-offset-2 dark:ring-offset-black' : 'border-transparent'
-                      }`}
-                      style={{ backgroundColor: data.ball }}
-                      title={data.name}
-                    />
-                  )
-                })}
-                {/* Clear Color */}
-                <button
-                  onClick={() => handleUpdateColor(student.id, null)}
-                  className="w-6.5 h-6.5 rounded-full border border-[var(--border)] cursor-pointer flex items-center justify-center text-[var(--foreground-muted)] hover:bg-[var(--border-subtle)] text-[10px] font-bold"
-                  title="Clear Color"
-                >
-                  ✕
-                </button>
-              </div>
-            </div>
-
-            {/* ── Predefined Tasks Section ────────────────── */}
-            <div>
-              <div className="font-bold text-[var(--foreground-muted)] uppercase tracking-wider text-[10px] mb-2">
-                Predefined Tasks
-              </div>
-              <div className="flex flex-wrap gap-1.5">
-                {[
-                  { name: 'Call', icon: '📞' },
-                  { name: 'Apply', icon: '🎓' },
-                  { name: 'Documents', icon: '📄' },
-                  { name: 'Payment', icon: '💰' }
-                ].map((task) => {
-                  const isActive = student.task_tags?.includes(task.name)
-                  return (
-                    <button
-                      key={task.name}
-                      onClick={() => handleToggleTag(student.id, task.name)}
-                      className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-[var(--radius-sm)] border text-xs font-semibold cursor-pointer transition-all hover:bg-[var(--border-subtle)] ${
-                        isActive 
-                          ? 'border-[var(--accent)] bg-[var(--accent-subtle)] text-[var(--accent)]' 
-                          : 'border-[var(--border)] bg-[var(--surface)] text-[var(--foreground)]'
-                      }`}
-                    >
-                      <span>{task.icon}</span>
-                      <span>{task.name}</span>
-                    </button>
-                  )
-                })}
-              </div>
-            </div>
-
-            {/* ── Custom Tags Section ────────────────────── */}
-            <div>
-              <div className="font-bold text-[var(--foreground-muted)] uppercase tracking-wider text-[10px] mb-2">
-                Custom Tags
-              </div>
-
-              {/* Tag editing modal/input inline */}
-              {editingTag ? (
-                <div className="bg-[var(--surface)] border border-[var(--border)] rounded-[var(--radius-md)] p-2.5 flex flex-col gap-2 mb-3">
-                  <div className="font-bold text-[9px] uppercase text-[var(--accent)]">Edit Custom Tag</div>
-                  <div className="flex items-center gap-1.5">
-                    {/* Emoji Select */}
-                    <button
-                      onClick={() => setIsEmojiPickerOpen(!isEmojiPickerOpen)}
-                      className="w-8 h-8 rounded border border-[var(--border)] bg-[var(--surface-elevated)] flex items-center justify-center text-base cursor-pointer hover:bg-[var(--border-subtle)]"
-                    >
-                      {editingTag.emoji}
-                    </button>
-                    {/* Tag Name Input */}
-                    <input
-                      type="text"
-                      className="flex-1 px-2 py-1 rounded border border-[var(--border)] bg-[var(--surface-elevated)] text-[var(--foreground)] font-medium text-xs focus:outline-none"
-                      value={editingTag.newName}
-                      onChange={(e) => setEditingTag({ ...editingTag, newName: e.target.value })}
-                    />
+              {/* Modal Dialog Panel */}
+              <motion.div
+                initial={{ opacity: 0, scale: 0.95, y: 15 }}
+                animate={{ opacity: 1, scale: 1, y: 0 }}
+                exit={{ opacity: 0, scale: 0.95, y: 15 }}
+                className="relative w-full max-w-[420px] overflow-hidden rounded-[var(--radius-lg)] border border-[var(--border)] bg-[var(--surface-elevated)] p-5 shadow-[var(--shadow-lg)] z-10 text-xs text-[var(--foreground)] flex flex-col gap-4"
+                onClick={(e) => e.stopPropagation()}
+              >
+                {/* Header with Student Name, ID and Close Button */}
+                <div className="flex items-start justify-between border-b border-[var(--border)] pb-3 relative">
+                  <div className="pr-8">
+                    <h3 className="text-sm font-bold text-[var(--foreground)] truncate max-w-[340px]" title={student.full_name}>
+                      {student.full_name}
+                    </h3>
+                    <p className="text-[10px] text-[var(--foreground-muted)] font-mono font-semibold mt-0.5">
+                      Student ID: {student.id}
+                    </p>
                   </div>
-                  {/* Emoji Picker Grid */}
-                  {isEmojiPickerOpen && (
-                    <div className="grid grid-cols-8 gap-1.5 max-h-28 overflow-y-auto border border-[var(--border)] bg-[var(--surface-elevated)] rounded p-1.5">
-                      {CUSTOM_TAG_EMOJIS.map((emoji) => (
+                  <button
+                    onClick={() => {
+                      setPopoverAnchor(null)
+                      setEditingTag(null)
+                      setIsEmojiPickerOpen(false)
+                    }}
+                    className="absolute right-0 top-0 rounded-[var(--radius-sm)] p-1 text-[var(--foreground-muted)] hover:bg-[var(--border-subtle)] hover:text-[var(--foreground)] transition-all cursor-pointer"
+                    title="Close Menu"
+                  >
+                    <X className="h-4.5 w-4.5" />
+                  </button>
+                </div>
+
+                {/* ── Select Color Section ───────────────────── */}
+                <div>
+                  <div className="font-bold text-[var(--foreground-muted)] uppercase tracking-wider text-[10px] mb-2">
+                    Select Color
+                  </div>
+                  <div className="grid grid-cols-6 gap-2">
+                    {Object.entries(ROW_COLOR_MAP).map(([name, data]) => {
+                      const isActive = student.row_color?.toUpperCase() === name
+                      return (
                         <button
-                          key={emoji}
-                          onClick={() => {
-                            setEditingTag({ ...editingTag, emoji })
-                            setIsEmojiPickerOpen(false)
-                          }}
-                          className="w-5.5 h-5.5 flex items-center justify-center text-xs rounded hover:bg-[var(--border-subtle)] cursor-pointer"
-                        >
-                          {emoji}
-                        </button>
-                      ))}
-                    </div>
-                  )}
-                  <div className="flex justify-end gap-1.5">
+                          key={name}
+                          onClick={() => handleUpdateColor(student.id, name)}
+                          className={`w-6.5 h-6.5 rounded-full border cursor-pointer transition-all hover:scale-110 active:scale-95 ${
+                            isActive ? 'ring-2 ring-[var(--accent)] ring-offset-2 dark:ring-offset-black' : 'border-transparent'
+                          }`}
+                          style={{ backgroundColor: data.ball }}
+                          title={data.name}
+                        />
+                      )
+                    })}
+                    {/* Clear Color */}
                     <button
-                      onClick={() => setEditingTag(null)}
-                      className="px-2 py-1 text-[10px] font-semibold border border-[var(--border)] rounded hover:bg-[var(--border-subtle)] cursor-pointer"
+                      onClick={() => handleUpdateColor(student.id, null)}
+                      className="w-6.5 h-6.5 rounded-full border border-[var(--border)] cursor-pointer flex items-center justify-center text-[var(--foreground-muted)] hover:bg-[var(--border-subtle)] text-[10px] font-bold"
+                      title="Clear Color"
                     >
-                      Cancel
-                    </button>
-                    <button
-                      onClick={() => handleEditCustomTag(student.id, editingTag.originalName, editingTag.newName, editingTag.emoji)}
-                      className="px-2 py-1 text-[10px] font-semibold bg-[var(--accent)] text-white rounded hover:bg-[var(--accent-hover)] cursor-pointer"
-                    >
-                      Save
+                      ✕
                     </button>
                   </div>
                 </div>
-              ) : (
-                <div className="flex flex-wrap gap-1.5 mb-3 max-h-28 overflow-y-auto pr-1">
-                  {customTagsRegistry.length === 0 ? (
-                    <div className="text-[10px] text-[var(--foreground-subtle)] italic py-1">
-                      No custom tags registered. Type below to add.
-                    </div>
-                  ) : (
-                    customTagsRegistry.map((tag) => {
-                      const isActive = student.task_tags?.includes(tag.name)
+
+                {/* ── Predefined Tasks Section ────────────────── */}
+                <div>
+                  <div className="font-bold text-[var(--foreground-muted)] uppercase tracking-wider text-[10px] mb-2">
+                    Predefined Tasks
+                  </div>
+                  <div className="flex flex-wrap gap-1.5">
+                    {[
+                      { name: 'Call', icon: '📞' },
+                      { name: 'Apply', icon: '🎓' },
+                      { name: 'Documents', icon: '📄' },
+                      { name: 'Payment', icon: '💰' }
+                    ].map((task) => {
+                      const isActive = student.task_tags?.includes(task.name)
                       return (
-                        <div 
-                          key={tag.name}
-                          className={`inline-flex items-center gap-1.5 pl-2.5 pr-1 py-1 rounded-[var(--radius-sm)] border text-xs font-semibold cursor-pointer select-none transition-all hover:bg-[var(--border-subtle)] ${
+                        <button
+                          key={task.name}
+                          onClick={() => handleToggleTag(student.id, task.name)}
+                          className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-[var(--radius-sm)] border text-xs font-semibold cursor-pointer transition-all hover:bg-[var(--border-subtle)] ${
                             isActive 
                               ? 'border-[var(--accent)] bg-[var(--accent-subtle)] text-[var(--accent)]' 
                               : 'border-[var(--border)] bg-[var(--surface)] text-[var(--foreground)]'
                           }`}
-                          onClick={() => handleToggleTag(student.id, tag.name)}
                         >
-                          <span>{tag.icon}</span>
-                          <span>{tag.name}</span>
-                          <div className="flex items-center gap-0.5 ml-1 select-none">
-                            {/* Pencil to rename */}
-                            <button
-                              onClick={(e) => {
-                                e.stopPropagation()
-                                setEditingTag({ originalName: tag.name, newName: tag.name, emoji: tag.icon })
-                                setIsEmojiPickerOpen(false)
-                              }}
-                              className="p-0.5 hover:bg-black/10 dark:hover:bg-white/10 rounded transition-all cursor-pointer"
-                              title="Edit Tag"
-                            >
-                              <Pencil className="h-2.5 w-2.5 opacity-60 hover:opacity-100" />
-                            </button>
-                            {/* Trash to remove globally */}
-                            <button
-                              onClick={(e) => {
-                                e.stopPropagation()
-                                handleDeleteCustomTagGlobally(tag.name)
-                              }}
-                              className="p-0.5 hover:bg-black/10 dark:hover:bg-white/10 rounded transition-all cursor-pointer text-red-500"
-                              title="Delete tag globally"
-                            >
-                              <Trash2 className="h-2.5 w-2.5 opacity-60 hover:opacity-100" />
-                            </button>
-                          </div>
-                        </div>
+                          <span>{task.icon}</span>
+                          <span>{task.name}</span>
+                        </button>
                       )
-                    })
-                  )}
+                    })}
+                  </div>
                 </div>
-              )}
 
-              {/* Add Custom Tag Form */}
-              {!editingTag && (
-                <div className="flex flex-col gap-1.5">
-                  <div className="flex items-center gap-1.5">
-                    {/* Emoji selector dropdown */}
-                    <button
-                      onClick={() => setIsEmojiPickerOpen(!isEmojiPickerOpen)}
-                      className="w-7 h-7 shrink-0 rounded border border-[var(--border)] bg-[var(--surface)] flex items-center justify-center text-sm cursor-pointer hover:bg-[var(--border-subtle)]"
-                      title="Select Emoji"
-                    >
-                      {newCustomTagEmoji}
-                    </button>
-                    {/* Text Input */}
-                    <input
-                      type="text"
-                      className="flex-1 px-2.5 py-1 rounded border border-[var(--border)] bg-[var(--surface)] text-[var(--foreground)] font-semibold text-xs focus:outline-none placeholder-[var(--foreground-subtle)]"
-                      placeholder="Add tag name..."
-                      value={newCustomTagName}
-                      onChange={(e) => setNewCustomTagName(e.target.value)}
-                      onKeyDown={(e) => {
-                        if (e.key === 'Enter') handleAddCustomTag(student.id)
-                      }}
-                    />
-                    {/* Save Button */}
-                    <button
-                      onClick={() => handleAddCustomTag(student.id)}
-                      className="px-2 h-7 rounded bg-[var(--accent)] hover:bg-[var(--accent-hover)] text-white font-bold cursor-pointer flex items-center justify-center"
-                    >
-                      <Plus className="h-4.5 w-4.5" />
-                    </button>
+                {/* ── Custom Tags Section ────────────────────── */}
+                <div>
+                  <div className="font-bold text-[var(--foreground-muted)] uppercase tracking-wider text-[10px] mb-2">
+                    Custom Tags
                   </div>
 
-                  {/* Emoji Picker Grid */}
-                  {isEmojiPickerOpen && (
-                    <div className="grid grid-cols-8 gap-1.5 max-h-28 overflow-y-auto border border-[var(--border)] bg-[var(--surface-elevated)] rounded p-1.5 shadow-[var(--shadow-sm)] animate-in fade-in zoom-in duration-100">
-                      {CUSTOM_TAG_EMOJIS.map((emoji) => (
+                  {/* Tag editing modal/input inline */}
+                  {editingTag ? (
+                    <div className="bg-[var(--surface)] border border-[var(--border)] rounded-[var(--radius-md)] p-2.5 flex flex-col gap-2 mb-3">
+                      <div className="font-bold text-[9px] uppercase text-[var(--accent)]">Edit Custom Tag</div>
+                      <div className="flex items-center gap-1.5">
+                        {/* Emoji Select */}
                         <button
-                          key={emoji}
-                          onClick={() => {
-                            setNewCustomTagEmoji(emoji)
-                            setIsEmojiPickerOpen(false)
-                          }}
-                          className="w-5.5 h-5.5 flex items-center justify-center text-xs rounded hover:bg-[var(--border-subtle)] cursor-pointer"
+                          onClick={() => setIsEmojiPickerOpen(!isEmojiPickerOpen)}
+                          className="w-8 h-8 rounded border border-[var(--border)] bg-[var(--surface-elevated)] flex items-center justify-center text-base cursor-pointer hover:bg-[var(--border-subtle)]"
                         >
-                          {emoji}
+                          {editingTag.emoji}
                         </button>
-                      ))}
+                        {/* Tag Name Input */}
+                        <input
+                          type="text"
+                          className="flex-1 px-2 py-1 rounded border border-[var(--border)] bg-[var(--surface-elevated)] text-[var(--foreground)] font-medium text-xs focus:outline-none"
+                          value={editingTag.newName}
+                          onChange={(e) => setEditingTag({ ...editingTag, newName: e.target.value })}
+                        />
+                      </div>
+                      {/* Emoji Picker Grid */}
+                      {isEmojiPickerOpen && (
+                        <div className="grid grid-cols-8 gap-1.5 max-h-28 overflow-y-auto border border-[var(--border)] bg-[var(--surface-elevated)] rounded p-1.5">
+                          {CUSTOM_TAG_EMOJIS.map((emoji) => (
+                            <button
+                              key={emoji}
+                              onClick={() => {
+                                setEditingTag({ ...editingTag, emoji })
+                                setIsEmojiPickerOpen(false)
+                              }}
+                              className="w-5.5 h-5.5 flex items-center justify-center text-xs rounded hover:bg-[var(--border-subtle)] cursor-pointer"
+                            >
+                              {emoji}
+                            </button>
+                          ))}
+                        </div>
+                      )}
+                      <div className="flex justify-end gap-1.5">
+                        <button
+                          onClick={() => setEditingTag(null)}
+                          className="px-2 py-1 text-[10px] font-semibold border border-[var(--border)] rounded hover:bg-[var(--border-subtle)] cursor-pointer"
+                        >
+                          Cancel
+                        </button>
+                        <button
+                          onClick={() => handleEditCustomTag(student.id, editingTag.originalName, editingTag.newName, editingTag.emoji)}
+                          className="px-2 py-1 text-[10px] font-semibold bg-[var(--accent)] text-white rounded hover:bg-[var(--accent-hover)] cursor-pointer"
+                        >
+                          Save
+                        </button>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="flex flex-wrap gap-1.5 mb-3 max-h-28 overflow-y-auto pr-1">
+                      {customTagsRegistry.length === 0 ? (
+                        <div className="text-[10px] text-[var(--foreground-subtle)] italic py-1">
+                          No custom tags registered. Type below to add.
+                        </div>
+                      ) : (
+                        customTagsRegistry.map((tag) => {
+                          const isActive = student.task_tags?.includes(tag.name)
+                          return (
+                            <div 
+                              key={tag.name}
+                              className={`inline-flex items-center gap-1.5 pl-2.5 pr-1 py-1 rounded-[var(--radius-sm)] border text-xs font-semibold cursor-pointer select-none transition-all hover:bg-[var(--border-subtle)] ${
+                                isActive 
+                                  ? 'border-[var(--accent)] bg-[var(--accent-subtle)] text-[var(--accent)]' 
+                                  : 'border-[var(--border)] bg-[var(--surface)] text-[var(--foreground)]'
+                              }`}
+                              onClick={() => handleToggleTag(student.id, tag.name)}
+                            >
+                              <span>{tag.icon}</span>
+                              <span>{tag.name}</span>
+                              <div className="flex items-center gap-0.5 ml-1 select-none">
+                                {/* Pencil to rename */}
+                                <button
+                                  onClick={(e) => {
+                                    e.stopPropagation()
+                                    setEditingTag({ originalName: tag.name, newName: tag.name, emoji: tag.icon })
+                                    setIsEmojiPickerOpen(false)
+                                  }}
+                                  className="p-0.5 hover:bg-black/10 dark:hover:bg-white/10 rounded transition-all cursor-pointer"
+                                  title="Edit Tag"
+                                >
+                                  <Pencil className="h-2.5 w-2.5 opacity-60 hover:opacity-100" />
+                                </button>
+                                {/* Trash to remove globally */}
+                                <button
+                                  onClick={(e) => {
+                                    e.stopPropagation()
+                                    handleDeleteCustomTagGlobally(tag.name)
+                                  }}
+                                  className="p-0.5 hover:bg-black/10 dark:hover:bg-white/10 rounded transition-all cursor-pointer text-red-500"
+                                  title="Delete tag globally"
+                                >
+                                  <Trash2 className="h-2.5 w-2.5 opacity-60 hover:opacity-100" />
+                                </button>
+                              </div>
+                            </div>
+                          )
+                        })
+                      )}
+                    </div>
+                  )}
+
+                  {/* Add Custom Tag Form */}
+                  {!editingTag && (
+                    <div className="flex flex-col gap-1.5">
+                      <div className="flex items-center gap-1.5">
+                        {/* Emoji selector dropdown */}
+                        <button
+                          onClick={() => setIsEmojiPickerOpen(!isEmojiPickerOpen)}
+                          className="w-7 h-7 shrink-0 rounded border border-[var(--border)] bg-[var(--surface)] flex items-center justify-center text-sm cursor-pointer hover:bg-[var(--border-subtle)]"
+                          title="Select Emoji"
+                        >
+                          {newCustomTagEmoji}
+                        </button>
+                        {/* Text Input */}
+                        <input
+                          type="text"
+                          className="flex-1 px-2.5 py-1 rounded border border-[var(--border)] bg-[var(--surface)] text-[var(--foreground)] font-semibold text-xs focus:outline-none placeholder-[var(--foreground-subtle)]"
+                          placeholder="Add tag name..."
+                          value={newCustomTagName}
+                          onChange={(e) => setNewCustomTagName(e.target.value)}
+                          onKeyDown={(e) => {
+                            if (e.key === 'Enter') handleAddCustomTag(student.id)
+                          }}
+                        />
+                        {/* Save Button */}
+                        <button
+                          onClick={() => handleAddCustomTag(student.id)}
+                          className="px-2 h-7 rounded bg-[var(--accent)] hover:bg-[var(--accent-hover)] text-white font-bold cursor-pointer flex items-center justify-center"
+                        >
+                          <Plus className="h-4.5 w-4.5" />
+                        </button>
+                      </div>
+
+                      {/* Emoji Picker Grid */}
+                      {isEmojiPickerOpen && (
+                        <div className="grid grid-cols-8 gap-1.5 max-h-28 overflow-y-auto border border-[var(--border)] bg-[var(--surface-elevated)] rounded p-1.5 shadow-[var(--shadow-sm)] animate-in fade-in zoom-in duration-100">
+                          {CUSTOM_TAG_EMOJIS.map((emoji) => (
+                            <button
+                              key={emoji}
+                              onClick={() => {
+                                setNewCustomTagEmoji(emoji)
+                                setIsEmojiPickerOpen(false)
+                              }}
+                              className="w-5.5 h-5.5 flex items-center justify-center text-xs rounded hover:bg-[var(--border-subtle)] cursor-pointer"
+                            >
+                              {emoji}
+                            </button>
+                          ))}
+                        </div>
+                      )}
                     </div>
                   )}
                 </div>
-              )}
-            </div>
 
-            {/* ── Clear All Flags Button ──────────────────── */}
-            <div className="pt-2 border-t border-[var(--border)]">
-              <button
-                onClick={() => handleClearFlagsAndColor(student.id)}
-                className="w-full py-1.5 rounded-[var(--radius-sm)] border border-[var(--border)] bg-[var(--surface)] text-[var(--foreground-muted)] hover:bg-[var(--border-subtle)] hover:text-[var(--foreground)] font-bold transition-all text-[10px] uppercase tracking-wider cursor-pointer"
-              >
-                Clear All Color & Tags
-              </button>
+                {/* ── Clear All Flags Button ──────────────────── */}
+                <div className="pt-2 border-t border-[var(--border)]">
+                  <button
+                    onClick={() => handleClearFlagsAndColor(student.id)}
+                    className="w-full py-1.5 rounded-[var(--radius-sm)] border border-[var(--border)] bg-[var(--surface)] text-[var(--foreground-muted)] hover:bg-[var(--border-subtle)] hover:text-[var(--foreground)] font-bold transition-all text-[10px] uppercase tracking-wider cursor-pointer"
+                  >
+                    Clear All Color & Tags
+                  </button>
+                </div>
+              </motion.div>
             </div>
-          </div>
-        )
-      })()}
+          )
+        })()}
+      </AnimatePresence>
 
       {/* Export to Excel Modal */}
       <AnimatePresence>
