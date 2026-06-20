@@ -37,6 +37,16 @@ export function StudentDetailClient({ studentId }: StudentDetailClientProps) {
 
   // Dynamic Select Options from Settings
   const [tariffOptions, setTariffOptions] = useState<string[]>(['STANDART', 'PREMIUM', 'VISA PLUS', 'E-VISA', 'REGIONAL VISA'])
+  const [tariffPrices, setTariffPrices] = useState<Record<string, number>>({
+    'STANDART': 13000000,
+    'PREMIUM': 32500000,
+    'VISA PLUS': 65000000,
+    'E-VISA (TIL SERTIFIKATISIZ)': 24000000,
+    'E-VISA (TIL SERTIFIKATLI)': 16000000,
+    'REGIONAL VISA': 24000000,
+    'ZERO RISK': 18500000,
+    'E-VISA': 2000000,
+  })
   const [levelOptions, setLevelOptions] = useState<string[]>(['COLLEGE', 'BACHELOR', 'MASTERS', 'MASTER NO CERTIFICATE', 'LANGUAGE COURSE'])
   const [groupOptions, setGroupOptions] = useState<string[]>(['2026 BAHOR', '2026 KUZ', '2027 BAHOR'])
   const [leadByOptions, setLeadByOptions] = useState<string[]>(['Ali Uncle', 'Cornell', 'Headway', 'SeoulStudy', 'UP Marhamat'])
@@ -47,7 +57,7 @@ export function StudentDetailClient({ studentId }: StudentDetailClientProps) {
   const fetchFilterOptions = async () => {
     try {
       const [tariffsRes, levelsRes, groupsRes, leadsRes, universitiesRes, coordinatorsRes] = await Promise.all([
-        supabase.from('tariff_options').select('name'),
+        supabase.from('tariff_options').select('name, price'),
         supabase.from('education_levels').select('name'),
         supabase.from('student_groups').select('name'),
         supabase.from('lead_sources').select('name'),
@@ -55,7 +65,14 @@ export function StudentDetailClient({ studentId }: StudentDetailClientProps) {
         supabase.from('coordinators').select('name')
       ])
 
-      if (tariffsRes.data && tariffsRes.data.length > 0) setTariffOptions((tariffsRes.data as any[]).map(t => t.name))
+      if (tariffsRes.data && tariffsRes.data.length > 0) {
+        setTariffOptions((tariffsRes.data as any[]).map(t => t.name))
+        const map: Record<string, number> = {}
+        ;(tariffsRes.data as any[]).forEach(t => {
+          map[t.name] = Number(t.price) || 0
+        })
+        setTariffPrices(prev => ({ ...prev, ...map }))
+      }
       if (levelsRes.data && levelsRes.data.length > 0) setLevelOptions((levelsRes.data as any[]).map(l => l.name))
       if (groupsRes.data && groupsRes.data.length > 0) setGroupOptions((groupsRes.data as any[]).map(g => g.name))
       if (leadsRes.data && leadsRes.data.length > 0) setLeadByOptions((leadsRes.data as any[]).map(l => l.name))
@@ -66,24 +83,14 @@ export function StudentDetailClient({ studentId }: StudentDetailClientProps) {
     }
   }
 
-  const TARIFF_PRICES: Record<string, number> = {
-    'STANDART': 13000000,
-    'PREMIUM': 32500000,
-    'VISA PLUS': 65000000,
-    'E-VISA (TIL SERTIFIKATISIZ)': 24000000,
-    'E-VISA (TIL SERTIFIKATLI)': 16000000,
-    'REGIONAL VISA': 2000000,
-    'ZERO RISK': 18500000,
-    'E-VISA': 2000000,
-  }
-
   const getTariffPrice = (tariff: string | null, languageCertificate: string | null) => {
     if (!tariff) return 0
     if (tariff === 'E-VISA') {
       const hasCert = languageCertificate && languageCertificate !== 'NO CERTIFICATE'
-      return hasCert ? 16000000 : 24000000
+      const key = hasCert ? 'E-VISA (TIL SERTIFIKATLI)' : 'E-VISA (TIL SERTIFIKATISIZ)'
+      return tariffPrices[key] || (hasCert ? 16000000 : 24000000)
     }
-    return TARIFF_PRICES[tariff] || 0
+    return tariffPrices[tariff] || 0
   }
 
   // Fetch student details on mount
