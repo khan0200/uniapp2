@@ -975,7 +975,7 @@ export function StudentDetailClient({ studentId }: StudentDetailClientProps) {
       <div className="flex h-screen items-center justify-center bg-background text-foreground">
         <div className="flex flex-col items-center gap-3">
           <Loader2 className="h-8 w-8 animate-spin text-[var(--accent)]" />
-          <p className="text-sm font-medium text-[var(--foreground-muted)]">Loading student details...</p>
+          <p className="text-[15.5px] font-medium text-[var(--foreground-muted)]">Loading student details...</p>
         </div>
       </div>
     )
@@ -986,11 +986,11 @@ export function StudentDetailClient({ studentId }: StudentDetailClientProps) {
       <div className="flex h-screen items-center justify-center bg-background text-foreground p-6">
         <div className="max-w-md w-full bg-[var(--surface)] border border-[var(--border)] rounded-[var(--radius-lg)] p-6 text-center shadow-[var(--shadow-md)]">
           <AlertCircle className="h-12 w-12 text-[var(--danger)] mx-auto mb-4" />
-          <h2 className="text-lg font-bold text-[var(--foreground)] mb-2">Error Loading Profile</h2>
-          <p className="text-sm text-[var(--foreground-muted)] mb-6">{error || 'Student not found or has been deleted.'}</p>
+          <h2 className="text-[20.5px] font-bold text-[var(--foreground)] mb-2">Error Loading Profile</h2>
+          <p className="text-[15.5px] text-[var(--foreground-muted)] mb-6">{error || 'Student not found or has been deleted.'}</p>
           <Link
             href="/students"
-            className="inline-flex items-center gap-2 px-5 py-2.5 bg-[var(--accent)] hover:bg-[var(--accent-hover)] text-white rounded-[var(--radius-md)] text-sm font-semibold transition-all shadow-sm"
+            className="inline-flex items-center gap-2 px-5 py-2.5 bg-[var(--accent)] hover:bg-[var(--accent-hover)] text-white rounded-[var(--radius-md)] text-[15.5px] font-semibold transition-all shadow-sm"
           >
             <ArrowLeft className="h-4 w-4" />
             Back to Students
@@ -1007,7 +1007,7 @@ export function StudentDetailClient({ studentId }: StudentDetailClientProps) {
         <div className="flex items-center justify-between gap-4 pb-2 border-b border-[var(--border)] flex-shrink-0">
           <Link
             href="/students"
-            className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-[var(--surface-elevated)] hover:bg-[var(--border-subtle)] border border-[var(--border)] rounded-md text-xs font-semibold text-[var(--foreground)] transition-all shadow-[var(--shadow-sm)]"
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-[var(--surface-elevated)] hover:bg-[var(--border-subtle)] border border-[var(--border)] rounded-md text-[13.5px] font-semibold text-[var(--foreground)] transition-all shadow-[var(--shadow-sm)]"
           >
             <ArrowLeft className="h-3.5 w-3.5 text-[var(--accent)]" />
             Back
@@ -1016,7 +1016,7 @@ export function StudentDetailClient({ studentId }: StudentDetailClientProps) {
           <div className="flex items-center gap-2">
             <button 
               onClick={fetchStudent}
-              className="inline-flex items-center gap-1 text-[var(--foreground-muted)] hover:text-[var(--foreground)] px-2.5 py-1.5 bg-[var(--surface-elevated)] hover:bg-[var(--border-subtle)] border border-[var(--border)] rounded-md text-xs font-semibold transition-all shadow-[var(--shadow-sm)] cursor-pointer"
+              className="inline-flex items-center gap-1 text-[var(--foreground-muted)] hover:text-[var(--foreground)] px-2.5 py-1.5 bg-[var(--surface-elevated)] hover:bg-[var(--border-subtle)] border border-[var(--border)] rounded-md text-[13.5px] font-semibold transition-all shadow-[var(--shadow-sm)] cursor-pointer"
               title="Reload student data"
             >
               <RefreshCw className="h-3.5 w-3.5 text-[var(--accent)]" />
@@ -1026,7 +1026,7 @@ export function StudentDetailClient({ studentId }: StudentDetailClientProps) {
               <button 
                 disabled={isDeleting}
                 onClick={handleRestoreStudent}
-                className="inline-flex items-center gap-1 text-emerald-600 dark:text-emerald-400 hover:bg-[var(--border-subtle)] px-2.5 py-1.5 bg-[var(--surface-elevated)] border border-[var(--border)] rounded-md text-xs font-semibold transition-all shadow-[var(--shadow-sm)] cursor-pointer disabled:opacity-50"
+                className="inline-flex items-center gap-1 text-emerald-600 dark:text-emerald-400 hover:bg-[var(--border-subtle)] px-2.5 py-1.5 bg-[var(--surface-elevated)] border border-[var(--border)] rounded-md text-[13.5px] font-semibold transition-all shadow-[var(--shadow-sm)] cursor-pointer disabled:opacity-50"
                 title="Restore student profile"
               >
                 {isDeleting ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <RefreshCw className="h-3.5 w-3.5 text-emerald-600 dark:text-emerald-400" />}
@@ -1036,7 +1036,7 @@ export function StudentDetailClient({ studentId }: StudentDetailClientProps) {
               <button 
                 disabled={isDeleting}
                 onClick={handleDeleteStudent}
-                className="inline-flex items-center gap-1 text-[var(--danger)] hover:bg-[var(--border-subtle)] hover:text-red-600 px-2.5 py-1.5 bg-[var(--surface-elevated)] border border-[var(--border)] rounded-md text-xs font-semibold transition-all shadow-[var(--shadow-sm)] cursor-pointer disabled:opacity-50"
+                className="inline-flex items-center gap-1 text-[var(--danger)] hover:bg-[var(--border-subtle)] hover:text-red-600 px-2.5 py-1.5 bg-[var(--surface-elevated)] border border-[var(--border)] rounded-md text-[13.5px] font-semibold transition-all shadow-[var(--shadow-sm)] cursor-pointer disabled:opacity-50"
                 title="Delete student profile"
               >
                 {isDeleting ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Trash2 className="h-3.5 w-3.5" />}
