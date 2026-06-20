@@ -1439,10 +1439,11 @@ export function StudentDetailClient({ studentId }: StudentDetailClientProps) {
                   titleColor: 'text-[var(--accent)]' 
                 })}
 
-
-
                 {/* AI Document Extraction Card (Copyable / Action Link) */}
-                <div className="bg-[var(--surface)] border border-[var(--border)] rounded-[var(--radius-md)] p-2.5 hover:bg-[var(--border-subtle)] transition-all cursor-pointer flex items-center justify-between shadow-[var(--shadow-sm)] min-h-[50px]">
+                <div 
+                  onClick={() => router.push(`/students/${selectedStudent.id}/extract`)}
+                  className="bg-[var(--surface)] border border-[var(--border)] rounded-[var(--radius-md)] p-2.5 hover:bg-[var(--border-subtle)] hover:border-[var(--accent)]/50 active:scale-[0.98] transition-all cursor-pointer flex items-center justify-between shadow-[var(--shadow-sm)] min-h-[50px]"
+                >
                   <div>
                     <span className="text-[11.5px] uppercase font-bold tracking-wider text-[var(--accent)] block">
                       Fill By Document
