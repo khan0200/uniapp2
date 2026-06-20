@@ -11,6 +11,7 @@ interface SidebarItemProps {
   label: string
   collapsed?: boolean
   badge?: number
+  target?: string
 }
 
 export function SidebarItem({
@@ -18,6 +19,7 @@ export function SidebarItem({
   icon: Icon,
   label,
   badge,
+  target,
 }: SidebarItemProps) {
   const pathname = usePathname()
   const isActive = pathname === href || pathname.startsWith(href + '/')
@@ -25,6 +27,8 @@ export function SidebarItem({
   return (
     <Link
       href={href}
+      target={target}
+      rel={target === '_blank' ? 'noopener noreferrer' : undefined}
       id={`nav-${label.toLowerCase()}`}
       className="group flex flex-col items-center justify-center w-full py-2.5 px-1 relative focus:outline-none select-none"
       aria-current={isActive ? 'page' : undefined}

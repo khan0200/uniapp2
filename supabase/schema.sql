@@ -17,7 +17,7 @@ END $$;
 --    Extends auth.users with CRM-specific fields.
 --    Automatically populated via trigger on signup.
 -- --------------------------
-CREATE TABLE IF NOT EXISTS public.profiles (
+CREATE TABLE IF NOT EXISTS public.profiles (  
   id          UUID        PRIMARY KEY REFERENCES auth.users(id) ON DELETE CASCADE,
   full_name   TEXT,
   email       TEXT        UNIQUE NOT NULL,

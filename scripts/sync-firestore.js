@@ -117,8 +117,8 @@ function cleanUzbekPhone(phoneStr) {
 }
 
 const LEVEL_VALUES = ['COLLEGE', 'BACHELOR', 'MASTERS', 'MASTER NO CERTIFICATE', 'LANGUAGE COURSE'];
-const TARIFF_VALUES = ['STANDART', 'PREMIUM', 'VISA PLUS', 'E-VISA', 'REGIONAL VISA'];
-const CERT_VALUES = ['TOPIK', 'IELTS', 'TOEFL', 'SKA', 'NO CERTIFICATE'];
+const TARIFF_VALUES = ['STANDART', 'PREMIUM', 'VISA PLUS', 'E-VISA', 'REGIONAL VISA', 'E-VISA (TIL SERTIFIKATLI)', 'E-VISA (TIL SERTIFIKATISIZ)', 'ZERO RISK'];
+const CERT_VALUES = ['TOPIK', 'IELTS', 'TOEFL', 'CEFR', 'SAT', 'SKA', 'NO CERTIFICATE'];
 
 // Sanitize & map students record
 function sanitizeStudent(raw) {

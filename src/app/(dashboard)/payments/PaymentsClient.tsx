@@ -4,14 +4,14 @@ import { useState, useEffect, useMemo, useRef } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { type Student, type Payment } from '@/types/database'
 import {
-  Users, Receipt, Plus, Minus, Search, ChevronDown, X, Loader2,
-  Pencil, Trash2, Printer, CreditCard, Wallet
+  Users, Receipt, Plus, Minus, Search, ChevronDown, ChevronUp, X, Loader2,
+  Pencil, Trash2, Printer, CreditCard, Wallet, LayoutGrid, Table
 } from 'lucide-react'
 
 const PAYMENT_METHODS = ['Karta J.A', 'Karta Abdulaziz', 'Naqd', 'Karta M.A', 'Bank', 'Discount']
 const RECEIVED_BY_OPTIONS = ['ABDULAZIZ', 'MUSLIHIDDIN', 'BAXTIYOR', 'MUHAMMADALI', 'JASUR', 'ADMIN']
 const NOTE_PILLS = ['Shartnoma uchun', 'Qarz', 'Elchixona uchun', 'Appfee', 'DISCOUNT']
-const ITEMS_PER_PAGE = 12
+const ITEMS_PER_PAGE = 30
 
 const TARIFF_FILTER_OPTIONS = [
   'E-VISA (TIL SERTIFIKATISIZ)',
@@ -47,10 +47,47 @@ function parseAmount(val: string) {
   return parseFloat(cleaned) || 0
 }
 
+const compareStudentIds = (a: Student, b: Student, order: 'asc' | 'desc' = 'asc') => {
+  const idA = a.id || ""
+  const idB = b.id || ""
+
+  const parseId = (idStr: string) => {
+    const str = idStr.trim()
+    const match = str.match(/^([A-Za-z\s_-]*)(\d*)$/)
+    if (match) {
+      return {
+        prefix: match[1] || "",
+        num: match[2] ? parseInt(match[2], 10) : null
+      }
+    }
+    return { prefix: str, num: null }
+  }
+
+  const valA = parseId(idA)
+  const valB = parseId(idB)
+
+  const prefixComp = valA.prefix.localeCompare(valB.prefix, undefined, { sensitivity: 'base' })
+  if (prefixComp !== 0) {
+    return order === 'asc' ? prefixComp : -prefixComp
+  }
+
+  if (valA.num !== null && valB.num !== null) {
+    return order === 'asc' ? valA.num - valB.num : valB.num - valA.num
+  } else if (valA.num !== null) {
+    return order === 'asc' ? 1 : -1
+  } else if (valB.num !== null) {
+    return order === 'asc' ? -1 : 1
+  }
+
+  return order === 'asc' ? idA.localeCompare(idB) : idB.localeCompare(idA)
+}
+
 export function PaymentsClient() {
   const supabase = createClient()
 
   const [activeTab, setActiveTab] = useState<'students' | 'history'>('students')
+  const [viewMode, setViewMode] = useState<'grid' | 'table'>('grid')
+  const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('asc')
 
   const [students, setStudents] = useState<Student[]>([])
   const [payments, setPayments] = useState<Payment[]>([])
@@ -101,6 +138,7 @@ export function PaymentsClient() {
   const [editMethod, setEditMethod] = useState('')
   const [editReceivedBy, setEditReceivedBy] = useState('')
   const [editNotes, setEditNotes] = useState('')
+  const [viewingPayment, setViewingPayment] = useState<Payment | null>(null)
 
   const fetchData = async () => {
     try {
@@ -607,13 +645,17 @@ export function PaymentsClient() {
     })
   }, [payments, historySearch, methodFilter, receivedByFilter])
 
-  const studentsTotalPages = Math.max(1, Math.ceil(filteredStudents.length / ITEMS_PER_PAGE))
-  const paginatedStudents = filteredStudents.slice((studentsPage - 1) * ITEMS_PER_PAGE, studentsPage * ITEMS_PER_PAGE)
+  const sortedStudents = useMemo(() => {
+    return [...filteredStudents].sort((a, b) => compareStudentIds(a, b, sortOrder))
+  }, [filteredStudents, sortOrder])
+
+  const studentsTotalPages = Math.max(1, Math.ceil(sortedStudents.length / ITEMS_PER_PAGE))
+  const paginatedStudents = sortedStudents.slice((studentsPage - 1) * ITEMS_PER_PAGE, studentsPage * ITEMS_PER_PAGE)
 
   const historyTotalPages = Math.max(1, Math.ceil(filteredPayments.length / ITEMS_PER_PAGE))
   const paginatedPayments = filteredPayments.slice((historyPage - 1) * ITEMS_PER_PAGE, historyPage * ITEMS_PER_PAGE)
 
-  useEffect(() => { setStudentsPage(1) }, [studentSearch, selectedTariffs, selectedBalances, selectedGroups])
+  useEffect(() => { setStudentsPage(1) }, [studentSearch, selectedTariffs, selectedBalances, selectedGroups, sortOrder])
   useEffect(() => { setHistoryPage(1) }, [historySearch, methodFilter, receivedByFilter])
 
   const addModalStudentOptions = useMemo(() => {
@@ -877,47 +919,167 @@ export function PaymentsClient() {
                 </div>
               )}
             </div>
+
+            {/* View Mode Switcher */}
+            <div className="flex items-center gap-1 rounded-[var(--radius-md)] border border-[var(--border)] bg-[var(--surface-elevated)] p-1 ml-auto">
+              <button
+                type="button"
+                onClick={() => setViewMode('grid')}
+                className={`p-1.5 rounded-[var(--radius-sm)] transition-all cursor-pointer ${
+                  viewMode === 'grid' ? 'bg-[var(--accent)] text-white' : 'text-[var(--foreground-muted)] hover:bg-[var(--surface)] hover:text-[var(--foreground)]'
+                }`}
+                title="Grid View (Cards)"
+              >
+                <LayoutGrid className="h-4 w-4" />
+              </button>
+              <button
+                type="button"
+                onClick={() => setViewMode('table')}
+                className={`p-1.5 rounded-[var(--radius-sm)] transition-all cursor-pointer ${
+                  viewMode === 'table' ? 'bg-[var(--accent)] text-white' : 'text-[var(--foreground-muted)] hover:bg-[var(--surface)] hover:text-[var(--foreground)]'
+                }`}
+                title="Table View"
+              >
+                <Table className="h-4 w-4" />
+              </button>
+            </div>
           </div>
 
           <div className="text-xs text-[var(--foreground-muted)] italic px-1">
             {filteredStudents.length} students
           </div>
 
-          {/* Student cards grid */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-            {paginatedStudents.map(student => {
-              const isOwing = student.balance < 0
-              return (
-                <button
-                  key={student.id}
-                  onClick={() => openAddModal(student.id)}
-                  className="text-left rounded-[12px] border border-[var(--border)] bg-[var(--surface)] p-4 shadow-md hover:bg-[var(--surface-elevated)] transition-all cursor-pointer w-full"
-                >
-                  <div className="font-bold text-[13px] uppercase text-[var(--foreground)] truncate tracking-wide">
-                    {student.full_name}
-                  </div>
-                  <div className="flex flex-wrap gap-1.5 mt-3">
-                    <span className="text-[10px] font-bold px-2 py-1 rounded-[6px] bg-[#0066cc] text-white">
-                      {student.id}
-                    </span>
-                    {student.tariff && (
-                      <span className="text-[10px] font-bold px-2.5 py-1 rounded-[6px] bg-[#10b981] text-white">
-                        {student.tariff}
+          {/* Student list grid/table */}
+          {viewMode === 'grid' ? (
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+              {paginatedStudents.map(student => {
+                const isOwing = student.balance < 0
+                return (
+                  <button
+                    key={student.id}
+                    onClick={() => openAddModal(student.id)}
+                    className="text-left rounded-[12px] border border-[var(--border)] bg-[var(--surface)] p-4 shadow-md hover:bg-[var(--surface-elevated)] transition-all cursor-pointer w-full"
+                  >
+                    <div className="font-bold text-[17px] uppercase text-[var(--foreground)] truncate tracking-wide">
+                      {student.full_name}
+                    </div>
+                    <div className="flex flex-wrap gap-1.5 mt-3">
+                      <span className="text-[13px] font-bold px-2 py-1 rounded-[6px] bg-[#0066cc] text-white">
+                        {student.id}
                       </span>
-                    )}
-                    <span className={`text-[10px] font-bold px-2.5 py-1 rounded-[6px] text-white ${isOwing ? 'bg-[#ef4444]' : 'bg-[#10b981]'}`}>
-                      {student.balance > 0 ? '+' : ''}{formatAmount(student.balance)}
-                    </span>
-                    {student.discount > 0 && (
-                      <span className="text-[10px] font-bold px-2.5 py-1 rounded-[6px] bg-[#be185d] text-white">
-                        {formatAmount(student.discount)}
+                      {student.tariff && (
+                        <span className="text-[13px] font-bold px-2.5 py-1 rounded-[6px] bg-[#10b981] text-white">
+                          {student.tariff}
+                          {student.tariff === 'E-VISA' && (
+                            student.language_certificate && student.language_certificate !== 'NO CERTIFICATE'
+                              ? ' (TIL SERTIFIKATLI)'
+                              : ' (TIL SERTIFIKATISIZ)'
+                          )}
+                        </span>
+                      )}
+                      <span className={`text-[13px] font-bold px-2.5 py-1 rounded-[6px] text-white ${isOwing ? 'bg-[#ef4444]' : 'bg-[#10b981]'}`}>
+                        {student.balance > 0 ? '+' : ''}{formatAmount(student.balance)}
                       </span>
-                    )}
-                  </div>
-                </button>
-              )
-            })}
-          </div>
+                      {student.discount !== null && student.discount !== undefined && (
+                        <span className="text-[13px] font-bold px-2.5 py-1 rounded-[6px] bg-[#be185d] text-white">
+                          {formatAmount(student.discount)}
+                        </span>
+                      )}
+                    </div>
+                  </button>
+                )
+              })}
+            </div>
+          ) : (
+            <div className="rounded-[var(--radius-lg)] border border-[var(--border)] bg-[var(--surface)] overflow-hidden shadow-[var(--shadow-sm)]">
+              <div className="overflow-x-auto">
+                <table className="w-full border-collapse text-left">
+                  <thead>
+                    <tr className="border-b border-[var(--border)] bg-[var(--surface-elevated)] text-[14px] font-bold uppercase tracking-wider text-[var(--foreground-muted)] dark:text-[var(--foreground)] select-none">
+                      <th 
+                        className="px-6 py-3.5 w-28 cursor-pointer select-none hover:bg-[var(--surface-elevated)] transition-colors rounded-tl-[var(--radius-lg)]"
+                        onClick={() => setSortOrder(prev => prev === 'asc' ? 'desc' : 'asc')}
+                      >
+                        <span className="flex items-center gap-1 font-bold text-[14px] uppercase tracking-wider text-[var(--foreground-muted)] dark:text-[var(--foreground)]">
+                          ID
+                          {sortOrder === 'asc' ? (
+                            <ChevronDown className="h-3 w-3 text-[var(--accent)]" />
+                          ) : (
+                            <ChevronUp className="h-3 w-3 text-[var(--accent)]" />
+                          )}
+                        </span>
+                      </th>
+                      <th className="px-6 py-3.5">Full Name</th>
+                      <th className="px-6 py-3.5">Group</th>
+                      <th className="px-6 py-3.5">Tariff</th>
+                      <th className="px-6 py-3.5">Balance</th>
+                      <th className="px-6 py-3.5">Discount</th>
+                      <th className="px-6 py-3.5 text-center w-28">Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-[var(--border)]">
+                    {paginatedStudents.map((student) => {
+                      const isOwing = student.balance < 0
+                      return (
+                        <tr
+                          key={student.id}
+                          className="hover:bg-[var(--surface-elevated)] transition-colors text-[15.5px] text-[var(--foreground)]"
+                        >
+                          <td className="px-6 py-4">
+                            <span className="inline-flex items-center justify-center px-2 py-0.5 text-[14px] font-bold bg-[#0066cc] text-white rounded-[4px] shadow-sm select-all">
+                              {student.id}
+                            </span>
+                          </td>
+                          <td className="px-6 py-4 font-semibold uppercase tracking-wide text-[15.5px]">
+                            {student.full_name}
+                          </td>
+                          <td className="px-6 py-4 text-[15.5px] font-medium text-[var(--foreground-muted)]">
+                            {student.student_group || '—'}
+                          </td>
+                          <td className="px-6 py-4">
+                            {student.tariff ? (
+                              <span className="inline-flex px-2 py-0.5 rounded-[4px] text-[13px] font-bold bg-[#10b981] text-white uppercase">
+                                {student.tariff}
+                                {student.tariff === 'E-VISA' && (
+                                  student.language_certificate && student.language_certificate !== 'NO CERTIFICATE'
+                                    ? ' (TIL SERTIFIKATLI)'
+                                    : ' (TIL SERTIFIKATISIZ)'
+                                )}
+                              </span>
+                            ) : (
+                              <span className="text-[15.5px] text-[var(--foreground-muted)]">—</span>
+                            )}
+                          </td>
+                          <td className="px-6 py-4 font-semibold">
+                            <span className={`inline-flex px-2 py-0.5 rounded-[4px] text-[13px] font-bold text-white ${isOwing ? 'bg-[#ef4444]' : 'bg-[#10b981]'}`}>
+                              {student.balance > 0 ? '+' : ''}{formatAmount(student.balance)} UZS
+                            </span>
+                          </td>
+                          <td className="px-6 py-4">
+                            {student.discount !== null && student.discount !== undefined ? (
+                              <span className="inline-flex px-2 py-0.5 rounded-[4px] text-[13px] font-bold bg-[#be185d] text-white">
+                                {formatAmount(student.discount)} UZS
+                              </span>
+                            ) : (
+                              <span className="text-[15.5px] text-[var(--foreground-muted)]">—</span>
+                            )}
+                          </td>
+                          <td className="px-6 py-4 text-center">
+                            <button
+                              onClick={() => openAddModal(student.id)}
+                              className="inline-flex items-center gap-1.5 px-3 py-1.5 text-[15px] font-semibold rounded-[var(--radius-sm)] bg-[var(--accent)] hover:bg-[var(--accent-hover)] text-white transition-all cursor-pointer"
+                            >
+                              <Plus className="h-3.5 w-3.5" /> Pay
+                            </button>
+                          </td>
+                        </tr>
+                      )
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          )}
 
           {filteredStudents.length === 0 && (
             <div className="rounded-[var(--radius-lg)] border border-[var(--border)] border-dashed bg-[var(--surface)] p-12 text-center text-sm text-[var(--foreground-muted)]">
@@ -990,7 +1152,11 @@ export function PaymentsClient() {
                 ? new Date(payment.created_at).toLocaleString('uz-UZ', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' })
                 : ''
               return (
-                <div key={payment.id} className="rounded-[var(--radius-lg)] border border-[var(--border)] bg-[var(--surface)] p-4 shadow-[var(--shadow-sm)] flex flex-col gap-2">
+                <div
+                  key={payment.id}
+                  onClick={() => setViewingPayment(payment)}
+                  className="rounded-[var(--radius-lg)] border border-[var(--border)] bg-[var(--surface)] p-4 shadow-[var(--shadow-sm)] hover:bg-[var(--surface-elevated)]/50 transition-all cursor-pointer flex flex-col gap-2"
+                >
                   <div className="flex items-center justify-between">
                     <span className="font-bold text-xs uppercase text-[var(--foreground)] truncate">
                       {payment.student_name || 'General Payment'}
@@ -1015,19 +1181,19 @@ export function PaymentsClient() {
                   )}
                   <div className="flex items-center gap-1.5 mt-1 pt-2 border-t border-[var(--border)]">
                     <button
-                      onClick={() => openEditModal(payment)}
+                      onClick={(e) => { e.stopPropagation(); openEditModal(payment); }}
                       className="flex-1 flex items-center justify-center gap-1 py-1.5 text-xs font-semibold rounded-[var(--radius-sm)] border border-[var(--border)] hover:bg-[var(--surface-elevated)] cursor-pointer"
                     >
                       <Pencil className="h-3 w-3" /> Edit
                     </button>
                     <button
-                      onClick={() => deletePayment(payment)}
+                      onClick={(e) => { e.stopPropagation(); deletePayment(payment); }}
                       className="flex-1 flex items-center justify-center gap-1 py-1.5 text-xs font-semibold rounded-[var(--radius-sm)] border border-[var(--border)] text-rose-500 hover:bg-rose-500/10 cursor-pointer"
                     >
                       <Trash2 className="h-3 w-3" /> Delete
                     </button>
                     <button
-                      onClick={() => printReceipt(payment)}
+                      onClick={(e) => { e.stopPropagation(); printReceipt(payment); }}
                       className="flex-1 flex items-center justify-center gap-1 py-1.5 text-xs font-semibold rounded-[var(--radius-sm)] border border-[var(--border)] hover:bg-[var(--surface-elevated)] cursor-pointer"
                     >
                       <Printer className="h-3 w-3" /> Print
@@ -1361,6 +1527,149 @@ export function PaymentsClient() {
             >
               {submitting ? 'Saving...' : 'Save Changes'}
             </button>
+          </div>
+        </div>
+      )}
+
+      {/* ── Payment Details Modal ───────────────────────── */}
+      {viewingPayment && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4" onClick={() => setViewingPayment(null)}>
+          <div
+            className="w-full max-w-lg max-h-[90vh] overflow-y-auto rounded-[var(--radius-lg)] border border-[var(--border)] bg-[var(--surface-elevated)] p-6 shadow-[var(--shadow-lg)] flex flex-col gap-4"
+            onClick={e => e.stopPropagation()}
+          >
+            <div className="flex items-center justify-between border-b border-[var(--border)] pb-3">
+              <h3 className="text-base font-bold text-[var(--foreground)] flex items-center gap-2">
+                <Receipt className="h-4 w-4 text-[var(--accent)]" /> Payment Details
+              </h3>
+              <button onClick={() => setViewingPayment(null)} className="cursor-pointer text-[var(--foreground-muted)] hover:text-[var(--foreground)]">
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+
+            <div className="flex flex-col gap-3.5">
+              {/* Payment ID */}
+              <div className="flex items-center justify-between text-xs border-b border-[var(--border)] pb-2">
+                <span className="text-[var(--foreground-muted)] font-semibold">Payment ID</span>
+                <span className="font-mono text-[var(--foreground)] bg-[var(--surface)] px-2 py-0.5 rounded border border-[var(--border)] select-all uppercase">
+                  {viewingPayment.id}
+                </span>
+              </div>
+
+              {/* Student Details */}
+              <div className="flex flex-col gap-1">
+                <span className="text-xs font-semibold text-[var(--foreground-muted)]">Student</span>
+                <div className="px-3 py-2.5 rounded-[var(--radius-md)] border border-[var(--border)] bg-[var(--surface)] flex flex-col gap-0.5">
+                  {viewingPayment.student_id ? (
+                    <>
+                      <span className="text-sm font-bold text-[var(--foreground)] uppercase">
+                        {viewingPayment.student_name}
+                      </span>
+                      <span className="text-xs font-semibold text-[var(--foreground-muted)]">
+                        ID: <span className="text-[var(--accent)] font-mono font-bold">{viewingPayment.student_id}</span>
+                      </span>
+                    </>
+                  ) : (
+                    <span className="text-sm text-[var(--foreground-muted)] italic">General Payment (No Student Linked)</span>
+                  )}
+                </div>
+              </div>
+
+              {/* Amount and Type */}
+              <div className="grid grid-cols-2 gap-3">
+                <div className="flex flex-col gap-1">
+                  <span className="text-xs font-semibold text-[var(--foreground-muted)]">Amount</span>
+                  <div className="px-3 py-2.5 rounded-[var(--radius-md)] border border-[var(--border)] bg-[var(--surface)]">
+                    <span className={`text-base font-extrabold ${viewingPayment.amount < 0 ? 'text-rose-500' : 'text-emerald-500'}`}>
+                      {viewingPayment.amount < 0 ? '-' : '+'}{formatAmount(Math.abs(viewingPayment.amount))} UZS
+                    </span>
+                  </div>
+                </div>
+
+                <div className="flex flex-col gap-1">
+                  <span className="text-xs font-semibold text-[var(--foreground-muted)]">Transaction Type</span>
+                  <div className="px-3 py-2.5 rounded-[var(--radius-md)] border border-[var(--border)] bg-[var(--surface)] flex items-center">
+                    {viewingPayment.is_withdrawal ? (
+                      <span className="inline-flex px-2.5 py-1 rounded-[6px] text-xs font-bold bg-rose-500/15 text-rose-600 dark:text-rose-400 uppercase">
+                        Withdrawal
+                      </span>
+                    ) : viewingPayment.is_discount ? (
+                      <span className="inline-flex px-2.5 py-1 rounded-[6px] text-xs font-bold bg-pink-500/15 text-pink-600 dark:text-pink-400 uppercase">
+                        Discount
+                      </span>
+                    ) : (
+                      <span className="inline-flex px-2.5 py-1 rounded-[6px] text-xs font-bold bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 uppercase">
+                        Standard Payment
+                      </span>
+                    )}
+                  </div>
+                </div>
+              </div>
+
+              {/* Method and Receiver */}
+              <div className="grid grid-cols-2 gap-3">
+                <div className="flex flex-col gap-1">
+                  <span className="text-xs font-semibold text-[var(--foreground-muted)]">Payment Method</span>
+                  <div className="px-3 py-2 rounded-[var(--radius-md)] border border-[var(--border)] bg-[var(--surface)] text-sm font-semibold text-[var(--foreground)]">
+                    {viewingPayment.method}
+                  </div>
+                </div>
+
+                <div className="flex flex-col gap-1">
+                  <span className="text-xs font-semibold text-[var(--foreground-muted)]">Received By</span>
+                  <div className="px-3 py-2 rounded-[var(--radius-md)] border border-[var(--border)] bg-[var(--surface)] text-sm font-semibold text-[var(--foreground)]">
+                    {viewingPayment.received_by}
+                  </div>
+                </div>
+              </div>
+
+              {/* Date & Time */}
+              <div className="flex flex-col gap-1">
+                <span className="text-xs font-semibold text-[var(--foreground-muted)]">Timestamp</span>
+                <div className="px-3 py-2 rounded-[var(--radius-md)] border border-[var(--border)] bg-[var(--surface)] text-xs font-medium text-[var(--foreground)]">
+                  {viewingPayment.created_at
+                    ? new Date(viewingPayment.created_at).toLocaleString('uz-UZ', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit', second: '2-digit' })
+                    : '—'}
+                </div>
+              </div>
+
+              {/* Notes */}
+              <div className="flex flex-col gap-1">
+                <span className="text-xs font-semibold text-[var(--foreground-muted)]">Notes / Description</span>
+                <div className="px-3 py-2.5 rounded-[var(--radius-md)] border border-[var(--border)] bg-[var(--surface)] text-xs text-[var(--foreground)] min-h-[50px] whitespace-pre-wrap">
+                  {viewingPayment.notes || (
+                    <span className="text-[var(--foreground-muted)] italic">No notes attached.</span>
+                  )}
+                </div>
+              </div>
+            </div>
+
+            {/* Action buttons footer */}
+            <div className="flex items-center gap-2 mt-4 pt-3 border-t border-[var(--border)]">
+              <button
+                onClick={() => {
+                  setViewingPayment(null);
+                  openEditModal(viewingPayment);
+                }}
+                className="flex-1 flex items-center justify-center gap-1.5 py-2 text-sm font-semibold rounded-[var(--radius-md)] border border-[var(--border)] hover:bg-[var(--surface)] transition-all cursor-pointer text-[var(--foreground)]"
+              >
+                <Pencil className="h-4 w-4" /> Edit
+              </button>
+              <button
+                onClick={() => {
+                  printReceipt(viewingPayment);
+                }}
+                className="flex-1 flex items-center justify-center gap-1.5 py-2 text-sm font-semibold rounded-[var(--radius-md)] border border-[var(--border)] hover:bg-[var(--surface)] transition-all cursor-pointer text-[var(--foreground)]"
+              >
+                <Printer className="h-4 w-4" /> Print
+              </button>
+              <button
+                onClick={() => setViewingPayment(null)}
+                className="flex-1 py-2 text-sm font-semibold rounded-[var(--radius-md)] bg-[var(--accent)] hover:bg-[var(--accent-hover)] text-white transition-all cursor-pointer"
+              >
+                Close
+              </button>
+            </div>
           </div>
         </div>
       )}

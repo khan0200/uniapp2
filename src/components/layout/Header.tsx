@@ -14,6 +14,7 @@ const PAGE_TITLES: Record<string, string> = {
   '/admissions': 'Admissions',
   '/documents': 'Documents',
   '/settings': 'Settings',
+  '/users': 'User Management',
   '/restricted': 'Access Restricted',
 }
 
@@ -92,7 +93,7 @@ export function Header() {
             className="pl-9 pr-4 py-2 text-sm border border-[var(--border)] bg-[var(--background)] rounded-[var(--radius-md)] text-[var(--foreground)] placeholder-[var(--foreground-muted)] focus:outline-none focus:border-[var(--accent)] focus:ring-1 focus:ring-[var(--accent)] transition-all w-60 md:w-72"
           />
         </div>
-      ) : pathname.startsWith('/students/') || pathname.startsWith('/payments') ? (
+      ) : pathname.startsWith('/students/') || pathname.startsWith('/payments') || pathname.startsWith('/settings') || pathname.startsWith('/users') ? (
         null
       ) : (
         <button
@@ -136,15 +137,21 @@ export function Header() {
           className={cn(
             'hidden sm:flex items-center gap-1.5 rounded-full px-3 py-1',
             'border text-xs font-semibold',
-            profile.role === 'Manager'
-              ? 'border-blue-200 bg-blue-50 text-blue-700 dark:border-blue-800 dark:bg-blue-950/50 dark:text-blue-400'
-              : 'border-purple-200 bg-purple-50 text-purple-700 dark:border-purple-800 dark:bg-purple-950/50 dark:text-purple-400'
+            profile.role === 'Head Manager'
+              ? 'border-amber-200 bg-amber-50 text-amber-700 dark:border-amber-800/40 dark:bg-amber-950/40 dark:text-amber-400'
+              : profile.role === 'Manager'
+                ? 'border-blue-200 bg-blue-50 text-blue-700 dark:border-blue-800/40 dark:bg-blue-950/40 dark:text-blue-400'
+                : 'border-purple-200 bg-purple-50 text-purple-700 dark:border-purple-800/40 dark:bg-purple-950/40 dark:text-purple-400'
           )}
         >
           <span
             className={cn(
               'h-1.5 w-1.5 rounded-full',
-              profile.role === 'Manager' ? 'bg-blue-500' : 'bg-purple-500'
+              profile.role === 'Head Manager'
+                ? 'bg-amber-500'
+                : profile.role === 'Manager'
+                  ? 'bg-blue-500'
+                  : 'bg-purple-500'
             )}
           />
           {profile.role}

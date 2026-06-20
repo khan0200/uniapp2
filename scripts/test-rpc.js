@@ -22,10 +22,16 @@ if (fs.existsSync(envPath)) {
 const supabase = createClient(supabaseUrl, supabaseKey);
 
 async function run() {
-  const { data, error } = await supabase.from('students').select('id, full_name, tariff').limit(5);
+  console.log('Testing RPC call...');
+  const { data, error } = await supabase.rpc('create_new_user', {
+    p_email: 'test_rpc@example.com',
+    p_password: 'Password123!',
+    p_full_name: 'TEST RPC USER',
+    p_role: 'Admin'
+  });
+
+  console.log('Data:', data);
   console.log('Error:', error);
-  console.log('Sample Supabase students:', data);
 }
 
 run();
-

@@ -2,6 +2,7 @@
 
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
+import Link from 'next/link'
 import Image from 'next/image'
 import logo from '@/logo.png'
 import {
@@ -23,15 +24,16 @@ interface NavItem {
   href: string
   icon: typeof Users
   label: string
-  roles?: ('Manager' | 'Admin')[]
+  roles?: ('Manager' | 'Admin' | 'Head Manager')[]
+  target?: string
 }
 
 const NAV_ITEMS: NavItem[] = [
   { href: '/students', icon: Users, label: 'Students' },
-  { href: '/admissions', icon: BookOpen, label: 'Admissions' },
+  { href: 'https://admissions-university.vercel.app/', icon: BookOpen, label: 'Admissions', target: '_blank' },
   { href: '/documents', icon: FileText, label: 'Documents' },
-  { href: '/payments', icon: CreditCard, label: 'Payments', roles: ['Manager'] },
-  { href: '/settings', icon: Settings, label: 'Settings', roles: ['Manager'] },
+  { href: '/payments', icon: CreditCard, label: 'Payments', roles: ['Manager', 'Head Manager'] },
+  { href: '/settings', icon: Settings, label: 'Settings', roles: ['Manager', 'Head Manager'] },
 ]
 
 export function Sidebar() {
@@ -87,6 +89,7 @@ export function Sidebar() {
               href={item.href}
               icon={item.icon}
               label={item.label}
+              target={item.target}
             />
           ))
         )}
@@ -102,7 +105,8 @@ export function Sidebar() {
         {/* User profile avatar */}
         <div className="flex flex-col items-center gap-3 w-full">
           {/* Avatar */}
-          <div
+          <Link
+            href="/users"
             className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-full text-xs font-bold text-white select-none hover:ring-2 hover:ring-white/20 transition-all cursor-pointer"
             style={{ background: 'linear-gradient(135deg, #3b7ff5, #6366f1)' }}
             title={`${profile?.full_name || 'User'} (${profile?.role || ''})`}
@@ -110,7 +114,7 @@ export function Sidebar() {
             {profile?.full_name
               ? profile.full_name.slice(0, 2).toUpperCase()
               : profile?.email?.slice(0, 2).toUpperCase() ?? '??'}
-          </div>
+          </Link>
 
           {/* Sign out button */}
           <button

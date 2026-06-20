@@ -2,8 +2,8 @@ import { createServerClient } from '@supabase/ssr'
 import { NextResponse, type NextRequest } from 'next/server'
 import { type Database } from '@/types/database'
 
-// Routes accessible only to Managers
-const MANAGER_ONLY_ROUTES = ['/payments', '/settings']
+// Routes accessible only to Managers & Head Managers
+const MANAGER_ONLY_ROUTES = ['/payments', '/settings', '/users']
 
 // Routes that are publicly accessible (no auth required)
 const PUBLIC_ROUTES = ['/login']
@@ -63,7 +63,7 @@ export async function proxy(request: NextRequest) {
 
     const userRole = (profileData as { role: string } | null)?.role
 
-    if (!userRole || userRole !== 'Manager') {
+    if (!userRole || (userRole !== 'Manager' && userRole !== 'Head Manager')) {
       const restrictedUrl = request.nextUrl.clone()
       restrictedUrl.pathname = '/restricted'
       return NextResponse.redirect(restrictedUrl)
