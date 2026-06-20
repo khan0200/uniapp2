@@ -14,6 +14,7 @@ import { PageShell } from '@/components/ui/PageShell'
 import * as XLSX from 'xlsx-js-style'
 import { useStudentDashboard } from '@/contexts/StudentDashboardContext'
 import { motion, AnimatePresence } from 'framer-motion'
+import { sendTelegramNotification } from '@/lib/telegram'
 
 export const ROW_COLOR_MAP: Record<string, { bg: string; ball: string; name: string }> = {
   DARK_BLUE: { bg: 'rgba(30, 58, 138, 0.22)', ball: '#1E3A8A', name: 'Dark Blue' },
@@ -970,6 +971,12 @@ export function StudentDashboardClient() {
         }
         throw insertError
       }
+
+      // Send Telegram Notification
+      const safeName = fullName ? fullName.trim().replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;') : 'Unknown'
+      const safeOffice = office ? office.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;') : '-'
+      const notifMsg = `🆕 <b>New Registration!</b>\n\n👤 <b>Name:</b> ${safeName}\n🆔 <b>ID:</b> ${studentId.trim().toUpperCase()}\n🏢 <b>Office:</b> ${safeOffice}`
+      sendTelegramNotification(notifMsg)
 
       setModalSuccess(true)
       setStudentId('')

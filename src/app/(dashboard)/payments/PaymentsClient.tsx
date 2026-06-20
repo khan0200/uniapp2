@@ -3,6 +3,7 @@
 import { useState, useEffect, useMemo, useRef } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { type Student, type Payment } from '@/types/database'
+import { sendTelegramNotification } from '@/lib/telegram'
 import {
   Users, Receipt, Plus, Minus, Search, ChevronDown, ChevronUp, X, Loader2,
   Pencil, Trash2, Printer, CreditCard, Wallet, LayoutGrid, Table
@@ -346,6 +347,33 @@ export function PaymentsClient() {
         await adjustStudentBalance(addStudentId, amount, isDiscount ? amount : 0)
       }
 
+      // Send Telegram Notification
+      const safeName = student?.full_name 
+        ? student.full_name.trim().replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;') 
+        : (addStudentId ? 'Unknown' : 'General Payment')
+      const amountFormatted = new Intl.NumberFormat('uz-UZ').format(amount) + ' UZS'
+      const newBalance = student ? (student.balance || 0) + amount : 0
+      const balanceFormatted = student ? new Intl.NumberFormat('uz-UZ').format(newBalance) + ' UZS' : '-'
+      const curDate = new Date().toLocaleDateString('en-GB', { day: '2-digit', month: '2-digit', year: 'numeric' })
+      const safeNotes = addNotes.trim() ? addNotes.trim().replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;') : 'None'
+
+      let notifMsg = ''
+      if (isDiscount) {
+        notifMsg = `🟨 <b>Discount Added</b>\n\n🆔 <b>ID:</b> ${addStudentId || '-'}\n👤 <b>Student:</b> ${safeName}\n💰 <b>Amount:</b> ${amountFormatted}\n💼 <b>Balance:</b> ${balanceFormatted}\n📝 <b>Note:</b> ${safeNotes}\n\n📅 <b>Date:</b> ${curDate}`
+      } else {
+        let tariffName = '-'
+        if (student?.tariff) {
+          tariffName = student.tariff
+          if (student.tariff === 'E-VISA') {
+            tariffName += (student.language_certificate && student.language_certificate !== 'NO CERTIFICATE')
+              ? ' (TIL SERTIFIKATLI)'
+              : ' (TIL SERTIFIKATISIZ)'
+          }
+        }
+        notifMsg = `🟩 <b>Payment Received</b>\n\n🆔 <b>ID:</b> ${addStudentId || '-'}\n👤 <b>Name:</b> ${safeName}\n\n📰 <b>Tariff:</b> ${tariffName}\n💰 <b>Amount:</b> ${amountFormatted}\n💼 <b>Balance:</b> ${balanceFormatted}\n💳 <b>Payment Type:</b> ${addMethod || '-'}\n🧾 <b>Received by:</b> ${addReceivedBy || '-'}\n\n📝 <b>Note:</b> ${safeNotes}\n\n📅 <b>Date:</b> ${curDate}`
+      }
+      sendTelegramNotification(notifMsg)
+
       setIsAddModalOpen(false)
       resetAddForm()
       await fetchData()
@@ -394,6 +422,19 @@ export function PaymentsClient() {
       if (withdrawStudentId) {
         await adjustStudentBalance(withdrawStudentId, -amount)
       }
+
+      // Send Telegram Notification
+      const safeName = student?.full_name 
+        ? student.full_name.trim().replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;') 
+        : (withdrawStudentId ? 'Unknown' : 'General Withdrawal')
+      const amountFormatted = new Intl.NumberFormat('uz-UZ').format(amount) + ' UZS'
+      const newBalance = student ? (student.balance || 0) - amount : 0
+      const balanceFormatted = student ? new Intl.NumberFormat('uz-UZ').format(newBalance) + ' UZS' : '-'
+      const curDate = new Date().toLocaleDateString('en-GB', { day: '2-digit', month: '2-digit', year: 'numeric' })
+      const safeNotes = `WITHDRAWAL: ${withdrawReason.trim().toUpperCase()}`.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+
+      const notifMsg = `🟥 <b>Withdrawal</b>\n\n🆔 <b>Student ID:</b> ${withdrawStudentId || '-'}\n👤 <b>Student:</b> ${safeName}\n💰 <b>Amount:</b> -${amountFormatted}\n💼 <b>Balance:</b> ${balanceFormatted}\n📝 <b>Note:</b> ${safeNotes}\n\n📅 <b>Date:</b> ${curDate}`
+      sendTelegramNotification(notifMsg)
 
       setIsWithdrawModalOpen(false)
       resetWithdrawForm()
@@ -477,6 +518,20 @@ export function PaymentsClient() {
         const discountDelta = payment.is_discount ? -payment.amount : 0
         await adjustStudentBalance(payment.student_id, -payment.amount, discountDelta)
       }
+
+      // Send Telegram Notification
+      const student = payment.student_id ? students.find(s => s.id === payment.student_id) : null
+      const safeName = student?.full_name 
+        ? student.full_name.trim().replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;') 
+        : (payment.student_name 
+          ? payment.student_name.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;') 
+          : 'Unknown')
+      const amountFormatted = new Intl.NumberFormat('uz-UZ').format(Math.abs(payment.amount)) + ' UZS'
+      const newBalance = student ? (student.balance || 0) - payment.amount : 0
+      const balanceFormatted = student ? new Intl.NumberFormat('uz-UZ').format(newBalance) + ' UZS' : '-'
+
+      const notifMsg = `🟥 <b>Payment Deleted</b>\n\n🆔 <b>ID:</b> ${payment.student_id || '-'}\n👤 <b>Student:</b> ${safeName}\n💰 <b>Amount:</b> -${amountFormatted}\n💼 <b>Balance:</b> ${balanceFormatted}`
+      sendTelegramNotification(notifMsg)
 
       await fetchData()
     } catch (err: any) {
