@@ -1853,7 +1853,7 @@ export function StudentDashboardClient() {
           )}
         </div>
         <div className="text-right">
-          Total {students.length} students
+          Total {students.filter(s => !s.is_deleted).length} students
         </div>
       </div>
 
