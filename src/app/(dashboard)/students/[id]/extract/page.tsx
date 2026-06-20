@@ -14,7 +14,7 @@ interface ExtractPageProps {
 export default async function ExtractPage({ params }: ExtractPageProps) {
   const { id } = await params
   return (
-    <PageShell className="p-3 gap-3">
+    <PageShell className="px-6 py-6 md:px-10 md:py-8 max-w-7xl mx-auto flex flex-col gap-6">
       <ExtractClient studentId={id} />
     </PageShell>
   )

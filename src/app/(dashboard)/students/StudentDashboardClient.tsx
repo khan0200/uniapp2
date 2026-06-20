@@ -2304,13 +2304,13 @@ export function StudentDashboardClient() {
                 initial={{ opacity: 0, scale: 0.95, y: 15 }}
                 animate={{ opacity: 1, scale: 1, y: 0 }}
                 exit={{ opacity: 0, scale: 0.95, y: 15 }}
-                className="relative w-full max-w-[420px] overflow-hidden rounded-[var(--radius-lg)] border border-[var(--border)] bg-[var(--surface-elevated)] p-5 shadow-[var(--shadow-lg)] z-10 text-xs text-[var(--foreground)] flex flex-col gap-4"
+                className="relative w-full max-w-[504px] overflow-hidden rounded-[var(--radius-lg)] border border-[var(--border)] bg-[var(--surface-elevated)] p-5 shadow-[var(--shadow-lg)] z-10 text-xs text-[var(--foreground)] flex flex-col gap-4"
                 onClick={(e) => e.stopPropagation()}
               >
                 {/* Header with Student Name, ID and Close Button */}
                 <div className="flex items-start justify-between border-b border-[var(--border)] pb-3 relative">
                   <div className="pr-8">
-                    <h3 className="text-sm font-bold text-[var(--foreground)] truncate max-w-[340px]" title={student.full_name}>
+                    <h3 className="text-sm font-bold text-[var(--foreground)] truncate max-w-[420px]" title={student.full_name}>
                       {student.full_name}
                     </h3>
                     <p className="text-[10px] text-[var(--foreground-muted)] font-mono font-semibold mt-0.5">

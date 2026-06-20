@@ -174,7 +174,10 @@ export function StudentDetailClient({ studentId }: StudentDetailClientProps) {
   // Start inline editing
   const handleStartEditing = (field: string, val: any, defaultVal?: any) => {
     setEditingField(field)
-    const initialValue = val !== null && val !== undefined && val !== '' ? val : (defaultVal !== undefined ? defaultVal : '')
+    let initialValue = val !== null && val !== undefined && val !== '' ? val : (defaultVal !== undefined ? defaultVal : '')
+    if (Array.isArray(initialValue)) {
+      initialValue = initialValue.join(', ')
+    }
     setEditValue(typeof initialValue === 'string' ? formatEditValueForField(field, initialValue) : initialValue)
   }
 
@@ -387,12 +390,12 @@ export function StudentDetailClient({ studentId }: StudentDetailClientProps) {
   ) => {
     const isEditing = editingField === field
     const isCopied = copiedField === field
-    const displayValue = value === null || value === undefined || value === '' ? '—' : value
+    const isMissing = value === null || value === undefined || (Array.isArray(value) ? value.length === 0 : (String(value).trim() === '' || String(value).trim() === '—'))
+    const displayValue = isMissing ? '—' : value
 
     const copyable = options.copyable !== false
     const editable = options.editable !== false
 
-    const isMissing = value === null || value === undefined || String(value).trim() === '' || String(value).trim() === '—'
     const borderLeftColor = options.forceBorderColor 
       ? (options.forceBorderColor === 'red' ? 'border-l-rose-500 dark:border-l-rose-600' : 'border-l-blue-500 dark:border-l-blue-600')
       : (isMissing ? 'border-l-rose-500 dark:border-l-rose-600' : 'border-l-blue-500 dark:border-l-blue-600')
@@ -416,7 +419,7 @@ export function StudentDetailClient({ studentId }: StudentDetailClientProps) {
               <button
                 onClick={(e) => {
                   e.stopPropagation();
-                  handleCopy(String(field), String(value));
+                  handleCopy(String(field), Array.isArray(value) ? value.join(', ') : String(value));
                 }}
                 className="p-0.5 hover:bg-[var(--border-subtle)] rounded transition-all cursor-pointer text-[var(--foreground-muted)] hover:text-[var(--foreground)]"
                 title="Copy value"
@@ -447,7 +450,7 @@ export function StudentDetailClient({ studentId }: StudentDetailClientProps) {
           className="mt-1 flex items-center min-h-[22px] w-full"
           onClick={() => {
             if (!isEditing && copyable && value) {
-              handleCopy(String(field), String(value));
+              handleCopy(String(field), Array.isArray(value) ? value.join(', ') : String(value));
             }
           }}
         >
@@ -501,11 +504,31 @@ export function StudentDetailClient({ studentId }: StudentDetailClientProps) {
             isCopied ? (
               <span className="text-[15px] font-bold text-[var(--success)] animate-pulse">Copied!</span>
             ) : (options.badgeColor && !isMissing) ? (
-              <span className={`inline-flex px-1.5 py-0.5 rounded-[4px] text-[13px] font-bold uppercase ${options.badgeColor}`}>
-                {displayValue}
-              </span>
+              Array.isArray(displayValue) ? (
+                <div className="flex flex-wrap gap-1.5 mt-0.5">
+                  {displayValue.map((item, idx) => (
+                    <span key={idx} className={`inline-flex px-1.5 py-0.5 rounded-[4px] text-[13px] font-bold uppercase ${options.badgeColor}`}>
+                      {item}
+                    </span>
+                  ))}
+                </div>
+              ) : (
+                <span className={`inline-flex px-1.5 py-0.5 rounded-[4px] text-[13px] font-bold uppercase ${options.badgeColor}`}>
+                  {displayValue}
+                </span>
+              )
             ) : (
-              <span className="text-[15px] font-semibold tracking-wide text-[var(--foreground)]">{displayValue}</span>
+              Array.isArray(displayValue) ? (
+                <div className="flex flex-wrap gap-1.5 mt-0.5">
+                  {displayValue.map((item, idx) => (
+                    <span key={idx} className="text-[15px] font-semibold tracking-wide text-[var(--foreground)]">
+                      {item}
+                    </span>
+                  ))}
+                </div>
+              ) : (
+                <span className="text-[15px] font-semibold tracking-wide text-[var(--foreground)]">{displayValue}</span>
+              )
             )
           )}
         </div>
@@ -1458,7 +1481,7 @@ export function StudentDetailClient({ studentId }: StudentDetailClientProps) {
                   <span className="text-[var(--foreground-subtle)] font-mono text-[17px] font-bold">&gt;</span>
                 </div>
 
-                {renderDetailCard('Missing Documents', 'pick_needed', selectedStudent.pick_needed?.join(', '), { 
+                {renderDetailCard('Missing Documents', 'pick_needed', selectedStudent.pick_needed, { 
                   badgeColor: 'bg-[#5243aa] text-white',
                   titleColor: 'text-[var(--accent)]',
                   forceBorderColor: selectedStudent.pick_needed && selectedStudent.pick_needed.length > 0 ? 'red' : 'blue'

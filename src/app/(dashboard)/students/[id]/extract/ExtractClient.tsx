@@ -340,10 +340,6 @@ export function ExtractClient({ studentId }: ExtractClientProps) {
       setUploadedImage(dataUrl)
       setUploadedMimeType(file.type)
       setUploadedFileName(file.name)
-      // Reset past extraction state
-      setExtractedData(null)
-      setExtractedFieldsList([])
-      setSavedFields({})
     } catch (err: any) {
       console.error('File compression error:', err)
       showToast('Failed to process image file.', 'danger')
@@ -368,6 +364,7 @@ export function ExtractClient({ studentId }: ExtractClientProps) {
     }
 
     setUploading(true)
+    setSavedFields({}) // Clear checkpoints as we start new extraction
     try {
       const base64Image = uploadedImage.split(',')[1]
 
@@ -574,98 +571,109 @@ export function ExtractClient({ studentId }: ExtractClientProps) {
   }
 
   return (
-    <div className="bg-background text-[var(--foreground)] transition-colors flex flex-col gap-4 relative w-full">
+    <div className="bg-background text-[var(--foreground)] transition-colors flex flex-col gap-6 relative w-full">
+      <style>{`
+        @keyframes ios-progress {
+          0% { transform: translateX(-100%); }
+          100% { transform: translateX(200%); }
+        }
+        .animate-ios-progress {
+          animation: ios-progress 1.5s infinite ease-in-out;
+        }
+      `}</style>
       
       {/* Toast Alert Banner */}
       {toastMessage && (
-        <div className={`fixed bottom-4 right-4 z-[99] px-4 py-2.5 rounded-lg shadow-lg border border-[var(--border)] flex items-center gap-2 animate-in slide-in-from-bottom-2 fade-in duration-200 ${
-          toastMessage.type === 'success' ? 'bg-emerald-950/80 text-emerald-300 border-emerald-800' :
-          toastMessage.type === 'danger' ? 'bg-rose-950/80 text-rose-300 border-rose-800' :
-          'bg-blue-950/80 text-blue-300 border-blue-800'
+        <div className={`fixed bottom-6 right-6 z-[99] px-4 py-3 rounded-2xl shadow-xl border flex items-center gap-2.5 animate-in slide-in-from-bottom-2 fade-in duration-200 ${
+          toastMessage.type === 'success' ? 'bg-emerald-950/90 text-emerald-300 border-emerald-800/80 backdrop-blur-md' :
+          toastMessage.type === 'danger' ? 'bg-rose-950/90 text-rose-300 border-rose-800/80 backdrop-blur-md' :
+          'bg-blue-950/90 text-blue-300 border-blue-800/80 backdrop-blur-md'
         }`}>
-          <CheckCircle2 className="h-4 w-4 shrink-0" />
-          <span className="text-xs font-semibold">{toastMessage.text}</span>
+          <CheckCircle2 className="h-4.5 w-4.5 shrink-0" />
+          <span className="text-xs font-semibold tracking-wide">{toastMessage.text}</span>
         </div>
       )}
 
       {/* Back button & title bar */}
-      <div className="flex items-center justify-between gap-4 pb-2 border-b border-[var(--border)] flex-shrink-0">
+      <div className="flex items-center justify-between gap-4 pb-3 border-b border-[var(--border)] flex-shrink-0">
         <Link
           href={`/students/${studentId}`}
-          className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-[var(--surface-elevated)] hover:bg-[var(--border-subtle)] border border-[var(--border)] rounded-md text-xs font-semibold text-[var(--foreground)] transition-all shadow-[var(--shadow-sm)]"
+          className="inline-flex items-center gap-2 px-4 py-2 bg-[var(--surface-elevated)] hover:bg-[var(--border-subtle)] border border-[var(--border)] rounded-xl text-xs font-bold text-[var(--foreground)] transition-all shadow-[var(--shadow-sm)] hover:scale-[1.02] active:scale-[0.98]"
         >
-          <ArrowLeft className="h-3.5 w-3.5 text-[var(--accent)]" />
+          <ArrowLeft className="h-4 w-4 text-[var(--accent)]" />
           Back to Details
         </Link>
         <button
           onClick={() => setIsSettingsOpen(prev => !prev)}
-          className={`inline-flex items-center gap-1 px-3 py-1.5 border rounded-md text-xs font-semibold transition-all shadow-[var(--shadow-sm)] cursor-pointer ${
+          className={`inline-flex items-center gap-2 px-4 py-2 border rounded-xl text-xs font-bold transition-all shadow-[var(--shadow-sm)] cursor-pointer hover:scale-[1.02] active:scale-[0.98] ${
             isSettingsOpen 
               ? 'bg-[var(--accent)] text-white border-[var(--accent)]' 
               : 'bg-[var(--surface-elevated)] hover:bg-[var(--border-subtle)] border-[var(--border)] text-[var(--foreground)]'
           }`}
         >
-          <Sliders className="h-3.5 w-3.5" />
+          <Sliders className="h-4 w-4" />
           AI Settings
         </button>
       </div>
 
       {/* Student Banner Header */}
-      <div className="py-3 px-4 bg-[var(--surface)] border border-[var(--border)] rounded-lg flex items-center justify-between gap-3 shadow-[var(--shadow-sm)] transition-colors flex-shrink-0">
-        <div className="flex items-center gap-3">
-          <div className="w-12 h-12 bg-[var(--accent)]/10 text-[var(--accent)] rounded-lg flex items-center justify-center font-bold text-lg select-none shadow-[var(--shadow-sm)]">
+      <div className="py-4 px-5 bg-[var(--surface)] border border-[var(--border)]/70 rounded-2xl flex items-center justify-between gap-4 shadow-[var(--shadow-sm)] transition-colors flex-shrink-0">
+        <div className="flex items-center gap-4">
+          <div className="w-14 h-14 bg-[var(--accent)]/10 text-[var(--accent)] rounded-2xl flex items-center justify-center font-extrabold text-xl select-none border border-[var(--accent)]/20 shadow-inner">
             {selectedStudent.full_name?.substring(0, 2).toUpperCase() || 'ST'}
           </div>
           <div>
-            <h1 className="text-[17.5px] font-bold uppercase tracking-wide text-[var(--foreground)] truncate">
+            <h1 className="text-[19px] font-extrabold uppercase tracking-wide text-[var(--foreground)]">
               {selectedStudent.full_name}
             </h1>
-            <div className="flex items-center gap-2 text-xs font-semibold text-[var(--foreground-muted)] mt-0.5">
+            <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs font-semibold text-[var(--foreground-muted)] mt-1">
               <span>ID: <span className="font-mono text-[var(--accent)] font-bold">{selectedStudent.id}</span></span>
-              <span className="h-1 w-1 rounded-full bg-[var(--border)]" />
-              <span>Passport: <span className="font-semibold text-[var(--foreground)]">{selectedStudent.passport || '—'}</span></span>
+              <span className="h-1.5 w-1.5 rounded-full bg-[var(--border)]" />
+              <span>Passport: <span className="font-bold text-[var(--foreground)]">{selectedStudent.passport || '—'}</span></span>
             </div>
           </div>
         </div>
-        <div className="flex items-center gap-1">
-          <span className="inline-flex px-2 py-0.5 rounded bg-[var(--border-subtle)] text-[10px] uppercase font-bold text-[var(--foreground-muted)] tracking-wider">
-            Model: {aiSettings.provider === 'openai' ? 'OpenAI' : 'Gemini'}
+        <div className="flex items-center">
+          <span className="inline-flex px-3 py-1 rounded-full bg-[var(--surface-elevated)] border border-[var(--border)] text-[10px] uppercase font-bold text-[var(--foreground-muted)] tracking-wider shadow-sm">
+            Model: {aiSettings.provider === 'openai' ? `OpenAI (${aiSettings.openaiModel})` : `Gemini (${aiSettings.model})`}
           </span>
         </div>
       </div>
 
       {/* Collapsible Settings Panel */}
       {isSettingsOpen && (
-        <div className="bg-[var(--surface-elevated)] border border-[var(--border)] rounded-lg p-4 shadow-[var(--shadow-md)] flex flex-col gap-4 animate-in fade-in slide-in-from-top-2 duration-200">
-          <div className="flex items-center justify-between border-b border-[var(--border)] pb-2">
-            <h3 className="text-xs font-bold text-[var(--accent)] uppercase tracking-wider flex items-center gap-1.5">
-              <Cpu className="h-4 w-4" />
+        <div className="bg-[var(--surface)] border border-[var(--border)] rounded-2xl p-5 shadow-[var(--shadow-md)] flex flex-col gap-5 animate-in fade-in slide-in-from-top-3 duration-200">
+          <div className="flex items-center justify-between border-b border-[var(--border)] pb-3">
+            <h3 className="text-xs font-extrabold text-[var(--accent)] uppercase tracking-wider flex items-center gap-2">
+              <Cpu className="h-4.5 w-4.5" />
               AI Extraction Configuration
             </h3>
-            <span className="text-[10px] text-[var(--foreground-muted)] font-mono">Changes sync locally</span>
+            <span className="text-[10px] text-[var(--foreground-muted)] font-mono font-semibold">Changes sync locally</span>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
             {/* Provider Toggle */}
-            <div className="flex flex-col gap-1.5">
-              <label className="text-[10px] uppercase font-extrabold tracking-wider text-[var(--foreground-muted)]">Active Provider</label>
-              <div className="flex gap-2">
+            <div className="flex flex-col gap-2">
+              <label className="text-[11px] uppercase font-bold tracking-wider text-[var(--foreground-muted)]">Active Provider</label>
+              <div className="bg-[var(--surface-elevated)] p-1 rounded-xl border border-[var(--border)] flex h-10 shadow-inner">
                 <button
+                  type="button"
                   onClick={() => setTempSettings(prev => ({ ...prev, provider: 'gemini' }))}
-                  className={`flex-1 py-1.5 rounded-md border text-xs font-bold transition-all ${
+                  className={`flex-1 rounded-lg text-xs font-bold transition-all ${
                     tempSettings.provider === 'gemini' 
-                      ? 'bg-purple-600/10 border-purple-500/55 text-purple-400' 
-                      : 'border-[var(--border)] text-[var(--foreground-muted)] hover:bg-[var(--surface)]'
+                      ? 'bg-[var(--surface)] text-purple-600 dark:text-purple-400 shadow-sm border border-[var(--border)]/30' 
+                      : 'text-[var(--foreground-muted)] hover:text-[var(--foreground)]'
                   }`}
                 >
                   Google Gemini
                 </button>
                 <button
+                  type="button"
                   onClick={() => setTempSettings(prev => ({ ...prev, provider: 'openai' }))}
-                  className={`flex-1 py-1.5 rounded-md border text-xs font-bold transition-all ${
+                  className={`flex-1 rounded-lg text-xs font-bold transition-all ${
                     tempSettings.provider === 'openai' 
-                      ? 'bg-emerald-600/10 border-emerald-500/55 text-emerald-400' 
-                      : 'border-[var(--border)] text-[var(--foreground-muted)] hover:bg-[var(--surface)]'
+                      ? 'bg-[var(--surface)] text-emerald-600 dark:text-emerald-400 shadow-sm border border-[var(--border)]/30' 
+                      : 'text-[var(--foreground-muted)] hover:text-[var(--foreground)]'
                   }`}
                 >
                   OpenAI GPT
@@ -674,13 +682,13 @@ export function ExtractClient({ studentId }: ExtractClientProps) {
             </div>
 
             {/* Model Selector */}
-            <div className="flex flex-col gap-1.5">
-              <label className="text-[10px] uppercase font-extrabold tracking-wider text-[var(--foreground-muted)]">AI Model</label>
+            <div className="flex flex-col gap-2">
+              <label className="text-[11px] uppercase font-bold tracking-wider text-[var(--foreground-muted)]">AI Model</label>
               {tempSettings.provider === 'openai' ? (
                 <select
                   value={tempSettings.openaiModel}
                   onChange={(e) => setTempSettings(prev => ({ ...prev, openaiModel: e.target.value }))}
-                  className="bg-[var(--surface)] border border-[var(--border)] text-xs text-[var(--foreground)] p-2 rounded-md focus:outline-none focus:border-[var(--accent)] font-semibold cursor-pointer w-full"
+                  className="bg-[var(--surface-elevated)] border border-[var(--border)] text-xs text-[var(--foreground)] p-2.5 rounded-xl focus:outline-none focus:border-[var(--accent)] font-semibold cursor-pointer w-full h-10 shadow-sm"
                 >
                   <optgroup label="💰 Budget (Vision-Capable)">
                     <option value="gpt-4o-mini">GPT-4o Mini (Recommended) — Cheapest</option>
@@ -711,7 +719,7 @@ export function ExtractClient({ studentId }: ExtractClientProps) {
                         setTempSettings(prev => ({ ...prev, model: val }))
                       }
                     }}
-                    className="bg-[var(--surface)] border border-[var(--border)] text-xs text-[var(--foreground)] p-2 rounded-md focus:outline-none focus:border-[var(--accent)] font-semibold cursor-pointer w-full"
+                    className="bg-[var(--surface-elevated)] border border-[var(--border)] text-xs text-[var(--foreground)] p-2.5 rounded-xl focus:outline-none focus:border-[var(--accent)] font-semibold cursor-pointer w-full h-10 shadow-sm"
                   >
                     <option value="gemini-3.5-flash">Gemini 3.5 Flash (Recommended)</option>
                     <option value="gemini-3.1-pro">Gemini 3.1 Pro</option>
@@ -735,7 +743,7 @@ export function ExtractClient({ studentId }: ExtractClientProps) {
                         setTempSettings(prev => ({ ...prev, model: val }))
                       }}
                       placeholder="Enter custom model ID (e.g. gemini-2.5-flash-lite)..."
-                      className="bg-[var(--surface)] border border-[var(--border)] text-xs text-[var(--foreground)] p-2 rounded-md focus:outline-none focus:border-[var(--accent)] w-full mt-1.5"
+                      className="bg-[var(--surface-elevated)] border border-[var(--border)] text-xs text-[var(--foreground)] p-2.5 rounded-xl focus:outline-none focus:border-[var(--accent)] w-full shadow-sm mt-1"
                     />
                   )}
                 </div>
@@ -744,19 +752,19 @@ export function ExtractClient({ studentId }: ExtractClientProps) {
 
             {/* API Key Override (Gemini) */}
             {tempSettings.provider === 'gemini' && (
-              <div className="flex flex-col gap-1.5 md:col-span-2">
-                <label className="text-[10px] uppercase font-extrabold tracking-wider text-[var(--foreground-muted)]">Gemini API Key Override</label>
+              <div className="flex flex-col gap-2 md:col-span-2">
+                <label className="text-[11px] uppercase font-bold tracking-wider text-[var(--foreground-muted)]">Gemini API Key Override</label>
                 <div className="relative">
                   <input
                     type={showGeminiKey ? "text" : "password"}
                     value={tempSettings.apiKey}
                     onChange={(e) => setTempSettings(prev => ({ ...prev, apiKey: e.target.value }))}
                     placeholder="Enter custom Gemini Key (if not using server environment variable)"
-                    className="bg-[var(--surface)] border border-[var(--border)] text-xs text-[var(--foreground)] py-2 pl-3 pr-10 rounded-md focus:outline-none focus:border-[var(--accent)] w-full"
+                    className="bg-[var(--surface-elevated)] border border-[var(--border)] text-xs text-[var(--foreground)] py-2.5 pl-4 pr-11 rounded-xl focus:outline-none focus:border-[var(--accent)] w-full shadow-sm"
                   />
                   <button
                     onClick={() => setShowGeminiKey(p => !p)}
-                    className="absolute right-3 top-1/2 -translate-y-1/2 text-[var(--foreground-muted)] hover:text-[var(--foreground)]"
+                    className="absolute right-3.5 top-1/2 -translate-y-1/2 text-[var(--foreground-muted)] hover:text-[var(--foreground)] transition-colors"
                   >
                     {showGeminiKey ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                   </button>
@@ -766,19 +774,19 @@ export function ExtractClient({ studentId }: ExtractClientProps) {
 
             {/* API Key Override (OpenAI) */}
             {tempSettings.provider === 'openai' && (
-              <div className="flex flex-col gap-1.5 md:col-span-2">
-                <label className="text-[10px] uppercase font-extrabold tracking-wider text-[var(--foreground-muted)]">OpenAI API Key</label>
+              <div className="flex flex-col gap-2 md:col-span-2">
+                <label className="text-[11px] uppercase font-bold tracking-wider text-[var(--foreground-muted)]">OpenAI API Key</label>
                 <div className="relative">
                   <input
                     type={showOpenaiKey ? "text" : "password"}
                     value={tempSettings.openaiApiKey}
                     onChange={(e) => setTempSettings(prev => ({ ...prev, openaiApiKey: e.target.value }))}
                     placeholder="sk-proj-..."
-                    className="bg-[var(--surface)] border border-[var(--border)] text-xs text-[var(--foreground)] py-2 pl-3 pr-10 rounded-md focus:outline-none focus:border-[var(--accent)] w-full"
+                    className="bg-[var(--surface-elevated)] border border-[var(--border)] text-xs text-[var(--foreground)] py-2.5 pl-4 pr-11 rounded-xl focus:outline-none focus:border-[var(--accent)] w-full shadow-sm"
                   />
                   <button
                     onClick={() => setShowOpenaiKey(p => !p)}
-                    className="absolute right-3 top-1/2 -translate-y-1/2 text-[var(--foreground-muted)] hover:text-[var(--foreground)]"
+                    className="absolute right-3.5 top-1/2 -translate-y-1/2 text-[var(--foreground-muted)] hover:text-[var(--foreground)] transition-colors"
                   >
                     {showOpenaiKey ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                   </button>
@@ -786,67 +794,81 @@ export function ExtractClient({ studentId }: ExtractClientProps) {
               </div>
             )}
 
-            {/* Config Checkboxes */}
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-3 md:col-span-2 mt-2">
-              <label className="flex items-center gap-2 cursor-pointer select-none text-[11px] font-semibold text-[var(--foreground)]">
-                <input
-                  type="checkbox"
-                  checked={tempSettings.normalizeDates}
-                  onChange={(e) => setTempSettings(prev => ({ ...prev, normalizeDates: e.target.checked }))}
-                  className="rounded border-[var(--border)] text-[var(--accent)] focus:ring-[var(--accent)] h-3.5 w-3.5 cursor-pointer"
-                />
-                Normalize Dates
-              </label>
+            {/* Config Checkboxes - Styled as native iOS switches */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3.5 md:col-span-2 mt-2">
+              {/* Normalize Dates Switch */}
+              <div className="flex items-center justify-between p-3 rounded-2xl bg-[var(--surface-elevated)] border border-[var(--border)]/70 shadow-sm">
+                <span className="text-xs font-bold text-[var(--foreground)]">Normalize Dates</span>
+                <button
+                  type="button"
+                  onClick={() => setTempSettings(prev => ({ ...prev, normalizeDates: !prev.normalizeDates }))}
+                  className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${
+                    tempSettings.normalizeDates ? 'bg-emerald-500' : 'bg-gray-300 dark:bg-zinc-700'
+                  }`}
+                >
+                  <span
+                    className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${
+                      tempSettings.normalizeDates ? 'translate-x-5' : 'translate-x-0'
+                    }`}
+                  />
+                </button>
+              </div>
 
-              <label className="flex items-center gap-2 cursor-pointer select-none text-[11px] font-semibold text-[var(--foreground)]">
-                <input
-                  type="checkbox"
-                  checked={tempSettings.mergeNames}
-                  onChange={(e) => setTempSettings(prev => ({ ...prev, mergeNames: e.target.checked }))}
-                  className="rounded border-[var(--border)] text-[var(--accent)] focus:ring-[var(--accent)] h-3.5 w-3.5 cursor-pointer"
-                />
-                Merge Names
-              </label>
+              {/* Merge Names Switch */}
+              <div className="flex items-center justify-between p-3 rounded-2xl bg-[var(--surface-elevated)] border border-[var(--border)]/70 shadow-sm">
+                <span className="text-xs font-bold text-[var(--foreground)]">Merge Names</span>
+                <button
+                  type="button"
+                  onClick={() => setTempSettings(prev => ({ ...prev, mergeNames: !prev.mergeNames }))}
+                  className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${
+                    tempSettings.mergeNames ? 'bg-emerald-500' : 'bg-gray-300 dark:bg-zinc-700'
+                  }`}
+                >
+                  <span
+                    className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${
+                      tempSettings.mergeNames ? 'translate-x-5' : 'translate-x-0'
+                    }`}
+                  />
+                </button>
+              </div>
 
-              <label className="flex items-center gap-2 cursor-pointer select-none text-[11px] font-semibold text-[var(--foreground)]">
-                <input
-                  type="checkbox"
-                  checked={tempSettings.extractStructured}
-                  onChange={(e) => setTempSettings(prev => ({ ...prev, extractStructured: e.target.checked }))}
-                  className="rounded border-[var(--border)] text-[var(--accent)] focus:ring-[var(--accent)] h-3.5 w-3.5 cursor-pointer"
-                />
-                Extract Structure
-              </label>
-
-              <label className="flex items-center gap-2 cursor-pointer select-none text-[11px] font-semibold text-[var(--foreground)]">
-                <input
-                  type="checkbox"
-                  checked={tempSettings.includeOcr}
-                  onChange={(e) => setTempSettings(prev => ({ ...prev, includeOcr: e.target.checked }))}
-                  className="rounded border-[var(--border)] text-[var(--accent)] focus:ring-[var(--accent)] h-3.5 w-3.5 cursor-pointer"
-                />
-                Provide Raw OCR
-              </label>
+              {/* Extract Structure Switch */}
+              <div className="flex items-center justify-between p-3 rounded-2xl bg-[var(--surface-elevated)] border border-[var(--border)]/70 shadow-sm">
+                <span className="text-xs font-bold text-[var(--foreground)]">Extract Structure</span>
+                <button
+                  type="button"
+                  onClick={() => setTempSettings(prev => ({ ...prev, extractStructured: !prev.extractStructured }))}
+                  className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${
+                    tempSettings.extractStructured ? 'bg-emerald-500' : 'bg-gray-300 dark:bg-zinc-700'
+                  }`}
+                >
+                  <span
+                    className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${
+                      tempSettings.extractStructured ? 'translate-x-5' : 'translate-x-0'
+                    }`}
+                  />
+                </button>
+              </div>
             </div>
 
             {/* Action Buttons */}
-            <div className="flex gap-2.5 md:col-span-2 border-t border-[var(--border)] pt-3.5 mt-2">
+            <div className="flex gap-3 md:col-span-2 border-t border-[var(--border)] pt-4 mt-2">
               <button
                 onClick={handleSaveSettings}
-                className="px-4 py-2 bg-[var(--accent)] hover:bg-[var(--accent-hover)] text-white text-xs font-bold rounded-md transition-all shadow-[var(--shadow-sm)] flex items-center gap-1.5 cursor-pointer"
+                className="px-5 py-2.5 bg-[var(--accent)] hover:bg-[var(--accent-hover)] text-white text-xs font-bold rounded-xl transition-all shadow-[var(--shadow-sm)] flex items-center gap-2 cursor-pointer hover:scale-[1.02] active:scale-[0.98]"
               >
-                <CheckCircle2 className="h-3.5 w-3.5" />
+                <CheckCircle2 className="h-4.5 w-4.5" />
                 Save Settings
               </button>
               <button
                 disabled={isValidatingKey}
                 onClick={handleValidateKey}
-                className="px-4 py-2 bg-[var(--surface)] hover:bg-[var(--border-subtle)] border border-[var(--border)] text-[var(--foreground)] text-xs font-semibold rounded-md transition-all flex items-center gap-1.5 cursor-pointer disabled:opacity-50"
+                className="px-5 py-2.5 bg-[var(--surface-elevated)] hover:bg-[var(--border-subtle)] border border-[var(--border)] text-[var(--foreground)] text-xs font-bold rounded-xl transition-all flex items-center gap-2 cursor-pointer disabled:opacity-50 hover:scale-[1.02] active:scale-[0.98]"
               >
                 {isValidatingKey ? (
-                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                  <Loader2 className="h-4.5 w-4.5 animate-spin" />
                 ) : (
-                  <CheckSquare className="h-3.5 w-3.5 text-[var(--accent)]" />
+                  <CheckSquare className="h-4.5 w-4.5 text-[var(--accent)]" />
                 )}
                 Validate Key
               </button>
@@ -856,13 +878,13 @@ export function ExtractClient({ studentId }: ExtractClientProps) {
       )}
 
       {/* Main Grid: Upload Area on Left, Extracted Details on Right */}
-      <div className="grid grid-cols-1 lg:grid-cols-[1.2fr_1fr] gap-4 w-full items-start">
+      <div className="grid grid-cols-1 lg:grid-cols-[1.18fr_1fr] gap-6 w-full items-start">
         
         {/* Upload Zone & Image Container */}
-        <div className="bg-[var(--surface)] border border-[var(--border)] rounded-lg p-4 shadow-[var(--shadow-sm)] flex flex-col gap-3 min-h-[350px] relative overflow-hidden">
-          <div className="flex items-center justify-between border-b border-[var(--border)] pb-2 mb-1">
-            <h3 className="text-xs font-bold text-[var(--accent)] uppercase tracking-wider flex items-center gap-1.5">
-              <Upload className="h-4 w-4 text-[var(--accent)]" />
+        <div className="bg-[var(--surface)] border border-[var(--border)]/70 rounded-2xl p-5 shadow-[var(--shadow-sm)] flex flex-col gap-4 min-h-[400px] relative overflow-hidden">
+          <div className="flex items-center justify-between border-b border-[var(--border)] pb-3 mb-1">
+            <h3 className="text-xs font-extrabold text-[var(--accent)] uppercase tracking-wider flex items-center gap-2">
+              <Upload className="h-4.5 w-4.5 text-[var(--accent)]" />
               Document Upload
             </h3>
           </div>
@@ -882,55 +904,59 @@ export function ExtractClient({ studentId }: ExtractClientProps) {
               onDragLeave={handleDrag}
               onDrop={handleDrop}
               onClick={() => fileInputRef.current?.click()}
-              className={`flex-1 border-2 border-dashed rounded-lg flex flex-col items-center justify-center p-8 text-center cursor-pointer transition-all min-h-[250px] ${
+              className={`flex-1 border-2 border-dashed rounded-2xl flex flex-col items-center justify-center p-12 text-center cursor-pointer transition-all min-h-[300px] gap-4 ${
                 dragActive 
-                  ? 'border-[var(--accent)] bg-[var(--accent)]/5 shadow-md' 
-                  : 'border-[var(--border)] bg-[var(--surface-elevated)]/50 hover:bg-[var(--border-subtle)]/30'
+                  ? 'border-[var(--accent)] bg-[var(--accent)]/5 shadow-md scale-[0.99]' 
+                  : 'border-[var(--border)] bg-[var(--surface-elevated)]/30 hover:bg-[var(--border-subtle)]/20'
               }`}
             >
-              <Upload className="h-10 w-10 text-[var(--accent)]/60 mb-3 animate-pulse" />
-              <h4 className="text-sm font-bold text-[var(--foreground)] mb-1">Drag & Drop Scan Here</h4>
-              <p className="text-xs text-[var(--foreground-muted)] max-w-xs mb-3">
-                Drop passport/diploma image file, click to browse, or paste screenshot directly with <span className="font-mono font-bold text-[var(--foreground)] bg-[var(--border-subtle)] px-1 py-0.5 rounded">Ctrl+V</span>
-              </p>
-              <span className="inline-flex px-2 py-0.5 rounded border border-[var(--border)] bg-[var(--surface)] text-[9px] text-[var(--foreground-muted)] font-semibold uppercase">
+              <div className="p-4 bg-[var(--surface)] border border-[var(--border)] rounded-2xl shadow-sm text-[var(--accent)]/80">
+                <Upload className="h-8 w-8" />
+              </div>
+              <div>
+                <h4 className="text-sm font-extrabold text-[var(--foreground)] mb-1">Drag & Drop Scan Here</h4>
+                <p className="text-xs text-[var(--foreground-muted)] max-w-sm leading-relaxed px-4">
+                  Drop passport/diploma image file, click to browse, or paste screenshot directly with <span className="font-mono font-bold text-[var(--foreground)] bg-[var(--surface-elevated)] border border-[var(--border)] px-1.5 py-0.5 rounded-md shadow-sm">Ctrl+V</span>
+                </p>
+              </div>
+              <span className="inline-flex px-3 py-1 rounded-full border border-[var(--border)] bg-[var(--surface)] text-[9px] text-[var(--foreground-muted)] font-extrabold uppercase tracking-wide shadow-sm">
                 JPG, PNG, WEBP Supported
               </span>
             </div>
           ) : (
-            <div className="flex flex-col gap-3 animate-in fade-in duration-200">
-              <div className="flex items-center justify-between text-xs text-[var(--foreground-muted)]">
-                <span className="truncate pr-4 max-w-[200px] font-semibold font-mono">{uploadedFileName || 'pasted_screenshot.png'}</span>
+            <div className="flex flex-col gap-4 animate-in fade-in duration-200">
+              <div className="flex items-center justify-end text-xs text-[var(--foreground-muted)] px-1">
                 <button
                   onClick={clearUploadedImage}
-                  className="inline-flex items-center gap-1 text-[var(--danger)] hover:bg-[var(--danger)]/10 px-2 py-1 rounded transition-colors text-xs font-semibold cursor-pointer"
+                  className="inline-flex items-center gap-1.5 text-[var(--danger)] hover:bg-rose-500/10 px-3 py-1.5 rounded-xl transition-all text-xs font-bold cursor-pointer"
                 >
-                  <Trash2 className="h-3.5 w-3.5" />
+                  <Trash2 className="h-4 w-4" />
                   Remove
                 </button>
               </div>
 
-              <div className="border border-[var(--border)] rounded-md overflow-hidden bg-[#111] max-h-[380px] flex items-center justify-center relative shadow-[var(--shadow-sm)]">
+              <div className="border border-[var(--border)]/70 rounded-2xl overflow-hidden bg-black/5 dark:bg-black/40 max-h-[380px] flex items-center justify-center relative shadow-inner p-3">
                 <img 
                   src={uploadedImage} 
                   alt="Uploaded Document scan" 
-                  className="max-w-full max-h-[380px] object-contain"
+                  className="max-w-full max-h-[354px] object-contain rounded-xl shadow-md border border-[var(--border)]/20"
                 />
               </div>
 
               <button
                 disabled={uploading}
                 onClick={triggerExtraction}
-                className="w-full bg-[var(--accent)] hover:bg-[var(--accent-hover)] active:scale-[0.98] disabled:opacity-50 text-white font-bold py-2.5 rounded-md text-xs shadow-sm transition-all flex items-center justify-center gap-2 cursor-pointer mt-1"
+                className="w-full bg-[var(--accent)] hover:bg-[var(--accent-hover)] active:scale-[0.98] disabled:opacity-50 text-white font-extrabold py-3 rounded-xl text-xs shadow-md transition-all flex items-center justify-center gap-2 cursor-pointer mt-1"
+                style={{ boxShadow: '0 4px 12px rgba(59, 127, 245, 0.2)' }}
               >
                 {uploading ? (
                   <>
-                    <Loader2 className="h-4 w-4 animate-spin" />
+                    <Loader2 className="h-4.5 w-4.5 animate-spin" />
                     AI analyzing document...
                   </>
                 ) : (
                   <>
-                    <Cpu className="h-4 w-4" />
+                    <Cpu className="h-4.5 w-4.5" />
                     Extract Information with AI
                   </>
                 )}
@@ -940,28 +966,30 @@ export function ExtractClient({ studentId }: ExtractClientProps) {
 
           {/* Skeletons Processing Overlay */}
           {uploading && (
-            <div className="absolute inset-0 bg-background/80 flex flex-col items-center justify-center p-6 z-10 animate-in fade-in duration-300">
-              <Loader2 className="h-10 w-10 text-[var(--accent)] animate-spin mb-4" />
-              <h4 className="text-sm font-bold text-[var(--foreground)] mb-1">Analyzing Document scan</h4>
-              <p className="text-xs text-[var(--foreground-muted)] text-center max-w-xs mb-3">
-                Reading and extracting layout fields. This might take a few seconds...
+            <div className="absolute inset-0 bg-[var(--surface)]/90 backdrop-blur-sm flex flex-col items-center justify-center p-6 z-10 animate-in fade-in duration-300">
+              <div className="p-4 bg-[var(--surface-elevated)] border border-[var(--border)] rounded-2xl shadow-sm text-[var(--accent)] mb-4">
+                <Loader2 className="h-8 w-8 animate-spin" />
+              </div>
+              <h4 className="text-sm font-extrabold text-[var(--foreground)] mb-1">Analyzing Document Scan</h4>
+              <p className="text-xs text-[var(--foreground-muted)] text-center max-w-xs leading-relaxed mb-4">
+                Reading document text layout & extracting profile fields. This might take a few seconds...
               </p>
-              <div className="w-[180px] h-[3px] bg-[var(--border-subtle)] rounded-full overflow-hidden">
-                <div className="h-full bg-[var(--accent)] animate-pulse w-3/4 rounded-full" />
+              <div className="w-[240px] h-1 bg-[var(--border-subtle)] rounded-full overflow-hidden relative shadow-inner">
+                <div className="absolute top-0 bottom-0 w-1/2 bg-gradient-to-r from-[var(--accent)] via-blue-400 to-[var(--accent)] rounded-full animate-ios-progress" />
               </div>
             </div>
           )}
         </div>
 
         {/* AI Extracted Fields Panel */}
-        <div className="bg-[var(--surface)] border border-[var(--border)] rounded-lg p-4 shadow-[var(--shadow-sm)] flex flex-col gap-3 min-h-[350px]">
-          <div className="flex items-center justify-between border-b border-[var(--border)] pb-2 mb-1">
-            <h3 className="text-xs font-bold text-[var(--accent)] uppercase tracking-wider flex items-center gap-1.5">
-              <FileText className="h-4 w-4 text-[var(--accent)]" />
+        <div className="bg-[var(--surface)] border border-[var(--border)]/70 rounded-2xl p-5 shadow-[var(--shadow-sm)] flex flex-col gap-4 min-h-[400px]">
+          <div className="flex items-center justify-between border-b border-[var(--border)] pb-3 mb-1">
+            <h3 className="text-xs font-extrabold text-[var(--accent)] uppercase tracking-wider flex items-center gap-2">
+              <FileText className="h-4.5 w-4.5 text-[var(--accent)]" />
               Extracted Fields
             </h3>
             {extractedData?.document_type && (
-              <span className="inline-flex px-2 py-0.5 rounded bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 text-[10px] uppercase font-bold tracking-wider animate-in fade-in">
+              <span className="inline-flex px-2.5 py-1 rounded-full bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20 text-[10px] uppercase font-extrabold tracking-wider animate-in fade-in">
                 Type: {extractedData.document_type}
               </span>
             )}
@@ -969,200 +997,189 @@ export function ExtractClient({ studentId }: ExtractClientProps) {
 
           {/* Placeholder / Empty State */}
           {!extractedData && !uploading && (
-            <div className="flex-1 flex flex-col items-center justify-center p-8 text-center text-[var(--foreground-muted)]">
-              <Cpu className="h-12 w-12 text-[var(--foreground-subtle)]/40 mb-3" />
-              <h4 className="text-xs font-bold mb-1">Waiting for document</h4>
-              <p className="text-xs max-w-xs">Upload a scan and click Extract to parse profile details.</p>
+            <div className="flex-1 flex flex-col items-center justify-center p-12 text-center text-[var(--foreground-muted)] gap-3">
+              <div className="p-4 bg-[var(--surface-elevated)] border border-[var(--border)] rounded-2xl shadow-sm text-[var(--foreground-muted)]/30">
+                <Cpu className="h-8 w-8" />
+              </div>
+              <div>
+                <h4 className="text-xs font-bold mb-1 text-[var(--foreground)]">Waiting for document</h4>
+                <p className="text-[11px] max-w-xs leading-relaxed">Upload a scan and click Extract to parse profile details.</p>
+              </div>
             </div>
           )}
 
           {/* Skeletons Shimmer Loader */}
           {uploading && (
-            <div className="flex flex-col gap-2.5 flex-1 divide-y divide-[var(--border)]">
-              {[...Array(5)].map((_, i) => (
-                <div key={i} className="pt-2.5 first:pt-0 flex items-center justify-between gap-4 animate-pulse">
-                  <div className="space-y-1.5 flex-1">
-                    <div className="h-3 w-1/4 bg-[var(--border-subtle)] rounded" />
-                    <div className="h-4 w-2/3 bg-[var(--border-subtle)] rounded" />
+            <div className="flex flex-col gap-3 flex-1">
+              <div className="flex items-center gap-2 px-1">
+                <Loader2 className="h-3.5 w-3.5 animate-spin text-[var(--accent)]" />
+                <span className="text-[11px] font-extrabold uppercase tracking-wider text-[var(--foreground-muted)]">
+                  Extracting New Data...
+                </span>
+              </div>
+              <div className="divide-y divide-[var(--border)]">
+                {[...Array(4)].map((_, i) => (
+                  <div key={i} className="pt-3 first:pt-0 flex items-center justify-between gap-4 animate-pulse">
+                    <div className="space-y-2 flex-1">
+                      <div className="h-3 w-1/4 bg-[var(--border-subtle)] rounded" />
+                      <div className="h-4 w-2/3 bg-[var(--border-subtle)] rounded" />
+                    </div>
+                    <div className="flex gap-2">
+                      <div className="h-8 w-8 bg-[var(--border-subtle)] rounded-lg" />
+                      <div className="h-8 w-20 bg-[var(--border-subtle)] rounded-full" />
+                    </div>
                   </div>
-                  <div className="flex gap-2">
-                    <div className="h-7 w-7 bg-[var(--border-subtle)] rounded" />
-                    <div className="h-7 w-16 bg-[var(--border-subtle)] rounded-full" />
-                  </div>
-                </div>
-              ))}
+                ))}
+              </div>
             </div>
           )}
 
           {/* Extracted Fields List */}
           {extractedData && extractedFieldsList.length > 0 && (
-            <div className="flex flex-col gap-2.5 animate-in fade-in duration-300">
-              {extractedFieldsList.map((field, idx) => {
-                const cleanKey = field.key.replace(/_/g, ' ').toUpperCase().trim()
-                const dbField = FIELD_MAPPING[cleanKey]
-                const isSaved = savedFields[field.key]
-                
-                // Pre-check if current record already matches the extracted value
-                let isAlreadyMatching = false
-                if (dbField && selectedStudent) {
-                  const dbVal = selectedStudent[dbField] || ''
-                  let formattedDbVal = String(dbVal).trim().toUpperCase()
-                  let formattedNewVal = String(field.value).trim().toUpperCase()
+            <div className="flex flex-col gap-3">
+              {/* If we are uploading (so we have old data on screen while extracting new), show a separator and title */}
+              {uploading && (
+                <div className="flex items-center justify-between border-t border-[var(--border)] pt-4 mt-2">
+                  <span className="text-[10px] font-extrabold uppercase tracking-wider text-amber-500 dark:text-amber-400">
+                    Previous Extracted Data (Will be replaced)
+                  </span>
+                  <span className="inline-flex px-2 py-0.5 rounded-full bg-amber-500/10 text-amber-500 border border-amber-500/20 text-[9px] uppercase font-bold tracking-wider">
+                    Old
+                  </span>
+                </div>
+              )}
+
+              <div className={`flex flex-col gap-3 transition-all duration-300 ${uploading ? 'opacity-50 pointer-events-none filter saturate-50' : 'animate-in fade-in'}`}>
+                {extractedFieldsList.map((field, idx) => {
+                  const cleanKey = field.key.replace(/_/g, ' ').toUpperCase().trim()
+                  const dbField = FIELD_MAPPING[cleanKey]
+                  const isSaved = savedFields[field.key]
                   
-                  if (dbField === 'gender') {
-                    const char = formattedNewVal[0]
-                    formattedNewVal = char === 'M' ? 'MALE' : (char === 'F' ? 'FEMALE' : '')
+                  // Pre-check if current record already matches the extracted value
+                  let isAlreadyMatching = false
+                  if (dbField && selectedStudent) {
+                    const dbVal = selectedStudent[dbField] || ''
+                    let formattedDbVal = String(dbVal).trim().toUpperCase()
+                    let formattedNewVal = String(field.value).trim().toUpperCase()
+                    
+                    if (dbField === 'gender') {
+                      const char = formattedNewVal[0]
+                      formattedNewVal = char === 'M' ? 'MALE' : (char === 'F' ? 'FEMALE' : '')
+                    }
+                    if (dbField === 'passport') {
+                      formattedNewVal = formattedNewVal.replace(/\s/g, '')
+                    }
+                    
+                    isAlreadyMatching = formattedDbVal === formattedNewVal && formattedNewVal !== ''
                   }
-                  if (dbField === 'passport') {
-                    formattedNewVal = formattedNewVal.replace(/\s/g, '')
-                  }
-                  
-                  isAlreadyMatching = formattedDbVal === formattedNewVal && formattedNewVal !== ''
-                }
 
-                return (
-                  <div 
-                    key={idx}
-                    className={`p-2.5 rounded-lg border bg-[var(--surface-elevated)] flex items-center justify-between gap-3 shadow-[var(--shadow-sm)] hover:border-[var(--accent)]/30 transition-all ${
-                      isSaved || isAlreadyMatching 
-                        ? 'border-emerald-500/20 bg-emerald-500/[0.02]' 
-                        : 'border-[var(--border)]'
-                    }`}
-                  >
-                    <div className="min-w-0 flex-1">
-                      <span className="text-[10px] font-bold text-[var(--accent)] uppercase tracking-wider block">
-                        {field.key.replace(/_/g, ' ')}
-                      </span>
-                      <span className="text-xs font-semibold text-[var(--foreground)] mt-0.5 block truncate max-w-xs" title={field.value}>
-                        {field.value}
-                      </span>
-                    </div>
+                  return (
+                    <div 
+                      key={idx}
+                      className={`p-3.5 rounded-2xl border flex items-center justify-between gap-4 shadow-sm hover:scale-[1.005] transition-all ${
+                        isSaved || isAlreadyMatching 
+                          ? 'border-emerald-500/30 bg-emerald-500/[0.02] dark:bg-emerald-500/[0.01]' 
+                          : 'border-[var(--border)] bg-[var(--surface-elevated)]'
+                      }`}
+                    >
+                      <div className="min-w-0 flex-1">
+                        <span className="text-[10px] font-extrabold text-[var(--accent)] uppercase tracking-wider block">
+                          {field.key.replace(/_/g, ' ')}
+                        </span>
+                        <span className="text-xs font-bold text-[var(--foreground)] mt-1 block truncate max-w-xs" title={field.value}>
+                          {field.value}
+                        </span>
+                      </div>
 
-                    <div className="flex items-center gap-1.5 flex-shrink-0">
-                      <button
-                        onClick={() => handleCopy(field.value)}
-                        className="p-1 hover:bg-[var(--border-subtle)] rounded text-[var(--foreground-muted)] hover:text-[var(--foreground)] transition-colors"
-                        title="Copy to clipboard"
-                      >
-                        <Copy className="h-3.5 w-3.5" />
-                      </button>
-                      <button
-                        onClick={() => openEditModal(idx)}
-                        className="p-1 hover:bg-[var(--border-subtle)] rounded text-[var(--foreground-muted)] hover:text-[var(--foreground)] transition-colors"
-                        title="Edit field value"
-                      >
-                        <Edit className="h-3.5 w-3.5" />
-                      </button>
-                      <button
-                        onClick={() => handleDeleteField(idx)}
-                        className="p-1 hover:bg-[var(--border-subtle)] rounded text-[var(--danger)]/80 hover:text-[var(--danger)] transition-colors"
-                        title="Remove field"
-                      >
-                        <Trash2 className="h-3.5 w-3.5" />
-                      </button>
-
-                      {dbField && (
+                      <div className="flex items-center gap-1.5 flex-shrink-0">
                         <button
-                          disabled={isSaved || isAlreadyMatching}
-                          onClick={() => handleSaveFieldToProfile(field.key, field.value)}
-                          className={`px-2.5 py-1 rounded text-[10px] font-extrabold uppercase transition-all flex items-center gap-1 cursor-pointer select-none ${
-                            isSaved || isAlreadyMatching
-                              ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 cursor-default'
-                              : 'bg-emerald-600 hover:bg-emerald-500 text-white shadow-[var(--shadow-sm)]'
-                          }`}
+                          onClick={() => handleCopy(field.value)}
+                          className="p-1.5 hover:bg-[var(--border-subtle)] hover:text-[var(--foreground)] rounded-xl text-[var(--foreground-muted)] transition-all cursor-pointer"
+                          title="Copy to clipboard"
                         >
-                          {isSaved || isAlreadyMatching ? (
-                            <>
-                              <CheckCircle2 className="h-3 w-3" />
-                              Saved
-                            </>
-                          ) : (
-                            'Save To >>'
-                          )}
+                          <Copy className="h-4 w-4" />
                         </button>
-                      )}
+                        <button
+                          onClick={() => openEditModal(idx)}
+                          className="p-1.5 hover:bg-[var(--border-subtle)] hover:text-[var(--foreground)] rounded-xl text-[var(--foreground-muted)] transition-all cursor-pointer"
+                          title="Edit field value"
+                        >
+                          <Edit className="h-4 w-4" />
+                        </button>
+                        <button
+                          onClick={() => handleDeleteField(idx)}
+                          className="p-1.5 hover:bg-rose-500/10 rounded-xl text-[var(--danger)]/80 hover:text-[var(--danger)] transition-all cursor-pointer"
+                          title="Remove field"
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </button>
+
+                        {dbField && (
+                          <button
+                            disabled={isSaved || isAlreadyMatching}
+                            onClick={() => handleSaveFieldToProfile(field.key, field.value)}
+                            className={`px-3 py-1.5 rounded-full text-[10px] font-extrabold uppercase transition-all flex items-center gap-1 cursor-pointer select-none border ${
+                              isSaved || isAlreadyMatching
+                                ? 'bg-emerald-500/10 text-emerald-500 dark:text-emerald-400 border-emerald-500/20 cursor-default'
+                                : 'bg-emerald-600 hover:bg-emerald-500 border-emerald-600 hover:border-emerald-500 text-white shadow-sm'
+                            }`}
+                          >
+                            {isSaved || isAlreadyMatching ? (
+                              <>
+                                <CheckCircle2 className="h-3 w-3" />
+                                Saved
+                              </>
+                            ) : (
+                              'Save to >>'
+                            )}
+                          </button>
+                        )}
+                      </div>
                     </div>
-                  </div>
-                )
-              })}
+                  )
+                })}
+              </div>
             </div>
           )}
         </div>
       </div>
 
-      {/* Raw OCR Text Panel */}
-      {extractedData?.ocr_text && (
-        <div className="bg-[var(--surface)] border border-[var(--border)] rounded-lg p-4 shadow-[var(--shadow-sm)] flex flex-col gap-2">
-          <button
-            onClick={() => setIsOcrOpen(prev => !prev)}
-            className="flex items-center justify-between text-xs font-bold text-[var(--accent)] uppercase tracking-wider w-full select-none cursor-pointer border-none"
-          >
-            <span>Raw OCR Text Data</span>
-            {isOcrOpen ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
-          </button>
-
-          {isOcrOpen && (
-            <div className="flex flex-col gap-3 animate-in fade-in duration-200 mt-2">
-              <div className="flex items-center gap-3">
-                <input
-                  type="text"
-                  value={ocrSearchQuery}
-                  onChange={(e) => setOcrSearchQuery(e.target.value)}
-                  placeholder="Search and highlight keywords..."
-                  className="bg-[var(--surface-elevated)] border border-[var(--border)] text-xs text-[var(--foreground)] py-1.5 px-3 rounded-md focus:outline-none focus:border-[var(--accent)] flex-1"
-                />
-                <button
-                  onClick={() => handleCopy(extractedData.ocr_text || '')}
-                  className="px-3 py-1.5 bg-[var(--surface-elevated)] hover:bg-[var(--border-subtle)] border border-[var(--border)] rounded-md text-xs font-semibold transition-colors flex items-center gap-1 cursor-pointer"
-                >
-                  <Copy className="h-3.5 w-3.5" />
-                  Copy Full OCR
-                </button>
-              </div>
-
-              <div 
-                className="bg-[#151515] text-xs font-mono p-3 rounded border border-[var(--border)] whitespace-pre-wrap max-h-52 overflow-y-auto w-full leading-relaxed select-all"
-                dangerouslySetInnerHTML={{ __html: getHighlightedOcr() }}
-              />
-            </div>
-          )}
-        </div>
-      )}
+      {/* Raw OCR Panel Removed */}
 
       {/* Edit Modal Overlay */}
       {isEditModalOpen && (
         <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 animate-in fade-in duration-200">
-          <div className="bg-[var(--surface)] border border-[var(--border)] rounded-lg max-w-sm w-full p-4 flex flex-col gap-4 shadow-xl">
-            <div className="flex items-center justify-between border-b border-[var(--border)] pb-2">
-              <h3 className="text-xs font-bold uppercase tracking-wider text-[var(--accent)] flex items-center gap-1.5">
-                <Edit className="h-4 w-4" />
+          <div className="bg-[var(--surface)] border border-[var(--border)] rounded-3xl max-w-sm w-full p-5 flex flex-col gap-5 shadow-xl">
+            <div className="flex items-center justify-between border-b border-[var(--border)] pb-3">
+              <h3 className="text-xs font-extrabold uppercase tracking-wider text-[var(--accent)] flex items-center gap-2">
+                <Edit className="h-4.5 w-4.5" />
                 Edit Extracted Field
               </h3>
             </div>
             
-            <div className="flex flex-col gap-1">
+            <div className="flex flex-col gap-1.5">
               <label className="text-[10px] uppercase font-bold text-[var(--foreground-muted)]">Field Value</label>
               <input
                 type="text"
                 value={editValue}
                 onChange={(e) => setEditValue(e.target.value)}
-                className="bg-[var(--surface-elevated)] border border-[var(--border)] text-xs text-[var(--foreground)] p-2 rounded-md focus:outline-none focus:border-[var(--accent)] w-full"
+                className="bg-[var(--surface-elevated)] border border-[var(--border)] text-xs text-[var(--foreground)] p-2.5 rounded-xl focus:outline-none focus:border-[var(--accent)] w-full shadow-sm"
                 autoFocus
               />
             </div>
 
-            <div className="flex gap-2">
+            <div className="flex gap-3">
               <button
                 onClick={() => setIsEditModalOpen(false)}
-                className="flex-1 py-2 border border-[var(--border)] hover:bg-[var(--border-subtle)] text-xs font-bold rounded-md transition-colors cursor-pointer"
+                className="flex-1 py-2.5 border border-[var(--border)] hover:bg-[var(--border-subtle)] text-xs font-bold rounded-xl transition-all cursor-pointer hover:scale-[1.02] active:scale-[0.98]"
               >
                 Cancel
               </button>
               <button
                 onClick={saveEditedField}
-                className="flex-1 py-2 bg-[var(--accent)] hover:bg-[var(--accent-hover)] text-white text-xs font-bold rounded-md transition-all cursor-pointer"
+                className="flex-1 py-2.5 bg-[var(--accent)] hover:bg-[var(--accent-hover)] text-white text-xs font-bold rounded-xl transition-all cursor-pointer hover:scale-[1.02] active:scale-[0.98]"
               >
-                Save Changes
+                Save
               </button>
             </div>
           </div>
