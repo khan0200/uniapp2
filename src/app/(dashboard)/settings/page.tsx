@@ -27,6 +27,7 @@ export default function SettingsPage() {
   const [groups, setGroups] = useState<GeneralOption[]>([])
   const [leads, setLeads] = useState<GeneralOption[]>([])
   const [universities, setUniversities] = useState<GeneralOption[]>([])
+  const [coordinators, setCoordinators] = useState<GeneralOption[]>([])
   const [isExpanded, setIsExpanded] = useState(false)
 
   // Loading & Error States
@@ -35,7 +36,7 @@ export default function SettingsPage() {
 
   // Modal State
   const [isModalOpen, setIsModalOpen] = useState(false)
-  const [modalType, setModalType] = useState<'tariff' | 'level' | 'group' | 'lead' | 'university'>('tariff')
+  const [modalType, setModalType] = useState<'tariff' | 'level' | 'group' | 'lead' | 'university' | 'coordinator'>('tariff')
   const [modalMode, setModalMode] = useState<'add' | 'edit'>('add')
   const [editingId, setEditingId] = useState<number | null>(null)
   
@@ -51,20 +52,22 @@ export default function SettingsPage() {
       setLoading(true)
       setError(null)
 
-      const [tariffsRes, levelsRes, groupsRes, leadsRes, universitiesRes] = await Promise.all([
+      const [tariffsRes, levelsRes, groupsRes, leadsRes, universitiesRes, coordinatorsRes] = await Promise.all([
         supabase.from('tariff_options').select('*').order('name'),
         supabase.from('education_levels').select('*').order('name'),
         supabase.from('student_groups').select('*').order('name'),
         supabase.from('lead_sources').select('*').order('name'),
-        supabase.from('universities').select('*').order('name')
+        supabase.from('universities').select('*').order('name'),
+        supabase.from('coordinators').select('*').order('name')
       ])
 
       // If database tables are not set up yet, show a helpful setup banner
       if (
         (tariffsRes.error && tariffsRes.error.code === '42P01') ||
-        (universitiesRes.error && universitiesRes.error.code === '42P01')
+        (universitiesRes.error && universitiesRes.error.code === '42P01') ||
+        (coordinatorsRes && coordinatorsRes.error && coordinatorsRes.error.code === '42P01')
       ) {
-        throw new Error('Database tables not initialized. Please execute the settings_setup.sql script in the Supabase SQL editor.')
+        throw new Error('Database tables not initialized. Please execute the settings_setup.sql and add_coordinator.sql scripts in the Supabase SQL editor.')
       }
 
       if (tariffsRes.error) throw tariffsRes.error
@@ -72,12 +75,14 @@ export default function SettingsPage() {
       if (groupsRes.error) throw groupsRes.error
       if (leadsRes.error) throw leadsRes.error
       if (universitiesRes.error) throw universitiesRes.error
+      if (coordinatorsRes.error) throw coordinatorsRes.error
 
       setTariffs(tariffsRes.data || [])
       setLevels(levelsRes.data || [])
       setGroups(groupsRes.data || [])
       setLeads(leadsRes.data || [])
       setUniversities(universitiesRes.data || [])
+      setCoordinators(coordinatorsRes.data || [])
     } catch (err: any) {
       console.error('Error loading settings:', err)
       setError(err.message || 'Failed to load settings from Supabase. Ensure tables are created.')
@@ -96,7 +101,7 @@ export default function SettingsPage() {
   }
 
   // Open modal for adding
-  const handleOpenAdd = (type: 'tariff' | 'level' | 'group' | 'lead' | 'university') => {
+  const handleOpenAdd = (type: 'tariff' | 'level' | 'group' | 'lead' | 'university' | 'coordinator') => {
     setModalType(type)
     setModalMode('add')
     setEditingId(null)
@@ -107,7 +112,7 @@ export default function SettingsPage() {
   }
 
   // Open modal for editing
-  const handleOpenEdit = (type: 'tariff' | 'level' | 'group' | 'lead' | 'university', item: any) => {
+  const handleOpenEdit = (type: 'tariff' | 'level' | 'group' | 'lead' | 'university' | 'coordinator', item: any) => {
     setModalType(type)
     setModalMode('edit')
     setEditingId(item.id)
@@ -118,7 +123,7 @@ export default function SettingsPage() {
   }
 
   // Handle delete
-  const handleDelete = async (type: 'tariff' | 'level' | 'group' | 'lead' | 'university', id: number, name: string) => {
+  const handleDelete = async (type: 'tariff' | 'level' | 'group' | 'lead' | 'university' | 'coordinator', id: number, name: string) => {
     if (!confirm(`Are you sure you want to delete "${name}"?`)) return
     try {
       let table = ''
@@ -127,6 +132,7 @@ export default function SettingsPage() {
       else if (type === 'group') table = 'student_groups'
       else if (type === 'lead') table = 'lead_sources'
       else if (type === 'university') table = 'universities'
+      else if (type === 'coordinator') table = 'coordinators'
 
       const { error: deleteError } = await (supabase
         .from(table) as any)
@@ -161,6 +167,7 @@ export default function SettingsPage() {
       else if (modalType === 'group') table = 'student_groups'
       else if (modalType === 'lead') table = 'lead_sources'
       else if (modalType === 'university') table = 'universities'
+      else if (modalType === 'coordinator') table = 'coordinators'
 
       let payload: any = { name: formName.trim() }
       if (modalType === 'tariff') {
@@ -236,7 +243,7 @@ export default function SettingsPage() {
           </div>
         ) : (
           <>
-            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-6">
+             <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-5 gap-6">
             
             {/* 1. Tariff Options */}
             <div className="bg-white dark:bg-[#1a1a1c] border border-slate-200 dark:border-[#2c2c2e] rounded-xl p-5 shadow-sm flex flex-col min-h-[450px]">
@@ -441,6 +448,56 @@ export default function SettingsPage() {
               </div>
             </div>
 
+            {/* 5. Kordinators */}
+            <div className="bg-white dark:bg-[#1a1a1c] border border-slate-200 dark:border-[#2c2c2e] rounded-xl p-5 shadow-sm flex flex-col min-h-[450px]">
+              <div className="flex items-start justify-between mb-4">
+                <div className="flex items-start gap-2.5">
+                  <Users className="h-5 w-5 text-slate-700 dark:text-slate-200 mt-0.5 shrink-0" />
+                  <div>
+                    <h3 className="text-sm font-bold text-slate-800 dark:text-white leading-tight">Kordinators</h3>
+                    <p className="text-[10px] text-slate-500 dark:text-slate-400 font-medium mt-0.5">Manage coordinator options</p>
+                  </div>
+                </div>
+                <button
+                  onClick={() => handleOpenAdd('coordinator')}
+                  className="inline-flex items-center gap-1 bg-[#0070F3] hover:bg-[#0051C3] text-white text-xs font-semibold px-3 py-1.5 rounded-full transition-all shadow-sm cursor-pointer select-none border-none"
+                >
+                  <PlusCircle className="h-3.5 w-3.5" />
+                  Add
+                </button>
+              </div>
+              <div className="flex-1 overflow-y-auto space-y-3 pr-0.5">
+                {coordinators.length === 0 ? (
+                  <p className="text-xs text-slate-400 text-center py-12">No coordinators added yet.</p>
+                ) : (
+                  coordinators.map((item) => (
+                    <div 
+                      key={item.id} 
+                      className="flex items-center justify-between gap-3 p-3.5 bg-white dark:bg-[#1c1c1e] border border-blue-400 dark:border-blue-500/40 rounded-lg shadow-sm"
+                    >
+                      <div className="text-xs font-bold text-slate-850 dark:text-slate-100 truncate">{item.name}</div>
+                      <div className="flex items-center gap-1.5 shrink-0">
+                        <button
+                          onClick={() => handleOpenEdit('coordinator', item)}
+                          className="w-8 h-8 flex items-center justify-center border border-slate-200 dark:border-[#2c2c2e] hover:bg-slate-50 dark:hover:bg-[#2c2c2e] rounded-md text-blue-500 hover:text-blue-600 transition-all cursor-pointer"
+                          title="Edit"
+                        >
+                          <Pencil className="h-3.5 w-3.5" />
+                        </button>
+                        <button
+                          onClick={() => handleDelete('coordinator', item.id, item.name)}
+                          className="w-8 h-8 flex items-center justify-center border border-slate-200 dark:border-[#2c2c2e] hover:bg-slate-50 dark:hover:bg-[#2c2c2e] rounded-md text-red-500 hover:text-red-600 transition-all cursor-pointer"
+                          title="Delete"
+                        >
+                          <Trash2 className="h-3.5 w-3.5" />
+                        </button>
+                      </div>
+                    </div>
+                  ))
+                )}
+              </div>
+            </div>
+
           </div>
 
           {/* Universities Accordion Panel */}
@@ -537,7 +594,7 @@ export default function SettingsPage() {
             </button>
 
             <h2 className="text-base font-bold text-[var(--foreground)] mb-1 uppercase tracking-wide">
-              {modalMode === 'add' ? 'Add New' : 'Edit'} {modalType === 'tariff' ? 'Tariff' : modalType === 'level' ? 'Education Level' : modalType === 'group' ? 'Student Group' : modalType === 'lead' ? 'Lead Source' : 'University'}
+              {modalMode === 'add' ? 'Add New' : 'Edit'} {modalType === 'tariff' ? 'Tariff' : modalType === 'level' ? 'Education Level' : modalType === 'group' ? 'Student Group' : modalType === 'lead' ? 'Lead Source' : modalType === 'university' ? 'University' : 'Kordinator'}
             </h2>
             <p className="text-[10px] text-[var(--foreground-muted)] mb-4">
               Configure parameters for this configuration item.
@@ -560,13 +617,13 @@ export default function SettingsPage() {
                   type="text"
                   required
                   disabled={submitting}
-                  placeholder={modalType === 'tariff' ? 'E-VISA (TIL SERTIFIKATISIZ)' : modalType === 'level' ? 'BACHELOR' : modalType === 'group' ? '2026 BAHOR' : modalType === 'university' ? 'AJOU UNIVERSITY (SUWON, GYEONGGI)' : 'SeoulStudy'}
+                  placeholder={modalType === 'tariff' ? 'E-VISA (TIL SERTIFIKATISIZ)' : modalType === 'level' ? 'BACHELOR' : modalType === 'group' ? '2026 BAHOR' : modalType === 'university' ? 'AJOU UNIVERSITY (SUWON, GYEONGGI)' : modalType === 'coordinator' ? 'Kordinator Name' : 'SeoulStudy'}
                   value={formName}
                   onChange={(e) => {
                     const val = e.target.value;
-                    setFormName(modalType === 'lead' ? val : val.toUpperCase());
+                    setFormName(modalType === 'lead' || modalType === 'coordinator' ? val : val.toUpperCase());
                   }}
-                  className={`w-full px-3 py-2 border border-[var(--border)] rounded-[var(--radius-md)] bg-[var(--surface)] text-[var(--foreground)] focus:outline-none focus:border-[var(--accent)] font-semibold text-xs tracking-wide ${modalType !== 'lead' ? 'uppercase' : ''}`}
+                  className={`w-full px-3 py-2 border border-[var(--border)] rounded-[var(--radius-md)] bg-[var(--surface)] text-[var(--foreground)] focus:outline-none focus:border-[var(--accent)] font-semibold text-xs tracking-wide ${modalType !== 'lead' && modalType !== 'coordinator' ? 'uppercase' : ''}`}
                 />
               </div>
 

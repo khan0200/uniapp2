@@ -71,6 +71,7 @@ export interface Student {
   office: string | null
   student_group: string | null
   lead_by: string | null
+  coordinator: string | null
   notes: string | null
   created_at: string
   updated_at: string
@@ -179,6 +180,7 @@ export type Database = {
           office?: string | null
           student_group?: string | null
           lead_by?: string | null
+          coordinator?: string | null
           notes?: string | null
           created_at?: string
           updated_at?: string
@@ -232,6 +234,7 @@ export type Database = {
           office?: string | null
           student_group?: string | null
           lead_by?: string | null
+          coordinator?: string | null
           notes?: string | null
           created_at?: string
           updated_at?: string

@@ -41,16 +41,18 @@ export function StudentDetailClient({ studentId }: StudentDetailClientProps) {
   const [groupOptions, setGroupOptions] = useState<string[]>(['2026 BAHOR', '2026 KUZ', '2027 BAHOR'])
   const [leadByOptions, setLeadByOptions] = useState<string[]>(['Ali Uncle', 'Cornell', 'Headway', 'SeoulStudy', 'UP Marhamat'])
   const [universityOptions, setUniversityOptions] = useState<string[]>([])
+  const [coordinatorOptions, setCoordinatorOptions] = useState<string[]>([])
 
   // Fetch settings filter options
   const fetchFilterOptions = async () => {
     try {
-      const [tariffsRes, levelsRes, groupsRes, leadsRes, universitiesRes] = await Promise.all([
+      const [tariffsRes, levelsRes, groupsRes, leadsRes, universitiesRes, coordinatorsRes] = await Promise.all([
         supabase.from('tariff_options').select('name'),
         supabase.from('education_levels').select('name'),
         supabase.from('student_groups').select('name'),
         supabase.from('lead_sources').select('name'),
-        supabase.from('universities').select('name')
+        supabase.from('universities').select('name'),
+        supabase.from('coordinators').select('name')
       ])
 
       if (tariffsRes.data && tariffsRes.data.length > 0) setTariffOptions((tariffsRes.data as any[]).map(t => t.name))
@@ -58,6 +60,7 @@ export function StudentDetailClient({ studentId }: StudentDetailClientProps) {
       if (groupsRes.data && groupsRes.data.length > 0) setGroupOptions((groupsRes.data as any[]).map(g => g.name))
       if (leadsRes.data && leadsRes.data.length > 0) setLeadByOptions((leadsRes.data as any[]).map(l => l.name))
       if (universitiesRes.data && universitiesRes.data.length > 0) setUniversityOptions((universitiesRes.data as any[]).map(u => u.name))
+      if (coordinatorsRes && coordinatorsRes.data && coordinatorsRes.data.length > 0) setCoordinatorOptions((coordinatorsRes.data as any[]).map(c => c.name))
     } catch (err) {
       console.error('Error fetching filter options in details:', err)
     }
@@ -1459,6 +1462,13 @@ export function StudentDetailClient({ studentId }: StudentDetailClientProps) {
                   badgeColor: 'bg-[#5243aa] text-white',
                   titleColor: 'text-[var(--accent)]',
                   forceBorderColor: selectedStudent.pick_needed && selectedStudent.pick_needed.length > 0 ? 'red' : 'blue'
+                })}
+
+                {renderDetailCard('Kordinator', 'coordinator', selectedStudent.coordinator, { 
+                  type: 'select',
+                  selectOptions: coordinatorOptions,
+                  badgeColor: 'bg-[#ff5630] text-white',
+                  titleColor: 'text-[var(--accent)]'
                 })}
               </div>
             </div>
