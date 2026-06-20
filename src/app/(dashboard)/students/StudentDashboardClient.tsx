@@ -1937,7 +1937,7 @@ export function StudentDashboardClient() {
             <table className="w-full table-fixed border-collapse text-left">
               <colgroup>
                 <col style={{ width: '2rem' }} />
-                <col style={{ width: '28%' }} />
+                <col style={{ width: '27%' }} />
                 <col style={{ width: '13%' }} />
                 <col style={{ width: '11%' }} />
                 <col style={{ width: '17%' }} />
