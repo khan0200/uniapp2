@@ -1848,12 +1848,14 @@ export function StudentDashboardClient() {
       {/* Roster Total Count */}
       <div className="mb-2 flex justify-between items-center text-xs text-[var(--foreground-muted)] italic px-1 font-medium">
         <div>
-          {(searchQuery || selectedTariffs.length > 0 || selectedLevels.length > 0 || selectedGroups.length > 0 || selectedCerts.length > 0 || selectedScores.length > 0 || selectedTags.length > 0 || selectedLeads.length > 0) && (
-            <span>Found {filteredStudents.length} matching students</span>
+          {(searchQuery || selectedTariffs.length > 0 || selectedLevels.length > 0 || selectedGroups.length > 0 || selectedCerts.length > 0 || selectedScores.length > 0 || selectedTags.length > 0 || selectedLeads.length > 0) ? (
+            <span>Showing {filteredStudents.length} of {students.filter(s => selectedLevels.includes('DELETED') ? s.is_deleted : !s.is_deleted).length} students</span>
+          ) : (
+            <span>Showing all active students</span>
           )}
         </div>
         <div className="text-right">
-          Total {students.filter(s => !s.is_deleted).length} students
+          Total {filteredStudents.length} students
         </div>
       </div>
 
