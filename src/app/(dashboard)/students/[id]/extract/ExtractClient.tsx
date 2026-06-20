@@ -277,6 +277,26 @@ export function ExtractClient({ studentId }: ExtractClientProps) {
     })
   }
 
+  const processFile = async (file: File) => {
+    if (!file.type.match('image.*')) {
+      showToast('Error: Only image files (JPG, PNG, WEBP) are supported.', 'danger')
+      return
+    }
+
+    setUploading(true)
+    try {
+      const { dataUrl } = await compressImage(file)
+      setUploadedImage(dataUrl)
+      setUploadedMimeType(file.type)
+      setUploadedFileName(file.name)
+    } catch (err: any) {
+      console.error('File compression error:', err)
+      showToast('Failed to process image file.', 'danger')
+    } finally {
+      setUploading(false)
+    }
+  }
+
   // Drag & drop handlers
   const handleDrag = (e: React.DragEvent) => {
     e.preventDefault()
@@ -327,26 +347,6 @@ export function ExtractClient({ studentId }: ExtractClientProps) {
       window.removeEventListener('paste', handlePaste)
     }
   }, [])
-
-  const processFile = async (file: File) => {
-    if (!file.type.match('image.*')) {
-      showToast('Error: Only image files (JPG, PNG, WEBP) are supported.', 'danger')
-      return
-    }
-
-    setUploading(true)
-    try {
-      const { dataUrl } = await compressImage(file)
-      setUploadedImage(dataUrl)
-      setUploadedMimeType(file.type)
-      setUploadedFileName(file.name)
-    } catch (err: any) {
-      console.error('File compression error:', err)
-      showToast('Failed to process image file.', 'danger')
-    } finally {
-      setUploading(false)
-    }
-  }
 
   const clearUploadedImage = () => {
     setUploadedImage(null)
