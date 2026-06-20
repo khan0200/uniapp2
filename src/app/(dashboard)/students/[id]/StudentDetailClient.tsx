@@ -405,7 +405,7 @@ export function StudentDetailClient({ studentId }: StudentDetailClientProps) {
         title={`${editable ? 'Double-click to edit. ' : ''}${copyable && value ? 'Single-click value to copy.' : ''}`}
       >
         <div className="flex items-center justify-between gap-2">
-          <span className={`text-[10.5px] uppercase font-bold tracking-wider ${options.titleColor || 'text-[var(--accent)]'}`}>
+          <span className={`text-[11.5px] uppercase font-bold tracking-wider ${options.titleColor || 'text-[var(--accent)]'}`}>
             {label}
           </span>
           <div className="flex items-center gap-1.5 opacity-60 hover:opacity-100 transition-opacity">
@@ -461,7 +461,7 @@ export function StudentDetailClient({ studentId }: StudentDetailClientProps) {
                 <select
                   value={editValue}
                   onChange={(e) => setEditValue(e.target.value)}
-                  className="bg-[var(--surface-elevated)] text-[13.5px] text-[var(--foreground)] pl-2 pr-14 py-1 rounded border border-[var(--accent)] focus:outline-none focus:border-[var(--accent)] w-full min-w-0 font-medium"
+                  className="bg-[var(--surface-elevated)] text-[15px] text-[var(--foreground)] pl-2 pr-14 py-1 rounded border border-[var(--accent)] focus:outline-none focus:border-[var(--accent)] w-full min-w-0 font-medium"
                 >
                   {options.selectOptions?.map(opt => (
                     <option key={opt} value={opt}>{opt}</option>
@@ -472,7 +472,7 @@ export function StudentDetailClient({ studentId }: StudentDetailClientProps) {
                   type={options.type === 'date' ? 'date' : 'text'}
                   value={editValue}
                   onChange={(e) => setEditValue(formatEditValueForField(String(field), e.target.value))}
-                  className="bg-[var(--surface-elevated)] text-[13.5px] text-[var(--foreground)] pl-2 pr-14 py-1 rounded border border-[var(--accent)] focus:outline-none focus:border-[var(--accent)] w-full min-w-0 font-medium"
+                  className="bg-[var(--surface-elevated)] text-[15px] text-[var(--foreground)] pl-2 pr-14 py-1 rounded border border-[var(--accent)] focus:outline-none focus:border-[var(--accent)] w-full min-w-0 font-medium"
                   placeholder={label}
                   autoFocus
                 />
@@ -496,13 +496,13 @@ export function StudentDetailClient({ studentId }: StudentDetailClientProps) {
             </div>
           ) : (
             isCopied ? (
-              <span className="text-[13.5px] font-bold text-[var(--success)] animate-pulse">Copied!</span>
+              <span className="text-[15px] font-bold text-[var(--success)] animate-pulse">Copied!</span>
             ) : (options.badgeColor && !isMissing) ? (
-              <span className={`inline-flex px-1.5 py-0.5 rounded-[4px] text-[11.5px] font-bold uppercase ${options.badgeColor}`}>
+              <span className={`inline-flex px-1.5 py-0.5 rounded-[4px] text-[13px] font-bold uppercase ${options.badgeColor}`}>
                 {displayValue}
               </span>
             ) : (
-              <span className="text-[13.5px] font-semibold tracking-wide text-[var(--foreground)]">{displayValue}</span>
+              <span className="text-[15px] font-semibold tracking-wide text-[var(--foreground)]">{displayValue}</span>
             )
           )}
         </div>
@@ -536,7 +536,7 @@ export function StudentDetailClient({ studentId }: StudentDetailClientProps) {
         title="Double-click to edit. Single-click value to copy."
       >
         <div className="flex items-center justify-between gap-2">
-          <span className="text-[10.5px] uppercase font-bold tracking-wider text-[var(--accent)]">{label}</span>
+          <span className="text-[11.5px] uppercase font-bold tracking-wider text-[var(--accent)]">{label}</span>
           <div className="flex items-center gap-1.5 opacity-60 hover:opacity-100 transition-opacity">
             {certVal && certVal !== 'NO CERTIFICATE' && !isEditing && (
               <button
@@ -606,7 +606,7 @@ export function StudentDetailClient({ studentId }: StudentDetailClientProps) {
               <select
                 value={editValue}
                 onChange={(e) => setEditValue(e.target.value)}
-                className="bg-[var(--surface-elevated)] text-[11.5px] text-[var(--foreground)] px-2 py-0.5 rounded border border-[var(--border)] w-full focus:outline-none focus:border-[var(--accent)]"
+                className="bg-[var(--surface-elevated)] text-[13px] text-[var(--foreground)] px-2 py-0.5 rounded border border-[var(--border)] w-full focus:outline-none focus:border-[var(--accent)]"
               >
                 {certsAllowed.map(opt => (
                   <option key={opt} value={opt}>{opt}</option>
@@ -618,7 +618,7 @@ export function StudentDetailClient({ studentId }: StudentDetailClientProps) {
                   placeholder="Score"
                   id="edit-score-input"
                   defaultValue={scoreVal || ''}
-                  className="bg-[var(--surface-elevated)] text-[11.5px] text-[var(--foreground)] px-2 py-0.5 rounded border border-[var(--border)] w-full focus:outline-none"
+                  className="bg-[var(--surface-elevated)] text-[13px] text-[var(--foreground)] px-2 py-0.5 rounded border border-[var(--border)] w-full focus:outline-none"
                   autoFocus
                 />
               )}
@@ -643,7 +643,7 @@ export function StudentDetailClient({ studentId }: StudentDetailClientProps) {
                       alert(err.message)
                     }
                   }}
-                  className="bg-[var(--success)] hover:opacity-90 rounded text-white text-[10.5px] px-2 py-0.5 cursor-pointer font-bold"
+                  className="bg-[var(--success)] hover:opacity-90 rounded text-white text-[11.5px] px-2 py-0.5 cursor-pointer font-bold"
                 >
                   Save
                 </button>
@@ -652,7 +652,7 @@ export function StudentDetailClient({ studentId }: StudentDetailClientProps) {
                     e.stopPropagation();
                     handleCancelEditing();
                   }}
-                  className="bg-gray-500 hover:bg-gray-600 rounded text-white text-[10.5px] px-2 py-0.5 cursor-pointer"
+                  className="bg-gray-500 hover:bg-gray-600 rounded text-white text-[11.5px] px-2 py-0.5 cursor-pointer"
                 >
                   Cancel
                 </button>
@@ -660,14 +660,14 @@ export function StudentDetailClient({ studentId }: StudentDetailClientProps) {
             </div>
           ) : (
             copiedField === String(certField) ? (
-              <span className="text-[13.5px] font-bold text-[var(--success)] animate-pulse">Copied!</span>
+              <span className="text-[15px] font-bold text-[var(--success)] animate-pulse">Copied!</span>
             ) : certVal && certVal !== 'NO CERTIFICATE' ? (
-              <div className="inline-flex items-center text-[11.5px] font-bold rounded-[4px] overflow-hidden shadow-sm">
+              <div className="inline-flex items-center text-[13px] font-bold rounded-[4px] overflow-hidden shadow-sm">
                 <span className={`${certColor} text-white px-1.5 py-0.5 uppercase`}>{certVal}</span>
                 <span className="bg-[#0052cc] text-white px-1.5 py-0.5">SCORE: {scoreVal || '—'}</span>
               </div>
             ) : (
-              <span className="text-[11.5px] font-semibold text-[var(--foreground-subtle)] uppercase">NO CERTIFICATE</span>
+              <span className="text-[13px] font-semibold text-[var(--foreground-subtle)] uppercase">NO CERTIFICATE</span>
             )
           )}
         </div>
@@ -803,7 +803,7 @@ export function StudentDetailClient({ studentId }: StudentDetailClientProps) {
                   <select
                     id="edit-uni-name-select"
                     defaultValue={uniVal || ''}
-                    className="bg-[var(--surface-elevated)] text-[11.5px] text-[var(--foreground)] px-2 py-0.5 rounded border border-[var(--border)] w-full focus:outline-none font-medium cursor-pointer"
+                    className="bg-[var(--surface-elevated)] text-[13px] text-[var(--foreground)] px-2 py-0.5 rounded border border-[var(--border)] w-full focus:outline-none font-medium cursor-pointer"
                     autoFocus
                   >
                     <option value="">None Selected</option>
@@ -830,7 +830,7 @@ export function StudentDetailClient({ studentId }: StudentDetailClientProps) {
                           alert(err.message)
                         }
                       }}
-                      className="p-1 bg-[var(--success)] hover:opacity-90 rounded text-white text-[10.5px] px-2 py-0.5 cursor-pointer font-bold"
+                      className="p-1 bg-[var(--success)] hover:opacity-90 rounded text-white text-[11.5px] px-2 py-0.5 cursor-pointer font-bold"
                     >
                       Save
                     </button>
@@ -839,7 +839,7 @@ export function StudentDetailClient({ studentId }: StudentDetailClientProps) {
                         e.stopPropagation();
                         handleCancelEditing();
                       }}
-                      className="bg-gray-700 hover:bg-gray-800 rounded text-white text-[10.5px] px-2 py-0.5 cursor-pointer"
+                      className="bg-gray-700 hover:bg-gray-800 rounded text-white text-[11.5px] px-2 py-0.5 cursor-pointer"
                     >
                       Cancel
                     </button>
@@ -847,10 +847,10 @@ export function StudentDetailClient({ studentId }: StudentDetailClientProps) {
                 </div>
               ) : (
                 copiedField === String(uniField) ? (
-                  <span className="text-[13.5px] font-bold text-[var(--success)] animate-pulse">Copied!</span>
+                  <span className="text-[15px] font-bold text-[var(--success)] animate-pulse">Copied!</span>
                 ) : uniVal ? (
                   <div className="flex flex-col gap-0.5 w-full">
-                    <span className="text-[12.5px] font-semibold tracking-wide text-[var(--foreground)]" title={uniVal}>{uniVal}</span>
+                    <span className="text-[14px] font-semibold tracking-wide text-[var(--foreground)]" title={uniVal}>{uniVal}</span>
                     <div className="flex relative">
                       <span 
                         onClick={(e) => {
@@ -858,7 +858,7 @@ export function StudentDetailClient({ studentId }: StudentDetailClientProps) {
                           setActiveStatusDropdown(activeStatusDropdown === String(uniField) ? null : String(uniField));
                         }}
                         className={cn(
-                          "inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[9.5px] font-extrabold uppercase border cursor-pointer hover:opacity-90 active:scale-95 transition-all shadow-sm select-none",
+                          "inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[10.5px] font-extrabold uppercase border cursor-pointer hover:opacity-90 active:scale-95 transition-all shadow-sm select-none",
                           getStatusBadgeClass(statusVal)
                         )}
                       >
@@ -882,7 +882,7 @@ export function StudentDetailClient({ studentId }: StudentDetailClientProps) {
                             className="absolute left-0 mt-6 w-36 bg-white dark:bg-[#1c1c1e] border border-[var(--border)] rounded-lg shadow-lg z-40 py-1 flex flex-col gap-0.5 animate-in fade-in slide-in-from-top-1 duration-100"
                             onClick={(e) => e.stopPropagation()}
                           >
-                            <div className="px-2.5 py-1 text-[9.5px] uppercase font-bold tracking-wider text-[var(--foreground-muted)] border-b border-[var(--border)] mb-0.5 select-none">
+                            <div className="px-2.5 py-1 text-[10.5px] uppercase font-bold tracking-wider text-[var(--foreground-muted)] border-b border-[var(--border)] mb-0.5 select-none">
                               University Status
                             </div>
                             {[
@@ -895,7 +895,7 @@ export function StudentDetailClient({ studentId }: StudentDetailClientProps) {
                               <button
                                 key={item.name}
                                 onClick={() => handleStatusSelect(item.name)}
-                                className="w-full text-left px-2.5 py-1 text-[12.5px] font-semibold text-[var(--foreground)] hover:bg-[var(--border-subtle)] flex items-center gap-2 cursor-pointer transition-all"
+                                className="w-full text-left px-2.5 py-1 text-[14px] font-semibold text-[var(--foreground)] hover:bg-[var(--border-subtle)] flex items-center gap-2 cursor-pointer transition-all"
                               >
                                 <span className={cn("h-1.5 w-1.5 rounded-full flex-shrink-0 bg-current", item.colorClass)} />
                                 {item.name}
@@ -907,7 +907,7 @@ export function StudentDetailClient({ studentId }: StudentDetailClientProps) {
                     </div>
                   </div>
                 ) : (
-                  <span className="text-[11.5px] font-semibold text-[var(--foreground-subtle)] uppercase">None Selected</span>
+                  <span className="text-[13px] font-semibold text-[var(--foreground-subtle)] uppercase">None Selected</span>
                 )
               )}
             </div>
@@ -928,10 +928,10 @@ export function StudentDetailClient({ studentId }: StudentDetailClientProps) {
       >
         <div className="flex items-center justify-between gap-2">
           <div className="flex items-center gap-1">
-            <span className="text-[10.5px] uppercase font-bold tracking-wider text-[var(--accent)]">
+            <span className="text-[11.5px] uppercase font-bold tracking-wider text-[var(--accent)]">
               {label}
             </span>
-            <span className="bg-[var(--border-subtle)] border border-[var(--border)] text-[8.5px] px-1.5 py-0.2 rounded font-bold text-[var(--foreground-muted)] uppercase">AUTO</span>
+            <span className="bg-[var(--border-subtle)] border border-[var(--border)] text-[9.5px] px-1.5 py-0.2 rounded font-bold text-[var(--foreground-muted)] uppercase">AUTO</span>
           </div>
           <div className="flex items-center gap-1.5 opacity-60 hover:opacity-100 transition-opacity">
             {value && (
@@ -961,9 +961,9 @@ export function StudentDetailClient({ studentId }: StudentDetailClientProps) {
           }}
         >
           {isCopied ? (
-            <span className="text-[13.5px] font-bold text-[var(--success)] animate-pulse">Copied!</span>
+            <span className="text-[15px] font-bold text-[var(--success)] animate-pulse">Copied!</span>
           ) : (
-            <span className="text-[13.5px] font-semibold tracking-wide text-[var(--foreground)]">{value || '—'}</span>
+            <span className="text-[15px] font-semibold tracking-wide text-[var(--foreground)]">{value || '—'}</span>
           )}
         </div>
       </div>
@@ -1052,25 +1052,25 @@ export function StudentDetailClient({ studentId }: StudentDetailClientProps) {
             {getInitials(selectedStudent.full_name)}
           </div>
           <div className="flex-1 min-w-0">
-            <h1 className="text-[16px] font-bold uppercase tracking-wide text-[var(--foreground)] truncate">
+            <h1 className="text-[17.5px] font-bold uppercase tracking-wide text-[var(--foreground)] truncate">
               {selectedStudent.full_name}
             </h1>
-            <div className="flex items-center gap-2 text-[11.5px] font-semibold text-[var(--foreground-muted)] mt-0.5">
-              <span>ID: <span className="font-mono text-[var(--accent)] font-bold text-[11.5px]">{selectedStudent.id}</span></span>
+            <div className="flex items-center gap-2 text-[13px] font-semibold text-[var(--foreground-muted)] mt-0.5">
+              <span>ID: <span className="font-mono text-[var(--accent)] font-bold text-[13px]">{selectedStudent.id}</span></span>
               <span className="h-1 w-1 rounded-full bg-[var(--foreground-subtle)]" />
               {selectedStudent.is_deleted ? (
-                <span className="bg-rose-500/10 text-rose-600 border border-rose-500/20 px-1.5 py-0.2 rounded-full text-[9.5px] font-extrabold uppercase animate-pulse">
+                <span className="bg-rose-500/10 text-rose-600 border border-rose-500/20 px-1.5 py-0.2 rounded-full text-[10.5px] font-extrabold uppercase animate-pulse">
                   DELETED
                 </span>
               ) : (
-                <span className="bg-emerald-500/10 text-emerald-600 border border-emerald-500/20 px-1.5 py-0.2 rounded-full text-[9.5px] font-extrabold uppercase">
+                <span className="bg-emerald-500/10 text-emerald-600 border border-emerald-500/20 px-1.5 py-0.2 rounded-full text-[10.5px] font-extrabold uppercase">
                   ACTIVE
                 </span>
               )}
               {selectedStudent.student_group && (
                 <>
                   <span className="h-1 w-1 rounded-full bg-[var(--foreground-subtle)]" />
-                  <span className="text-[var(--foreground)] uppercase font-bold text-[10.5px]">{selectedStudent.student_group}</span>
+                  <span className="text-[var(--foreground)] uppercase font-bold text-[11.5px]">{selectedStudent.student_group}</span>
                 </>
               )}
             </div>
@@ -1085,7 +1085,7 @@ export function StudentDetailClient({ studentId }: StudentDetailClientProps) {
             <div className="bg-[var(--background)] border border-[var(--border)] rounded-lg p-2.5 shadow-[var(--shadow-md)] flex flex-col gap-2">
               <div className="flex items-center gap-1.5 pb-1 border-b border-[var(--border)]">
                 <User className="h-3.5 w-3.5 text-[var(--accent)]" />
-                <h3 className="text-[11.5px] font-bold uppercase tracking-wider text-[var(--accent)]">
+                <h3 className="text-[13px] font-bold uppercase tracking-wider text-[var(--accent)]">
                   Personal & Passport
                 </h3>
               </div>
@@ -1140,7 +1140,7 @@ export function StudentDetailClient({ studentId }: StudentDetailClientProps) {
             <div className="bg-[var(--background)] border border-[var(--border)] rounded-lg p-2.5 shadow-[var(--shadow-md)] flex flex-col gap-2">
               <div className="flex items-center gap-1.5 pb-1 border-b border-[var(--border)]">
                 <Layers className="h-3.5 w-3.5 text-[var(--accent)]" />
-                <h3 className="text-[11.5px] font-bold uppercase tracking-wider text-[var(--accent)]">
+                <h3 className="text-[13px] font-bold uppercase tracking-wider text-[var(--accent)]">
                   Academic & Languages
                 </h3>
               </div>
@@ -1178,7 +1178,7 @@ export function StudentDetailClient({ studentId }: StudentDetailClientProps) {
             <div className="bg-[var(--background)] border border-[var(--border)] rounded-lg p-2.5 shadow-[var(--shadow-md)] flex flex-col gap-2">
               <div className="flex items-center gap-1.5 pb-1 border-b border-[var(--border)]">
                 <GraduationCap className="h-3.5 w-3.5 text-[var(--accent)]" />
-                <h3 className="text-[11.5px] font-bold uppercase tracking-wider text-[var(--accent)]">
+                <h3 className="text-[13px] font-bold uppercase tracking-wider text-[var(--accent)]">
                   Universities & Docs
                 </h3>
               </div>
@@ -1202,7 +1202,7 @@ export function StudentDetailClient({ studentId }: StudentDetailClientProps) {
             <div className="bg-[var(--background)] border border-[var(--border)] rounded-lg p-2.5 shadow-[var(--shadow-md)] flex flex-col gap-2">
               <div className="flex items-center gap-1.5 pb-1 border-b border-[var(--border)]">
                 <Landmark className="h-3.5 w-3.5 text-[var(--accent)]" />
-                <h3 className="text-[11.5px] font-bold uppercase tracking-wider text-[var(--accent)]">
+                <h3 className="text-[13px] font-bold uppercase tracking-wider text-[var(--accent)]">
                   System & Finance
                 </h3>
               </div>
@@ -1218,7 +1218,7 @@ export function StudentDetailClient({ studentId }: StudentDetailClientProps) {
                   title="Double-click to edit. Single-click value to copy."
                 >
                   <div className="flex items-center justify-between">
-                    <span className="text-[10.5px] uppercase font-bold tracking-wider text-blue-100 flex items-center gap-1">
+                    <span className="text-[11.5px] uppercase font-bold tracking-wider text-blue-100 flex items-center gap-1">
                       <Building2 className="h-3 w-3" />
                       Office
                     </span>
@@ -1272,7 +1272,7 @@ export function StudentDetailClient({ studentId }: StudentDetailClientProps) {
                         <select
                           value={editValue}
                           onChange={(e) => setEditValue(e.target.value)}
-                          className="bg-blue-600 text-[13.5px] text-white px-2 py-0.5 rounded border border-blue-400 focus:outline-none w-full font-semibold cursor-pointer"
+                          className="bg-blue-600 text-[15px] text-white px-2 py-0.5 rounded border border-blue-400 focus:outline-none w-full font-semibold cursor-pointer"
                         >
                           <option value="ANDIJON OFFIS">ANDIJON OFFIS</option>
                           <option value="TOSHKENT OFFIS">TOSHKENT OFFIS</option>
@@ -1292,9 +1292,9 @@ export function StudentDetailClient({ studentId }: StudentDetailClientProps) {
                       </div>
                     ) : (
                       copiedField === 'office' ? (
-                        <span className="text-[13.5px] font-bold text-white animate-pulse">Copied!</span>
+                        <span className="text-[15px] font-bold text-white animate-pulse">Copied!</span>
                       ) : (
-                        <span className="text-[13.5px] font-bold tracking-wide uppercase">{selectedStudent.office || '—'}</span>
+                        <span className="text-[15px] font-bold tracking-wide uppercase">{selectedStudent.office || '—'}</span>
                       )
                     )}
                   </div>
@@ -1311,7 +1311,7 @@ export function StudentDetailClient({ studentId }: StudentDetailClientProps) {
                   }}
                 >
                   <div className="flex items-center justify-between">
-                    <span className="text-[10.5px] uppercase font-bold tracking-wider text-white opacity-95 flex items-center gap-1">
+                    <span className="text-[11.5px] uppercase font-bold tracking-wider text-white opacity-95 flex items-center gap-1">
                       <Landmark className="h-3 w-3" />
                       Balance
                     </span>
@@ -1334,9 +1334,9 @@ export function StudentDetailClient({ studentId }: StudentDetailClientProps) {
                   </div>
                   <div className="mt-0.5 flex items-center min-h-[22px] w-full">
                     {copiedField === 'balance' ? (
-                      <span className="text-[13.5px] font-bold text-white animate-pulse">Copied!</span>
+                      <span className="text-[15px] font-bold text-white animate-pulse">Copied!</span>
                     ) : (
-                      <span className="text-[13.5px] font-bold tracking-wide">
+                      <span className="text-[15px] font-bold tracking-wide">
                         {formatCurrency(selectedStudent.balance)}
                       </span>
                     )}
@@ -1352,7 +1352,7 @@ export function StudentDetailClient({ studentId }: StudentDetailClientProps) {
                   }}
                 >
                   <div className="flex items-center justify-between">
-                    <span className="text-[10.5px] uppercase font-bold tracking-wider text-white opacity-95 flex items-center gap-1">
+                    <span className="text-[11.5px] uppercase font-bold tracking-wider text-white opacity-95 flex items-center gap-1">
                       <CheckSquare className="h-3 w-3" />
                       Payments Done
                     </span>
@@ -1375,9 +1375,9 @@ export function StudentDetailClient({ studentId }: StudentDetailClientProps) {
                   </div>
                   <div className="mt-0.5 flex items-center min-h-[22px] w-full">
                     {copiedField === 'payments_done' ? (
-                      <span className="text-[13.5px] font-bold text-white animate-pulse">Copied!</span>
+                      <span className="text-[15px] font-bold text-white animate-pulse">Copied!</span>
                     ) : (
-                      <span className="text-[13.5px] font-bold tracking-wide">
+                      <span className="text-[15px] font-bold tracking-wide">
                         {formatCurrency(computedPaymentsDone)}
                       </span>
                     )}
@@ -1393,7 +1393,7 @@ export function StudentDetailClient({ studentId }: StudentDetailClientProps) {
                   }}
                 >
                   <div className="flex items-center justify-between">
-                    <span className="text-[10.5px] uppercase font-bold tracking-wider text-white opacity-95 flex items-center gap-1">
+                    <span className="text-[11.5px] uppercase font-bold tracking-wider text-white opacity-95 flex items-center gap-1">
                       <Tag className="h-3.5 w-3.5" />
                       Discount
                     </span>
@@ -1416,9 +1416,9 @@ export function StudentDetailClient({ studentId }: StudentDetailClientProps) {
                   </div>
                   <div className="mt-0.5 flex items-center min-h-[22px] w-full">
                     {copiedField === 'discount' ? (
-                      <span className="text-[13.5px] font-bold text-white animate-pulse">Copied!</span>
+                      <span className="text-[15px] font-bold text-white animate-pulse">Copied!</span>
                     ) : (
-                      <span className="text-[13.5px] font-bold tracking-wide">
+                      <span className="text-[15px] font-bold tracking-wide">
                         {formatCurrency(computedDiscount)}
                       </span>
                     )}
@@ -1444,14 +1444,14 @@ export function StudentDetailClient({ studentId }: StudentDetailClientProps) {
                 {/* AI Document Extraction Card (Copyable / Action Link) */}
                 <div className="bg-[var(--surface)] border border-[var(--border)] rounded-[var(--radius-md)] p-2.5 hover:bg-[var(--border-subtle)] transition-all cursor-pointer flex items-center justify-between shadow-[var(--shadow-sm)] min-h-[50px]">
                   <div>
-                    <span className="text-[10.5px] uppercase font-bold tracking-wider text-[var(--accent)] block">
+                    <span className="text-[11.5px] uppercase font-bold tracking-wider text-[var(--accent)] block">
                       Fill By Document
                     </span>
-                    <span className="text-[13.5px] font-bold text-[var(--foreground)] mt-0.5 block">
+                    <span className="text-[15px] font-bold text-[var(--foreground)] mt-0.5 block">
                       AI Document Extraction
                     </span>
                   </div>
-                  <span className="text-[var(--foreground-subtle)] font-mono text-[15.5px] font-bold">&gt;</span>
+                  <span className="text-[var(--foreground-subtle)] font-mono text-[17px] font-bold">&gt;</span>
                 </div>
 
                 {renderDetailCard('Missing Documents', 'pick_needed', selectedStudent.pick_needed?.join(', '), { 
