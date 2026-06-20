@@ -113,31 +113,16 @@ export function StudentDetailClient({ studentId }: StudentDetailClientProps) {
   }, [studentId])
 
   const computedPaymentsDone = useMemo(() => {
-    const hasHistory = payments.length > 0
-    if (hasHistory) {
-      return payments
-        .filter(p => !p.is_discount && !p.is_withdrawal && p.amount > 0)
-        .reduce((sum, p) => sum + Number(p.amount), 0)
-    }
-    
-    // Fallback: Tariff Price + Balance - Discount
-    if (!selectedStudent) return 0
-    const tariffPrice = getTariffPrice(selectedStudent.tariff, selectedStudent.language_certificate)
-    const discount = selectedStudent.discount || 0
-    const paid = tariffPrice + (selectedStudent.balance || 0) - discount
-    return Math.max(0, paid)
-  }, [payments, selectedStudent])
+    return payments
+      .filter(p => !p.is_discount && !p.is_withdrawal && p.amount > 0)
+      .reduce((sum, p) => sum + Number(p.amount), 0)
+  }, [payments])
 
   const computedDiscount = useMemo(() => {
-    const hasHistory = payments.length > 0
-    if (hasHistory) {
-      const totalDisc = payments
-        .filter(p => p.is_discount && p.amount > 0)
-        .reduce((sum, p) => sum + Number(p.amount), 0)
-      if (totalDisc > 0) return totalDisc
-    }
-    return selectedStudent?.discount || 0
-  }, [payments, selectedStudent])
+    return payments
+      .filter(p => p.is_discount && p.amount > 0)
+      .reduce((sum, p) => sum + Number(p.amount), 0)
+  }, [payments])
 
   // Copy helper
   const handleCopy = (field: string, text: string) => {
