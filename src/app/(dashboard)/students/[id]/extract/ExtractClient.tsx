@@ -39,6 +39,18 @@ const FIELD_MAPPING: Record<string, keyof Student> = {
   "SCHOOL NAME": "educational_background"
 }
 
+const KNOWN_GEMINI_MODELS = [
+  "gemini-3.5-flash",
+  "gemini-3.1-pro",
+  "gemini-3.1-flash-lite",
+  "gemini-2.5-flash",
+  "gemini-2.5-pro",
+  "gemini-2.0-flash",
+  "gemini-1.5-pro",
+  "gemini-1.5-flash",
+  "gemini-2.5-flash-lite"
+]
+
 export function ExtractClient({ studentId }: ExtractClientProps) {
   const supabase = createClient()
   const router = useRouter()
@@ -80,13 +92,16 @@ export function ExtractClient({ studentId }: ExtractClientProps) {
     provider: 'gemini',
     apiKey: '',
     openaiApiKey: '',
-    model: 'gemini-1.5-flash',
+    model: 'gemini-3.5-flash',
     openaiModel: 'gpt-4o-mini',
     normalizeDates: true,
     mergeNames: true,
     extractStructured: true,
     includeOcr: true
   })
+  
+  const [geminiModelSelect, setGeminiModelSelect] = useState('gemini-3.5-flash')
+  const [customModelId, setCustomModelId] = useState('')
   
   const [showGeminiKey, setShowGeminiKey] = useState(false)
   const [showOpenaiKey, setShowOpenaiKey] = useState(false)
@@ -99,7 +114,16 @@ export function ExtractClient({ studentId }: ExtractClientProps) {
     try {
       const stored = localStorage.getItem('ai_settings')
       if (stored) {
-        setAiSettings(prev => ({ ...prev, ...JSON.parse(stored) }))
+        const parsed = JSON.parse(stored)
+        setAiSettings(prev => ({ ...prev, ...parsed }))
+        if (parsed.model) {
+          if (KNOWN_GEMINI_MODELS.includes(parsed.model)) {
+            setGeminiModelSelect(parsed.model)
+          } else {
+            setGeminiModelSelect('custom')
+            setCustomModelId(parsed.model)
+          }
+        }
       }
     } catch (e) {
       console.warn('Failed to parse ai_settings from local storage', e)
@@ -595,24 +619,63 @@ export function ExtractClient({ studentId }: ExtractClientProps) {
                   onChange={(e) => saveSettings({ ...aiSettings, openaiModel: e.target.value })}
                   className="bg-[var(--surface)] border border-[var(--border)] text-xs text-[var(--foreground)] p-2 rounded-md focus:outline-none focus:border-[var(--accent)] font-semibold cursor-pointer w-full"
                 >
-                  <option value="gpt-4o">GPT-4o (High Accuracy)</option>
-                  <option value="gpt-4o-mini">GPT-4o-mini (Default Fast)</option>
-                  <option value="gpt-4-turbo">GPT-4 Turbo</option>
-                  <option value="o1-mini">o1-mini</option>
-                  <option value="o3-mini">o3-mini</option>
+                  <optgroup label="💰 Budget (Vision-Capable)">
+                    <option value="gpt-4o-mini">GPT-4o Mini (Recommended) — Cheapest</option>
+                    <option value="gpt-4o">GPT-4o — Better accuracy</option>
+                  </optgroup>
+                  <optgroup label="🚀 GPT-5 Series (Premium)">
+                    <option value="gpt-5.4-mini">GPT-5.4-mini — Fast & Smart</option>
+                    <option value="gpt-5.4">GPT-5.4 — Professional</option>
+                    <option value="gpt-5.5">GPT-5.5 — Most Intelligent</option>
+                  </optgroup>
+                  <optgroup label="Legacy">
+                    <option value="gpt-4-turbo">GPT-4 Turbo</option>
+                    <option value="gpt-3.5-turbo">GPT-3.5 Turbo</option>
+                    <option value="o1-mini">o1 Mini</option>
+                    <option value="o3-mini">o3 Mini</option>
+                  </optgroup>
                 </select>
               ) : (
-                <select
-                  value={aiSettings.model}
-                  onChange={(e) => saveSettings({ ...aiSettings, model: e.target.value })}
-                  className="bg-[var(--surface)] border border-[var(--border)] text-xs text-[var(--foreground)] p-2 rounded-md focus:outline-none focus:border-[var(--accent)] font-semibold cursor-pointer w-full"
-                >
-                  <option value="gemini-1.5-flash">Gemini 1.5 Flash (Default)</option>
-                  <option value="gemini-1.5-pro">Gemini 1.5 Pro</option>
-                  <option value="gemini-2.0-flash">Gemini 2.0 Flash</option>
-                  <option value="gemini-2.5-flash">Gemini 2.5 Flash</option>
-                  <option value="gemini-2.5-pro">Gemini 2.5 Pro</option>
-                </select>
+                <div className="flex flex-col gap-2 w-full">
+                  <select
+                    value={geminiModelSelect}
+                    onChange={(e) => {
+                      const val = e.target.value
+                      setGeminiModelSelect(val)
+                      if (val === 'custom') {
+                        saveSettings({ ...aiSettings, model: customModelId || 'gemini-3.5-flash' })
+                      } else {
+                        saveSettings({ ...aiSettings, model: val })
+                      }
+                    }}
+                    className="bg-[var(--surface)] border border-[var(--border)] text-xs text-[var(--foreground)] p-2 rounded-md focus:outline-none focus:border-[var(--accent)] font-semibold cursor-pointer w-full"
+                  >
+                    <option value="gemini-3.5-flash">Gemini 3.5 Flash (Recommended)</option>
+                    <option value="gemini-3.1-pro">Gemini 3.1 Pro</option>
+                    <option value="gemini-3.1-flash-lite">Gemini 3.1 Flash Lite</option>
+                    <option value="gemini-2.5-flash">Gemini 2.5 Flash</option>
+                    <option value="gemini-2.5-pro">Gemini 2.5 Pro</option>
+                    <option value="gemini-2.0-flash">Gemini 2.0 Flash</option>
+                    <option value="gemini-1.5-pro">Gemini 1.5 Pro</option>
+                    <option value="gemini-1.5-flash">Gemini 1.5 Flash</option>
+                    <option value="gemini-2.5-flash-lite">Gemini Flash Lite</option>
+                    <option value="custom">Custom Model ID...</option>
+                  </select>
+                  
+                  {geminiModelSelect === 'custom' && (
+                    <input
+                      type="text"
+                      value={customModelId}
+                      onChange={(e) => {
+                        const val = e.target.value
+                        setCustomModelId(val)
+                        saveSettings({ ...aiSettings, model: val })
+                      }}
+                      placeholder="Enter custom model ID (e.g. gemini-2.5-flash-lite)..."
+                      className="bg-[var(--surface)] border border-[var(--border)] text-xs text-[var(--foreground)] p-2 rounded-md focus:outline-none focus:border-[var(--accent)] w-full mt-1.5"
+                    />
+                  )}
+                </div>
               )}
             </div>
 
