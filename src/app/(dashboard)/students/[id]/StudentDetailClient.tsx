@@ -410,30 +410,33 @@ export function StudentDetailClient({ studentId }: StudentDetailClientProps) {
     const isEditing = editingField === field
     const isCopied = copiedField === field
     const isMissing = value === null || value === undefined || (Array.isArray(value) ? value.length === 0 : (String(value).trim() === '' || String(value).trim() === '—'))
-    const displayValue = isMissing ? '—' : value
+    const displayValue = isMissing ? 'Not provided' : value
 
     const copyable = options.copyable !== false
     const editable = options.editable !== false
 
-    const borderLeftColor = options.forceBorderColor 
-      ? (options.forceBorderColor === 'red' ? 'border-l-rose-500 dark:border-l-rose-600' : 'border-l-blue-500 dark:border-l-blue-600')
-      : (isMissing ? 'border-l-rose-500 dark:border-l-rose-600' : 'border-l-blue-500 dark:border-l-blue-600')
+    const stripeColor = (options.forceBorderColor === 'red' || (isMissing && !options.forceBorderColor))
+      ? 'border-l-rose-600'
+      : 'border-l-[var(--accent)]'
 
     return (
-      <div 
+      <div
         onDoubleClick={() => {
           if (editable && !isEditing) {
             handleStartEditing(String(field), value, options.type === 'select' ? options.selectOptions?.[0] : '')
           }
-        }} 
-        className={`bg-[var(--surface)] border border-[var(--border)] rounded-[var(--radius-md)] px-3 py-2 flex flex-col justify-between min-h-[58px] text-[var(--foreground)] shadow-[var(--shadow-sm)] hover:border-[var(--accent)]/50 transition-all animate-in fade-in duration-200 cursor-pointer border-l-4 ${borderLeftColor}`}
+        }}
+        className={`group relative bg-[var(--surface)] border border-[#E5E7EB] dark:border-[var(--border)] border-l-[3px] ${stripeColor} rounded-[var(--radius-md)] px-2.5 py-1.5 flex flex-col justify-between min-h-[58px] text-[var(--foreground)] hover:bg-[var(--surface-elevated)] transition-all duration-200 cursor-pointer`}
         title={`${editable ? 'Double-click to edit. ' : ''}${copyable && value ? 'Single-click value to copy.' : ''}`}
       >
+        {isMissing && (
+          <span className="wave-dot" style={{ position: 'absolute', top: '50%', right: '6px', transform: 'translateY(-50%)', height: '8px', width: '8px', borderRadius: '9999px', backgroundColor: '#e11d48', color: '#e11d48' }} />
+        )}
         <div className="flex items-center justify-between gap-2">
-          <span className={`text-[11.5px] uppercase font-bold tracking-wider ${options.titleColor || 'text-[var(--accent)]'}`}>
+          <span className="text-[11px] uppercase font-medium tracking-wide text-[#64748B]">
             {label}
           </span>
-          <div className="flex items-center gap-1.5 opacity-60 hover:opacity-100 transition-opacity">
+          <div className="flex items-center gap-1.5 opacity-0 group-hover:opacity-100 focus-within:opacity-100 transition-opacity">
             {copyable && value && !isEditing && (
               <button
                 onClick={(e) => {
@@ -465,8 +468,8 @@ export function StudentDetailClient({ studentId }: StudentDetailClientProps) {
           </div>
         </div>
 
-        <div 
-          className="mt-1 flex items-center min-h-[22px] w-full"
+        <div
+          className="mt-0.5 flex items-center min-h-[20px] w-full"
           onClick={() => {
             if (!isEditing && copyable && value) {
               handleCopy(String(field), Array.isArray(value) ? value.join(', ') : String(value));
@@ -474,7 +477,7 @@ export function StudentDetailClient({ studentId }: StudentDetailClientProps) {
           }}
         >
           {isEditing ? (
-            <div 
+            <div
               className="relative w-full min-w-0"
               onClick={(e) => e.stopPropagation()}
               onKeyDown={(e) => {
@@ -536,17 +539,19 @@ export function StudentDetailClient({ studentId }: StudentDetailClientProps) {
                   {displayValue}
                 </span>
               )
+            ) : isMissing ? (
+              <span className="text-[14px] font-semibold text-[#B91C1C]">{displayValue}</span>
             ) : (
               Array.isArray(displayValue) ? (
                 <div className="flex flex-wrap gap-1.5 mt-0.5">
                   {displayValue.map((item, idx) => (
-                    <span key={idx} className="text-[15px] font-semibold tracking-wide text-[var(--foreground)]">
+                    <span key={idx} className="text-[15px] font-semibold tracking-wide text-[#0F172A] dark:text-[var(--foreground)]">
                       {item}
                     </span>
                   ))}
                 </div>
               ) : (
-                <span className="text-[15px] font-semibold tracking-wide text-[var(--foreground)]">{displayValue}</span>
+                <span className="text-[15px] font-semibold tracking-wide text-[#0F172A] dark:text-[var(--foreground)]">{displayValue}</span>
               )
             )
           )}
@@ -569,20 +574,21 @@ export function StudentDetailClient({ studentId }: StudentDetailClientProps) {
     const isMissing = !certVal || certVal === 'NO CERTIFICATE' || certVal.trim() === ''
 
     return (
-      <div 
+      <div
         onDoubleClick={() => {
           if (!isEditing) {
             handleStartEditing(String(certField), certVal, certsAllowed[0]);
           }
         }}
-        className={`bg-[var(--surface)] border border-[var(--border)] rounded-[var(--radius-md)] px-3 py-2 flex flex-col justify-between min-h-[58px] text-[var(--foreground)] shadow-[var(--shadow-sm)] hover:border-[var(--accent)]/50 transition-all cursor-pointer border-l-4 ${
-          isMissing ? 'border-l-rose-500 dark:border-l-rose-600' : 'border-l-blue-500 dark:border-l-blue-600'
-        }`}
+        className={`group relative bg-[var(--surface)] border border-[#E5E7EB] dark:border-[var(--border)] border-l-[3px] ${isMissing ? 'border-l-rose-600' : 'border-l-[var(--accent)]'} rounded-[var(--radius-md)] px-2.5 py-1.5 flex flex-col justify-between min-h-[58px] text-[var(--foreground)] hover:bg-[var(--surface-elevated)] transition-all duration-200 cursor-pointer`}
         title="Double-click to edit. Single-click value to copy."
       >
+        {isMissing && (
+          <span className="wave-dot" style={{ position: 'absolute', top: '50%', right: '6px', transform: 'translateY(-50%)', height: '8px', width: '8px', borderRadius: '9999px', backgroundColor: '#e11d48', color: '#e11d48' }} />
+        )}
         <div className="flex items-center justify-between gap-2">
-          <span className="text-[11.5px] uppercase font-bold tracking-wider text-[var(--accent)]">{label}</span>
-          <div className="flex items-center gap-1.5 opacity-60 hover:opacity-100 transition-opacity">
+          <span className="text-[11px] uppercase font-medium tracking-wide text-[#64748B]">{label}</span>
+          <div className="flex items-center gap-1.5 opacity-0 group-hover:opacity-100 focus-within:opacity-100 transition-opacity">
             {certVal && certVal !== 'NO CERTIFICATE' && !isEditing && (
               <button
                 onClick={(e) => {
@@ -613,8 +619,8 @@ export function StudentDetailClient({ studentId }: StudentDetailClientProps) {
             )}
           </div>
         </div>
-        <div 
-          className="mt-1 flex items-center min-h-[22px] w-full"
+        <div
+          className="mt-0.5 flex items-center min-h-[20px] w-full"
           onClick={() => {
             if (!isEditing && certVal && certVal !== 'NO CERTIFICATE') {
               handleCopy(String(certField), `${certVal} (SCORE: ${scoreVal || '—'})`);
@@ -712,7 +718,7 @@ export function StudentDetailClient({ studentId }: StudentDetailClientProps) {
                 <span className="bg-[#0052cc] text-white px-1.5 py-0.5">SCORE: {scoreVal || '—'}</span>
               </div>
             ) : (
-              <span className="text-[13px] font-semibold text-[var(--foreground-subtle)] uppercase">NO CERTIFICATE</span>
+              <span className="text-[14px] font-semibold text-[#B91C1C]">Not provided</span>
             )
           )}
         </div>
@@ -768,20 +774,21 @@ export function StudentDetailClient({ studentId }: StudentDetailClientProps) {
         const isMissing = !uniVal || uniVal.trim() === ''
 
         return (
-          <div 
+          <div
             onDoubleClick={() => {
               if (!isEditing) {
                 handleStartEditing(String(uniField), uniVal);
               }
             }}
-            className={`bg-[var(--surface)] border border-[var(--border)] rounded-[var(--radius-md)] px-3 py-2 flex flex-col justify-between min-h-[58px] text-[var(--foreground)] shadow-[var(--shadow-sm)] hover:border-[var(--accent)]/50 transition-all cursor-pointer border-l-4 ${
-              isMissing ? 'border-l-rose-500 dark:border-l-rose-600' : 'border-l-blue-500 dark:border-l-blue-600'
-            }`}
+            className={`group relative bg-[var(--surface)] border border-[#E5E7EB] dark:border-[var(--border)] border-l-[3px] ${isMissing ? 'border-l-rose-600' : 'border-l-[var(--accent)]'} rounded-[var(--radius-md)] px-2.5 py-1.5 flex flex-col justify-between min-h-[58px] text-[var(--foreground)] hover:bg-[var(--surface-elevated)] transition-all duration-200 cursor-pointer`}
             title="Double-click to edit. Single-click value to copy."
           >
+            {isMissing && (
+              <span className="wave-dot" style={{ position: 'absolute', top: '50%', right: '6px', transform: 'translateY(-50%)', height: '8px', width: '8px', borderRadius: '9999px', backgroundColor: '#e11d48', color: '#e11d48' }} />
+            )}
             <div className="flex items-center justify-between gap-2">
-              <span className="text-[10.5px] uppercase font-bold tracking-wider text-[var(--accent)]">{label}</span>
-              <div className="flex items-center gap-1.5 opacity-60 hover:opacity-100 transition-opacity">
+              <span className="text-[10.5px] uppercase font-medium tracking-wide text-[#64748B]">{label}</span>
+              <div className="flex items-center gap-1.5 opacity-0 group-hover:opacity-100 focus-within:opacity-100 transition-opacity">
                 {uniVal && !isEditing && (
                   <button
                     onClick={(e) => {
@@ -804,7 +811,7 @@ export function StudentDetailClient({ studentId }: StudentDetailClientProps) {
                       e.stopPropagation();
                       handleStartEditing(String(uniField), uniVal);
                     }}
-                    className="p-0.5 hover:bg-[var(--border-subtle)] rounded transition-all cursor-pointer opacity-60 hover:opacity-100 text-[var(--foreground-muted)] hover:text-[var(--foreground)]"
+                    className="p-0.5 hover:bg-[var(--border-subtle)] rounded transition-all cursor-pointer text-[var(--foreground-muted)] hover:text-[var(--foreground)]"
                     title="Edit university selection"
                   >
                     <Pencil className="h-3 w-3" />
@@ -812,8 +819,8 @@ export function StudentDetailClient({ studentId }: StudentDetailClientProps) {
                 )}
               </div>
             </div>
-            <div 
-              className="mt-1 flex items-center min-h-[22px] w-full"
+            <div
+              className="mt-0.5 flex items-center min-h-[20px] w-full"
               onClick={() => {
                 if (!isEditing && uniVal) {
                   handleCopy(String(uniField), `${uniVal} (${statusVal || 'Chosen'})`);
@@ -895,7 +902,7 @@ export function StudentDetailClient({ studentId }: StudentDetailClientProps) {
                   <span className="text-[15px] font-bold text-[var(--success)] animate-pulse">Copied!</span>
                 ) : uniVal ? (
                   <div className="flex flex-col gap-0.5 w-full">
-                    <span className="text-[14px] font-semibold tracking-wide text-[var(--foreground)]" title={uniVal}>{uniVal}</span>
+                    <span className="text-[14px] font-semibold tracking-wide text-[#0F172A] dark:text-[var(--foreground)]" title={uniVal}>{uniVal}</span>
                     <div className="flex relative">
                       <span 
                         onClick={(e) => {
@@ -952,7 +959,7 @@ export function StudentDetailClient({ studentId }: StudentDetailClientProps) {
                     </div>
                   </div>
                 ) : (
-                  <span className="text-[13px] font-semibold text-[var(--foreground-subtle)] uppercase">None Selected</span>
+                  <span className="text-[14px] font-semibold text-[#B91C1C]">Not provided</span>
                 )
               )}
             </div>
@@ -965,20 +972,21 @@ export function StudentDetailClient({ studentId }: StudentDetailClientProps) {
     const isCopied = copiedField === field
     const isMissing = !value || value.trim() === '' || value.trim() === '—'
     return (
-      <div 
-        className={`bg-[var(--surface)] border border-[var(--border)] rounded-[var(--radius-md)] px-3 py-2 flex flex-col justify-between min-h-[58px] text-[var(--foreground)] shadow-[var(--shadow-sm)] hover:border-[var(--accent)]/50 transition-all cursor-pointer animate-in fade-in duration-200 border-l-4 ${
-          isMissing ? 'border-l-rose-500 dark:border-l-rose-600' : 'border-l-blue-500 dark:border-l-blue-600'
-        }`}
+      <div
+        className={`group relative bg-[var(--surface)] border border-[#E5E7EB] dark:border-[var(--border)] border-l-[3px] ${isMissing ? 'border-l-rose-600' : 'border-l-[var(--accent)]'} rounded-[var(--radius-md)] px-2.5 py-1.5 flex flex-col justify-between min-h-[58px] text-[var(--foreground)] hover:bg-[var(--surface-elevated)] transition-all duration-200 cursor-pointer`}
         title={value ? 'Single-click value to copy.' : ''}
       >
+        {isMissing && (
+          <span className="wave-dot" style={{ position: 'absolute', top: '50%', right: '6px', transform: 'translateY(-50%)', height: '8px', width: '8px', borderRadius: '9999px', backgroundColor: '#e11d48', color: '#e11d48' }} />
+        )}
         <div className="flex items-center justify-between gap-2">
           <div className="flex items-center gap-1">
-            <span className="text-[11.5px] uppercase font-bold tracking-wider text-[var(--accent)]">
+            <span className="text-[11px] uppercase font-medium tracking-wide text-[#64748B]">
               {label}
             </span>
             <span className="bg-[var(--border-subtle)] border border-[var(--border)] text-[9.5px] px-1.5 py-0.2 rounded font-bold text-[var(--foreground-muted)] uppercase">AUTO</span>
           </div>
-          <div className="flex items-center gap-1.5 opacity-60 hover:opacity-100 transition-opacity">
+          <div className="flex items-center gap-1.5 opacity-0 group-hover:opacity-100 focus-within:opacity-100 transition-opacity">
             {value && (
               <button
                 onClick={(e) => {
@@ -997,8 +1005,8 @@ export function StudentDetailClient({ studentId }: StudentDetailClientProps) {
             )}
           </div>
         </div>
-        <div 
-          className="mt-1 flex items-center min-h-[22px]"
+        <div
+          className="mt-0.5 flex items-center min-h-[20px]"
           onClick={() => {
             if (value) {
               handleCopy(field, value);
@@ -1007,8 +1015,10 @@ export function StudentDetailClient({ studentId }: StudentDetailClientProps) {
         >
           {isCopied ? (
             <span className="text-[15px] font-bold text-[var(--success)] animate-pulse">Copied!</span>
+          ) : value ? (
+            <span className="text-[15px] font-semibold tracking-wide text-[#0F172A] dark:text-[var(--foreground)]">{value}</span>
           ) : (
-            <span className="text-[15px] font-semibold tracking-wide text-[var(--foreground)]">{value || '—'}</span>
+            <span className="text-[14px] font-semibold text-[#B91C1C]">Not provided</span>
           )}
         </div>
       </div>
@@ -1130,34 +1140,36 @@ export function StudentDetailClient({ studentId }: StudentDetailClientProps) {
             <div className="bg-[var(--background)] border border-[var(--border)] rounded-lg p-2.5 shadow-[var(--shadow-md)] flex flex-col gap-2">
               <div className="flex items-center gap-1.5 pb-1 border-b border-[var(--border)]">
                 <User className="h-3.5 w-3.5 text-[var(--accent)]" />
-                <h3 className="text-[13px] font-bold uppercase tracking-wider text-[var(--accent)]">
+                <h3 className="text-[13px] font-semibold uppercase tracking-wide text-[#64748B]">
                   Personal & Passport
                 </h3>
               </div>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-1.5">
                 <div className="sm:col-span-2">
                   {renderDetailCard('Full Name', 'full_name', selectedStudent.full_name, { titleColor: 'text-[var(--accent)]' })}
                 </div>
                 {renderAutoNameCard('Family Name', selectedStudent.full_name.split(' ')[0] || '', 'family_name')}
                 {renderAutoNameCard('Given Name', selectedStudent.full_name.split(' ').slice(1).join(' ') || '', 'given_name')}
-                {renderDetailCard('Sex', 'gender', selectedStudent.gender, { 
-                  type: 'select', 
-                  selectOptions: ['MALE', 'FEMALE'],
-                  titleColor: 'text-[var(--accent)]' 
-                })}
-                {renderDetailCard('Birthday', 'birthday', selectedStudent.birthday, { type: 'date', titleColor: 'text-[var(--accent)]' })}
-                <div className="sm:col-span-2 grid grid-cols-1 sm:grid-cols-4 gap-2">
+                <div className="sm:col-span-2 grid grid-cols-1 sm:grid-cols-4 gap-1.5">
                   <div className="sm:col-span-1">
-                    {renderDetailCard('Phone 1', 'phone1', selectedStudent.phone1, { titleColor: 'text-[var(--accent)]' })}
+                    {renderDetailCard('Sex', 'gender', selectedStudent.gender, {
+                      type: 'select',
+                      selectOptions: ['MALE', 'FEMALE'],
+                      titleColor: 'text-[var(--accent)]'
+                    })}
                   </div>
                   <div className="sm:col-span-1">
-                    {renderDetailCard('Phone 2', 'phone2', selectedStudent.phone2, { titleColor: 'text-[var(--accent)]' })}
+                    {renderDetailCard('Birthday', 'birthday', selectedStudent.birthday, { type: 'date', titleColor: 'text-[var(--accent)]' })}
                   </div>
                   <div className="sm:col-span-2">
                     {renderDetailCard('Email', 'email', selectedStudent.email, { titleColor: 'text-[var(--accent)]' })}
                   </div>
                 </div>
-                <div className="sm:col-span-2 grid grid-cols-1 sm:grid-cols-3 gap-2">
+                <div className="sm:col-span-2 grid grid-cols-1 sm:grid-cols-2 gap-1.5">
+                  {renderDetailCard('Phone 1', 'phone1', selectedStudent.phone1, { titleColor: 'text-[var(--accent)]' })}
+                  {renderDetailCard('Phone 2', 'phone2', selectedStudent.phone2, { titleColor: 'text-[var(--accent)]' })}
+                </div>
+                <div className="sm:col-span-2 grid grid-cols-1 sm:grid-cols-3 gap-1.5">
                   {renderDetailCard('Passport', 'passport', selectedStudent.passport, { titleColor: 'text-[var(--accent)]' })}
                   {renderDetailCard('Date of Issue', 'passport_issue_date', selectedStudent.passport_issue_date, { type: 'date', titleColor: 'text-[var(--accent)]' })}
                   {renderDetailCard('Date of Expiration', 'passport_expire_date', selectedStudent.passport_expire_date, { type: 'date', titleColor: 'text-[var(--accent)]' })}
@@ -1185,35 +1197,38 @@ export function StudentDetailClient({ studentId }: StudentDetailClientProps) {
             <div className="bg-[var(--background)] border border-[var(--border)] rounded-lg p-2.5 shadow-[var(--shadow-md)] flex flex-col gap-2">
               <div className="flex items-center gap-1.5 pb-1 border-b border-[var(--border)]">
                 <Layers className="h-3.5 w-3.5 text-[var(--accent)]" />
-                <h3 className="text-[13px] font-bold uppercase tracking-wider text-[var(--accent)]">
+                <h3 className="text-[13px] font-semibold uppercase tracking-wide text-[#64748B]">
                   Academic & Languages
                 </h3>
               </div>
               <div className="flex flex-col gap-2">
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
-                  {renderDetailCard('Tariff', 'tariff', selectedStudent.tariff, { 
-                    type: 'select', 
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-1.5">
+                  {renderDetailCard('Tariff', 'tariff', selectedStudent.tariff, {
+                    type: 'select',
                     selectOptions: tariffOptions,
                     badgeColor: 'bg-[#00875a] text-white',
                     titleColor: 'text-[var(--accent)]'
                   })}
-                  {renderDetailCard('Education Level', 'level', selectedStudent.level, { 
-                    type: 'select', 
+                  {renderDetailCard('Education Level', 'level', selectedStudent.level, {
+                    type: 'select',
                     selectOptions: levelOptions,
                     badgeColor: 'bg-[#0052cc] text-white',
                     titleColor: 'text-[var(--accent)]'
                   })}
-                  {renderDetailCard('Education Level 2', 'level2', selectedStudent.level2, { 
-                    type: 'select', 
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-1.5">
+                  {renderCertificateCard('Language Certificate 1', 'language_certificate', 'certificate_score', ['TOPIK', 'IELTS', 'TOEFL', 'CEFR', 'SAT', 'SKA', 'NO CERTIFICATE'], 'bg-[#de350b]')}
+                  {renderCertificateCard('Language Certificate 2', 'language_certificate_2', 'certificate_score_2', ['TOPIK', 'IELTS', 'TOEFL', 'CEFR', 'SAT', 'SKA', 'NO CERTIFICATE'], 'bg-[#00b8d9]')}
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-1.5">
+                  {renderDetailCard('Education Level 2', 'level2', selectedStudent.level2, {
+                    type: 'select',
                     selectOptions: levelOptions,
                     badgeColor: 'bg-[#ff9900] text-white',
                     titleColor: 'text-[var(--accent)]'
                   })}
-                </div>
-
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
-                  {renderCertificateCard('Language Certificate 1', 'language_certificate', 'certificate_score', ['TOPIK', 'IELTS', 'TOEFL', 'CEFR', 'SAT', 'SKA', 'NO CERTIFICATE'], 'bg-[#de350b]')}
-                  {renderCertificateCard('Language Certificate 2', 'language_certificate_2', 'certificate_score_2', ['TOPIK', 'IELTS', 'TOEFL', 'CEFR', 'SAT', 'SKA', 'NO CERTIFICATE'], 'bg-[#00b8d9]')}
                   {renderCertificateCard('Language Certificate 3', 'language_certificate_3', 'certificate_score_3', ['TOPIK', 'IELTS', 'TOEFL', 'CEFR', 'SAT', 'SKA', 'NO CERTIFICATE'], 'bg-[#ff5630]')}
                 </div>
               </div>
@@ -1223,15 +1238,15 @@ export function StudentDetailClient({ studentId }: StudentDetailClientProps) {
             <div className="bg-[var(--background)] border border-[var(--border)] rounded-lg p-2.5 shadow-[var(--shadow-md)] flex flex-col gap-2">
               <div className="flex items-center gap-1.5 pb-1 border-b border-[var(--border)]">
                 <GraduationCap className="h-3.5 w-3.5 text-[var(--accent)]" />
-                <h3 className="text-[13px] font-bold uppercase tracking-wider text-[var(--accent)]">
+                <h3 className="text-[13px] font-semibold uppercase tracking-wide text-[#64748B]">
                   Universities & Docs
                 </h3>
               </div>
-              <div className="grid grid-cols-1 gap-2">
+              <div className="grid grid-cols-1 gap-1.5">
                 {renderUniversityCardDetails('University 1', 'university_1', 'university_1_status')}
                 {renderUniversityCardDetails('University 2', 'university_2', 'university_2_status')}
                 {renderUniversityCardDetails('University 3', 'university_3', 'university_3_status')}
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-1.5">
                   {renderDetailCard('Father Phone', 'father_phone', selectedStudent.father_phone, { titleColor: 'text-[var(--accent)]' })}
                   {renderDetailCard('Mother Phone', 'mother_phone', selectedStudent.mother_phone, { titleColor: 'text-[var(--accent)]' })}
                   {renderDetailCard('Father Job', 'father_job', selectedStudent.father_job, { titleColor: 'text-[var(--accent)]' })}
@@ -1247,11 +1262,11 @@ export function StudentDetailClient({ studentId }: StudentDetailClientProps) {
             <div className="bg-[var(--background)] border border-[var(--border)] rounded-lg p-2.5 shadow-[var(--shadow-md)] flex flex-col gap-2">
               <div className="flex items-center gap-1.5 pb-1 border-b border-[var(--border)]">
                 <Landmark className="h-3.5 w-3.5 text-[var(--accent)]" />
-                <h3 className="text-[13px] font-bold uppercase tracking-wider text-[var(--accent)]">
+                <h3 className="text-[13px] font-semibold uppercase tracking-wide text-[#64748B]">
                   System & Finance
                 </h3>
               </div>
-              <div className="grid grid-cols-1 gap-2">
+              <div className="grid grid-cols-1 gap-1.5">
                 {/* Office Location Card */}
                 <div 
                   onDoubleClick={() => {
@@ -1259,7 +1274,7 @@ export function StudentDetailClient({ studentId }: StudentDetailClientProps) {
                       handleStartEditing('office', selectedStudent.office)
                     }
                   }}
-                  className="bg-blue-500 dark:bg-blue-600 rounded-[var(--radius-md)] p-2.5 text-white flex flex-col justify-between min-h-[50px] shadow-sm cursor-pointer"
+                  className="bg-blue-500 dark:bg-blue-600 rounded-[var(--radius-md)] p-2.5 text-white flex flex-col justify-between min-h-[55px] shadow-sm cursor-pointer"
                   title="Double-click to edit. Single-click value to copy."
                 >
                   <div className="flex items-center justify-between">
@@ -1339,7 +1354,7 @@ export function StudentDetailClient({ studentId }: StudentDetailClientProps) {
                       copiedField === 'office' ? (
                         <span className="text-[15px] font-bold text-white animate-pulse">Copied!</span>
                       ) : (
-                        <span className="text-[15px] font-bold tracking-wide uppercase">{selectedStudent.office || '—'}</span>
+                        <span className="text-[15px] font-bold tracking-wide uppercase">{selectedStudent.office || 'Not provided'}</span>
                       )
                     )}
                   </div>
@@ -1347,7 +1362,7 @@ export function StudentDetailClient({ studentId }: StudentDetailClientProps) {
 
                 {/* Student Balance Card */}
                 <div 
-                  className={`rounded-[var(--radius-md)] p-2.5 text-white flex flex-col justify-between min-h-[50px] cursor-pointer ${
+                  className={`rounded-[var(--radius-md)] p-2.5 text-white flex flex-col justify-between min-h-[55px] cursor-pointer ${
                     selectedStudent.balance < 0 ? 'bg-rose-500 dark:bg-rose-600' : 'bg-emerald-500 dark:bg-emerald-600'
                   }`}
                   title="Single-click value to copy."
@@ -1390,7 +1405,7 @@ export function StudentDetailClient({ studentId }: StudentDetailClientProps) {
 
                 {/* Payments Done Card */}
                 <div 
-                  className="bg-emerald-500 dark:bg-emerald-600 rounded-[var(--radius-md)] p-2.5 text-white flex flex-col justify-between min-h-[50px] cursor-pointer"
+                  className="bg-emerald-500 dark:bg-emerald-600 rounded-[var(--radius-md)] p-2.5 text-white flex flex-col justify-between min-h-[55px] cursor-pointer"
                   title="Single-click value to copy."
                   onClick={() => {
                     handleCopy('payments_done', String(computedPaymentsDone))
@@ -1431,7 +1446,7 @@ export function StudentDetailClient({ studentId }: StudentDetailClientProps) {
 
                 {/* Discount Card */}
                 <div 
-                  className="bg-orange-500 dark:bg-orange-600 rounded-[var(--radius-md)] p-2.5 text-white flex flex-col justify-between min-h-[50px] cursor-pointer"
+                  className="bg-orange-500 dark:bg-orange-600 rounded-[var(--radius-md)] p-2.5 text-white flex flex-col justify-between min-h-[55px] cursor-pointer"
                   title="Single-click value to copy."
                   onClick={() => {
                     handleCopy('discount', String(computedDiscount))
@@ -1487,7 +1502,7 @@ export function StudentDetailClient({ studentId }: StudentDetailClientProps) {
                 {/* AI Document Extraction Card (Copyable / Action Link) */}
                 <div 
                   onClick={() => router.push(`/students/${selectedStudent.id}/extract`)}
-                  className="bg-[var(--surface)] border border-[var(--border)] rounded-[var(--radius-md)] p-2.5 hover:bg-[var(--border-subtle)] hover:border-[var(--accent)]/50 active:scale-[0.98] transition-all cursor-pointer flex items-center justify-between shadow-[var(--shadow-sm)] min-h-[50px]"
+                  className="bg-[var(--surface)] border border-[var(--border)] rounded-[var(--radius-md)] p-2.5 hover:bg-[var(--border-subtle)] hover:border-[var(--accent)]/50 active:scale-[0.98] transition-all cursor-pointer flex items-center justify-between shadow-[var(--shadow-sm)] min-h-[55px]"
                 >
                   <div>
                     <span className="text-[11.5px] uppercase font-bold tracking-wider text-[var(--accent)] block">
@@ -1500,10 +1515,11 @@ export function StudentDetailClient({ studentId }: StudentDetailClientProps) {
                   <span className="text-[var(--foreground-subtle)] font-mono text-[17px] font-bold">&gt;</span>
                 </div>
 
-                {renderDetailCard('Missing Documents', 'pick_needed', selectedStudent.pick_needed, { 
+                {renderDetailCard('Missing Documents', 'pick_needed', selectedStudent.pick_needed, {
                   badgeColor: 'bg-[#5243aa] text-white',
                   titleColor: 'text-[var(--accent)]',
-                  forceBorderColor: selectedStudent.pick_needed && selectedStudent.pick_needed.length > 0 ? 'red' : 'blue'
+                  forceBorderColor: selectedStudent.pick_needed && selectedStudent.pick_needed.length > 0 ? 'red' : 'blue',
+                  editable: false
                 })}
 
                 {renderDetailCard('Kordinator', 'coordinator', selectedStudent.coordinator, { 

@@ -53,21 +53,21 @@ export function Header() {
 
       {/* Unified Search and Action Button */}
       {pathname === '/students' ? (
-        <div className="flex items-center gap-3">
-          <div className="relative">
+        <div className="flex flex-1 items-center justify-center gap-3">
+          <div className="relative w-full max-w-md">
             <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[var(--foreground-muted)]" />
             <input
               type="text"
               placeholder="Search by name, ID or phone..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="pl-9 pr-4 py-2 text-sm border border-[var(--border)] bg-[var(--background)] rounded-[var(--radius-md)] text-[var(--foreground)] placeholder-[var(--foreground-muted)] focus:outline-none focus:border-[var(--accent)] focus:ring-1 focus:ring-[var(--accent)] transition-all w-60 md:w-72"
+              className="pl-9 pr-4 py-2 text-sm border border-[var(--border)] bg-[var(--background)] rounded-[8px] text-[var(--foreground)] placeholder-[var(--foreground-muted)] focus:outline-none focus:border-[var(--accent)] focus:ring-1 focus:ring-[var(--accent)] transition-all w-full"
             />
           </div>
           <Link
             id="students-import-btn"
             href="/students/import"
-            className="flex items-center gap-2 rounded-[var(--radius-md)] border border-[var(--border)] bg-[var(--background)] hover:bg-[var(--surface-elevated)] px-3 py-2 text-sm font-semibold text-[var(--foreground)] transition-all cursor-pointer select-none"
+            className="flex items-center gap-2 rounded-[var(--radius-md)] border border-[var(--border)] bg-[var(--background)] hover:bg-[var(--surface-elevated)] px-3 py-2 text-sm font-semibold text-[var(--foreground)] transition-all cursor-pointer select-none shrink-0"
           >
             <FileSpreadsheet className="h-4 w-4 text-[var(--foreground-muted)]" />
             <span className="hidden sm:inline">Import</span>
@@ -75,7 +75,7 @@ export function Header() {
           <button
             id="students-add-btn"
             onClick={() => setIsAddStudentModalOpen(true)}
-            className="flex items-center gap-2 rounded-[var(--radius-md)] bg-[var(--accent)] px-3.5 py-2 text-sm font-semibold text-white hover:bg-[var(--accent-hover)] transition-all cursor-pointer select-none"
+            className="flex items-center gap-2 rounded-[var(--radius-md)] bg-[var(--accent)] px-3.5 py-2 text-sm font-semibold text-white hover:bg-[var(--accent-hover)] transition-all cursor-pointer select-none shrink-0"
             style={{ boxShadow: '0 4px 12px rgba(59, 127, 245, 0.2)' }}
           >
             <Plus className="h-4 w-4" />
@@ -83,15 +83,17 @@ export function Header() {
           </button>
         </div>
       ) : pathname === '/documents' ? (
-        <div className="relative">
-          <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[var(--foreground-muted)]" />
-          <input
-            type="text"
-            placeholder="Search by name, ID or phone..."
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            className="pl-9 pr-4 py-2 text-sm border border-[var(--border)] bg-[var(--background)] rounded-[var(--radius-md)] text-[var(--foreground)] placeholder-[var(--foreground-muted)] focus:outline-none focus:border-[var(--accent)] focus:ring-1 focus:ring-[var(--accent)] transition-all w-60 md:w-72"
-          />
+        <div className="flex flex-1 items-center justify-center">
+          <div className="relative w-full max-w-md">
+            <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[var(--foreground-muted)]" />
+            <input
+              type="text"
+              placeholder="Search by name, ID or phone..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="pl-9 pr-4 py-2 text-sm border border-[var(--border)] bg-[var(--background)] rounded-[8px] text-[var(--foreground)] placeholder-[var(--foreground-muted)] focus:outline-none focus:border-[var(--accent)] focus:ring-1 focus:ring-[var(--accent)] transition-all w-full"
+            />
+          </div>
         </div>
       ) : pathname.startsWith('/students/') || pathname.startsWith('/payments') || pathname.startsWith('/settings') || pathname.startsWith('/users') ? (
         null

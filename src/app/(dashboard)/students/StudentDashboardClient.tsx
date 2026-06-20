@@ -1269,11 +1269,11 @@ export function StudentDashboardClient() {
     if (unis.length === 0) return <span className="text-gray-400 dark:text-gray-600">—</span>
 
     return (
-      <ul className="space-y-1 text-xs text-[var(--foreground)] leading-relaxed list-none pl-0 font-medium whitespace-nowrap">
+      <ul className="space-y-1 text-xs text-[var(--foreground)] leading-relaxed list-none pl-0 font-medium">
         {unis.map((uni, idx) => (
-          <li key={idx} className="flex items-start gap-1">
-            <span className="text-[var(--foreground-muted)] select-none">•</span>
-            <span>{uni}</span>
+          <li key={idx} className="flex items-start gap-1 min-w-0">
+            <span className="text-[var(--foreground-muted)] select-none shrink-0">•</span>
+            <span className="truncate" title={uni || undefined}>{uni}</span>
           </li>
         ))}
       </ul>
@@ -1972,33 +1972,30 @@ export function StudentDashboardClient() {
                       style={bgObj.style}
                     >
                       {/* ID Badge Column */}
-                      <td className="px-2 py-4">
+                      <td className="px-2 py-3.5">
                         <div className="flex items-center justify-center w-10 h-6.5 text-[11px] font-bold bg-[#007aff] text-white rounded-[4px] shadow-sm select-all">
                           {student.id}
                         </div>
                       </td>
 
                       {/* Full Name & Tariff Info Column */}
-                      <td className="px-2 py-4">
+                      <td className="px-2 py-3.5">
                         <div className="font-bold uppercase tracking-wide text-xs text-[var(--foreground)]">
                           {student.full_name}
                         </div>
                         <div className="text-[10px] text-[var(--foreground-muted)] font-semibold tracking-wider uppercase mt-1">
-                          {student.tariff || 'NO TARIFF'} 
-                          {student.language_certificate && student.language_certificate !== 'NO CERTIFICATE' 
-                            ? ' (TIL SERTIFIKATLI)' 
-                            : ' (TIL SERTIFIKATISIZ)'}
+                          {student.tariff || 'NO TARIFF'}
                         </div>
                       </td>
 
                       {/* Phone Numbers Column */}
-                      <td className="px-6 py-4 font-mono text-xs text-[var(--foreground-muted)] whitespace-nowrap">
+                      <td className="px-6 py-3.5 font-mono text-xs text-[var(--foreground-muted)] whitespace-nowrap">
                         <div>{student.phone1 || '—'}</div>
                         {student.phone2 && <div className="mt-0.5">{student.phone2}</div>}
                       </td>
 
                       {/* Levels & Languages Column */}
-                      <td className="px-6 py-4 whitespace-nowrap">
+                      <td className="px-6 py-3.5 whitespace-nowrap">
                         {/* Level Badges */}
                         <div className="flex flex-wrap gap-1.5">
                           {student.level && (
@@ -2017,12 +2014,12 @@ export function StudentDashboardClient() {
                       </td>
 
                       {/* Universities List Column */}
-                      <td className="px-6 py-4">
+                      <td className="px-6 py-3.5 max-w-0">
                         {renderUniversities(student)}
                       </td>
 
                       {/* Actions Column (Color Ball + Task Tags) */}
-                      <td className="px-6 py-4" onClick={(e) => e.stopPropagation()}>
+                      <td className="px-6 py-3.5" onClick={(e) => e.stopPropagation()}>
                         <div className="flex items-center justify-start gap-3 select-none whitespace-nowrap flex-nowrap">
                           {/* Color Ball Wrapper */}
                           <div 
