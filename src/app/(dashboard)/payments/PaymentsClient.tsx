@@ -10,7 +10,7 @@ import {
 } from 'lucide-react'
 
 const PAYMENT_METHODS = ['Karta J.A', 'Karta Abdulaziz', 'Naqd', 'Karta M.A', 'Bank', 'Discount']
-const RECEIVED_BY_OPTIONS = ['ABDULAZIZ', 'MUSLIHIDDIN', 'BAXTIYOR', 'MUHAMMADALI', 'JASUR', 'ADMIN']
+const RECEIVED_BY_OPTIONS = ['ABDULAZIZ', 'MUSLIHIDDIN', 'BAXTIYOR', 'MUHAMMADALI', 'JASUR', 'ADMIN', 'Discount']
 const NOTE_PILLS = ['Shartnoma uchun', 'Qarz', 'Elchixona uchun', 'Appfee', 'DISCOUNT']
 const ITEMS_PER_PAGE = 30
 
@@ -1386,7 +1386,16 @@ export function PaymentsClient() {
                 {NOTE_PILLS.map(pill => (
                   <button
                     key={pill}
-                    onClick={() => setAddNotes(prev => prev ? `${prev}, ${pill}` : pill)}
+                    onClick={() => {
+                      setAddNotes(prev => {
+                        const newNotes = prev ? `${prev}, ${pill}` : pill
+                        if (pill === 'DISCOUNT') {
+                          setAddMethod('Discount')
+                          setAddReceivedBy('Discount')
+                        }
+                        return newNotes
+                      })
+                    }}
                     className="text-[10px] font-semibold px-2 py-1 rounded-full border border-[var(--border)] hover:bg-[var(--surface-hover)] cursor-pointer text-[var(--foreground-muted)]"
                   >
                     {pill}
