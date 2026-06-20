@@ -13,7 +13,8 @@ export async function sendTelegramNotification(message: string) {
     })
 
     if (!response.ok) {
-      console.error('Failed to send Telegram notification')
+      const errData = await response.json().catch(() => ({}))
+      console.error('Failed to send Telegram notification:', errData.error || response.statusText)
     }
   } catch (error) {
     console.error('Error sending Telegram notification:', error)
