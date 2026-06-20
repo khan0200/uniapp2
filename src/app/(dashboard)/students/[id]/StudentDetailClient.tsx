@@ -1103,10 +1103,10 @@ export function StudentDetailClient({ studentId }: StudentDetailClientProps) {
                 {renderDetailCard('Birthday', 'birthday', selectedStudent.birthday, { type: 'date', titleColor: 'text-[var(--accent)]' })}
                 <div className="sm:col-span-2 grid grid-cols-1 sm:grid-cols-4 gap-2">
                   <div className="sm:col-span-1">
-                    {renderDetailCard('Student Number 1', 'phone1', selectedStudent.phone1, { titleColor: 'text-[var(--accent)]' })}
+                    {renderDetailCard('Phone 1', 'phone1', selectedStudent.phone1, { titleColor: 'text-[var(--accent)]' })}
                   </div>
                   <div className="sm:col-span-1">
-                    {renderDetailCard('Student Number 2', 'phone2', selectedStudent.phone2, { titleColor: 'text-[var(--accent)]' })}
+                    {renderDetailCard('Phone 2', 'phone2', selectedStudent.phone2, { titleColor: 'text-[var(--accent)]' })}
                   </div>
                   <div className="sm:col-span-2">
                     {renderDetailCard('Email', 'email', selectedStudent.email, { titleColor: 'text-[var(--accent)]' })}
