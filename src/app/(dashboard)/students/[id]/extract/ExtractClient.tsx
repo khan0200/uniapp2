@@ -99,12 +99,25 @@ export function ExtractClient({ studentId }: ExtractClientProps) {
     extractStructured: true,
     includeOcr: true
   })
+
+  const [tempSettings, setTempSettings] = useState({
+    provider: 'gemini',
+    apiKey: '',
+    openaiApiKey: '',
+    model: 'gemini-3.5-flash',
+    openaiModel: 'gpt-4o-mini',
+    normalizeDates: true,
+    mergeNames: true,
+    extractStructured: true,
+    includeOcr: true
+  })
   
   const [geminiModelSelect, setGeminiModelSelect] = useState('gemini-3.5-flash')
   const [customModelId, setCustomModelId] = useState('')
   
   const [showGeminiKey, setShowGeminiKey] = useState(false)
   const [showOpenaiKey, setShowOpenaiKey] = useState(false)
+  const [isValidatingKey, setIsValidatingKey] = useState(false)
 
   const fileInputRef = useRef<HTMLInputElement>(null)
 
@@ -116,6 +129,7 @@ export function ExtractClient({ studentId }: ExtractClientProps) {
       if (stored) {
         const parsed = JSON.parse(stored)
         setAiSettings(prev => ({ ...prev, ...parsed }))
+        setTempSettings(prev => ({ ...prev, ...parsed }))
         if (parsed.model) {
           if (KNOWN_GEMINI_MODELS.includes(parsed.model)) {
             setGeminiModelSelect(parsed.model)
@@ -152,14 +166,63 @@ export function ExtractClient({ studentId }: ExtractClientProps) {
     fetchStudent()
   }, [studentId])
 
+  // Sync tempSettings when config panel opens
+  useEffect(() => {
+    if (isSettingsOpen) {
+      setTempSettings({ ...aiSettings })
+      if (aiSettings.model) {
+        if (KNOWN_GEMINI_MODELS.includes(aiSettings.model)) {
+          setGeminiModelSelect(aiSettings.model)
+        } else {
+          setGeminiModelSelect('custom')
+          setCustomModelId(aiSettings.model)
+        }
+      }
+    }
+  }, [isSettingsOpen, aiSettings])
+
   // Save AI Settings helper
-  const saveSettings = (updated: typeof aiSettings) => {
-    setAiSettings(updated)
+  const handleSaveSettings = () => {
+    setAiSettings(tempSettings)
     try {
-      localStorage.setItem('ai_settings', JSON.stringify(updated))
+      localStorage.setItem('ai_settings', JSON.stringify(tempSettings))
       showToast('AI settings saved successfully!', 'success')
     } catch (e) {
       console.error('Failed to save ai_settings', e)
+      showToast('Failed to save settings.', 'danger')
+    }
+  }
+
+  // Validate API Key helper
+  const handleValidateKey = async () => {
+    const key = tempSettings.provider === 'openai' ? tempSettings.openaiApiKey : tempSettings.apiKey
+    if (!key) {
+      showToast('Please enter an API key first!', 'danger')
+      return
+    }
+
+    setIsValidatingKey(true)
+    showToast('Validating API key...', 'info')
+    try {
+      const response = await fetch('/api/validate-key', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          provider: tempSettings.provider,
+          apiKey: key
+        })
+      })
+      const data = await response.json()
+      if (response.ok && data.success) {
+        showToast(`${tempSettings.provider === 'openai' ? 'OpenAI' : 'Gemini'} API Key is valid! ✓`, 'success')
+      } else {
+        showToast(`Validation failed: ${data.error || 'Invalid key'}`, 'danger')
+      }
+    } catch (error: any) {
+      console.error('Validation error:', error)
+      showToast('Network error validating API key.', 'danger')
+    } finally {
+      setIsValidatingKey(false)
     }
   }
 
@@ -588,9 +651,9 @@ export function ExtractClient({ studentId }: ExtractClientProps) {
               <label className="text-[10px] uppercase font-extrabold tracking-wider text-[var(--foreground-muted)]">Active Provider</label>
               <div className="flex gap-2">
                 <button
-                  onClick={() => saveSettings({ ...aiSettings, provider: 'gemini' })}
+                  onClick={() => setTempSettings(prev => ({ ...prev, provider: 'gemini' }))}
                   className={`flex-1 py-1.5 rounded-md border text-xs font-bold transition-all ${
-                    aiSettings.provider === 'gemini' 
+                    tempSettings.provider === 'gemini' 
                       ? 'bg-purple-600/10 border-purple-500/55 text-purple-400' 
                       : 'border-[var(--border)] text-[var(--foreground-muted)] hover:bg-[var(--surface)]'
                   }`}
@@ -598,9 +661,9 @@ export function ExtractClient({ studentId }: ExtractClientProps) {
                   Google Gemini
                 </button>
                 <button
-                  onClick={() => saveSettings({ ...aiSettings, provider: 'openai' })}
+                  onClick={() => setTempSettings(prev => ({ ...prev, provider: 'openai' }))}
                   className={`flex-1 py-1.5 rounded-md border text-xs font-bold transition-all ${
-                    aiSettings.provider === 'openai' 
+                    tempSettings.provider === 'openai' 
                       ? 'bg-emerald-600/10 border-emerald-500/55 text-emerald-400' 
                       : 'border-[var(--border)] text-[var(--foreground-muted)] hover:bg-[var(--surface)]'
                   }`}
@@ -613,10 +676,10 @@ export function ExtractClient({ studentId }: ExtractClientProps) {
             {/* Model Selector */}
             <div className="flex flex-col gap-1.5">
               <label className="text-[10px] uppercase font-extrabold tracking-wider text-[var(--foreground-muted)]">AI Model</label>
-              {aiSettings.provider === 'openai' ? (
+              {tempSettings.provider === 'openai' ? (
                 <select
-                  value={aiSettings.openaiModel}
-                  onChange={(e) => saveSettings({ ...aiSettings, openaiModel: e.target.value })}
+                  value={tempSettings.openaiModel}
+                  onChange={(e) => setTempSettings(prev => ({ ...prev, openaiModel: e.target.value }))}
                   className="bg-[var(--surface)] border border-[var(--border)] text-xs text-[var(--foreground)] p-2 rounded-md focus:outline-none focus:border-[var(--accent)] font-semibold cursor-pointer w-full"
                 >
                   <optgroup label="💰 Budget (Vision-Capable)">
@@ -643,9 +706,9 @@ export function ExtractClient({ studentId }: ExtractClientProps) {
                       const val = e.target.value
                       setGeminiModelSelect(val)
                       if (val === 'custom') {
-                        saveSettings({ ...aiSettings, model: customModelId || 'gemini-3.5-flash' })
+                        setTempSettings(prev => ({ ...prev, model: customModelId || 'gemini-3.5-flash' }))
                       } else {
-                        saveSettings({ ...aiSettings, model: val })
+                        setTempSettings(prev => ({ ...prev, model: val }))
                       }
                     }}
                     className="bg-[var(--surface)] border border-[var(--border)] text-xs text-[var(--foreground)] p-2 rounded-md focus:outline-none focus:border-[var(--accent)] font-semibold cursor-pointer w-full"
@@ -669,7 +732,7 @@ export function ExtractClient({ studentId }: ExtractClientProps) {
                       onChange={(e) => {
                         const val = e.target.value
                         setCustomModelId(val)
-                        saveSettings({ ...aiSettings, model: val })
+                        setTempSettings(prev => ({ ...prev, model: val }))
                       }}
                       placeholder="Enter custom model ID (e.g. gemini-2.5-flash-lite)..."
                       className="bg-[var(--surface)] border border-[var(--border)] text-xs text-[var(--foreground)] p-2 rounded-md focus:outline-none focus:border-[var(--accent)] w-full mt-1.5"
@@ -680,14 +743,14 @@ export function ExtractClient({ studentId }: ExtractClientProps) {
             </div>
 
             {/* API Key Override (Gemini) */}
-            {aiSettings.provider === 'gemini' && (
+            {tempSettings.provider === 'gemini' && (
               <div className="flex flex-col gap-1.5 md:col-span-2">
                 <label className="text-[10px] uppercase font-extrabold tracking-wider text-[var(--foreground-muted)]">Gemini API Key Override</label>
                 <div className="relative">
                   <input
                     type={showGeminiKey ? "text" : "password"}
-                    value={aiSettings.apiKey}
-                    onChange={(e) => saveSettings({ ...aiSettings, apiKey: e.target.value })}
+                    value={tempSettings.apiKey}
+                    onChange={(e) => setTempSettings(prev => ({ ...prev, apiKey: e.target.value }))}
                     placeholder="Enter custom Gemini Key (if not using server environment variable)"
                     className="bg-[var(--surface)] border border-[var(--border)] text-xs text-[var(--foreground)] py-2 pl-3 pr-10 rounded-md focus:outline-none focus:border-[var(--accent)] w-full"
                   />
@@ -702,14 +765,14 @@ export function ExtractClient({ studentId }: ExtractClientProps) {
             )}
 
             {/* API Key Override (OpenAI) */}
-            {aiSettings.provider === 'openai' && (
+            {tempSettings.provider === 'openai' && (
               <div className="flex flex-col gap-1.5 md:col-span-2">
                 <label className="text-[10px] uppercase font-extrabold tracking-wider text-[var(--foreground-muted)]">OpenAI API Key</label>
                 <div className="relative">
                   <input
                     type={showOpenaiKey ? "text" : "password"}
-                    value={aiSettings.openaiApiKey}
-                    onChange={(e) => saveSettings({ ...aiSettings, openaiApiKey: e.target.value })}
+                    value={tempSettings.openaiApiKey}
+                    onChange={(e) => setTempSettings(prev => ({ ...prev, openaiApiKey: e.target.value }))}
                     placeholder="sk-proj-..."
                     className="bg-[var(--surface)] border border-[var(--border)] text-xs text-[var(--foreground)] py-2 pl-3 pr-10 rounded-md focus:outline-none focus:border-[var(--accent)] w-full"
                   />
@@ -728,8 +791,8 @@ export function ExtractClient({ studentId }: ExtractClientProps) {
               <label className="flex items-center gap-2 cursor-pointer select-none text-[11px] font-semibold text-[var(--foreground)]">
                 <input
                   type="checkbox"
-                  checked={aiSettings.normalizeDates}
-                  onChange={(e) => saveSettings({ ...aiSettings, normalizeDates: e.target.checked })}
+                  checked={tempSettings.normalizeDates}
+                  onChange={(e) => setTempSettings(prev => ({ ...prev, normalizeDates: e.target.checked }))}
                   className="rounded border-[var(--border)] text-[var(--accent)] focus:ring-[var(--accent)] h-3.5 w-3.5 cursor-pointer"
                 />
                 Normalize Dates
@@ -738,8 +801,8 @@ export function ExtractClient({ studentId }: ExtractClientProps) {
               <label className="flex items-center gap-2 cursor-pointer select-none text-[11px] font-semibold text-[var(--foreground)]">
                 <input
                   type="checkbox"
-                  checked={aiSettings.mergeNames}
-                  onChange={(e) => saveSettings({ ...aiSettings, mergeNames: e.target.checked })}
+                  checked={tempSettings.mergeNames}
+                  onChange={(e) => setTempSettings(prev => ({ ...prev, mergeNames: e.target.checked }))}
                   className="rounded border-[var(--border)] text-[var(--accent)] focus:ring-[var(--accent)] h-3.5 w-3.5 cursor-pointer"
                 />
                 Merge Names
@@ -748,8 +811,8 @@ export function ExtractClient({ studentId }: ExtractClientProps) {
               <label className="flex items-center gap-2 cursor-pointer select-none text-[11px] font-semibold text-[var(--foreground)]">
                 <input
                   type="checkbox"
-                  checked={aiSettings.extractStructured}
-                  onChange={(e) => saveSettings({ ...aiSettings, extractStructured: e.target.checked })}
+                  checked={tempSettings.extractStructured}
+                  onChange={(e) => setTempSettings(prev => ({ ...prev, extractStructured: e.target.checked }))}
                   className="rounded border-[var(--border)] text-[var(--accent)] focus:ring-[var(--accent)] h-3.5 w-3.5 cursor-pointer"
                 />
                 Extract Structure
@@ -758,12 +821,35 @@ export function ExtractClient({ studentId }: ExtractClientProps) {
               <label className="flex items-center gap-2 cursor-pointer select-none text-[11px] font-semibold text-[var(--foreground)]">
                 <input
                   type="checkbox"
-                  checked={aiSettings.includeOcr}
-                  onChange={(e) => saveSettings({ ...aiSettings, includeOcr: e.target.checked })}
+                  checked={tempSettings.includeOcr}
+                  onChange={(e) => setTempSettings(prev => ({ ...prev, includeOcr: e.target.checked }))}
                   className="rounded border-[var(--border)] text-[var(--accent)] focus:ring-[var(--accent)] h-3.5 w-3.5 cursor-pointer"
                 />
                 Provide Raw OCR
               </label>
+            </div>
+
+            {/* Action Buttons */}
+            <div className="flex gap-2.5 md:col-span-2 border-t border-[var(--border)] pt-3.5 mt-2">
+              <button
+                onClick={handleSaveSettings}
+                className="px-4 py-2 bg-[var(--accent)] hover:bg-[var(--accent-hover)] text-white text-xs font-bold rounded-md transition-all shadow-[var(--shadow-sm)] flex items-center gap-1.5 cursor-pointer"
+              >
+                <CheckCircle2 className="h-3.5 w-3.5" />
+                Save Settings
+              </button>
+              <button
+                disabled={isValidatingKey}
+                onClick={handleValidateKey}
+                className="px-4 py-2 bg-[var(--surface)] hover:bg-[var(--border-subtle)] border border-[var(--border)] text-[var(--foreground)] text-xs font-semibold rounded-md transition-all flex items-center gap-1.5 cursor-pointer disabled:opacity-50"
+              >
+                {isValidatingKey ? (
+                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                ) : (
+                  <CheckSquare className="h-3.5 w-3.5 text-[var(--accent)]" />
+                )}
+                Validate Key
+              </button>
             </div>
           </div>
         </div>
