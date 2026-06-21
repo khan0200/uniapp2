@@ -19,103 +19,7 @@ interface StudentDetailClientProps {
   studentId: string
 }
 
-// Phonetic Latin -> Hangul transliteration for quick-copy purposes only.
-// This is an approximation, not a verified official transliteration, and
-// it never gets written back to Supabase.
-const CHO = ['ㄱ', 'ㄲ', 'ㄴ', 'ㄷ', 'ㄸ', 'ㄹ', 'ㅁ', 'ㅂ', 'ㅃ', 'ㅅ', 'ㅆ', 'ㅇ', 'ㅈ', 'ㅉ', 'ㅊ', 'ㅋ', 'ㅌ', 'ㅍ', 'ㅎ']
-const JUNG = ['ㅏ', 'ㅐ', 'ㅑ', 'ㅒ', 'ㅓ', 'ㅔ', 'ㅕ', 'ㅖ', 'ㅗ', 'ㅘ', 'ㅙ', 'ㅚ', 'ㅛ', 'ㅜ', 'ㅝ', 'ㅞ', 'ㅟ', 'ㅠ', 'ㅡ', 'ㅢ', 'ㅣ']
-const JONG = ['', 'ㄱ', 'ㄲ', 'ㄳ', 'ㄴ', 'ㄵ', 'ㄶ', 'ㄷ', 'ㄹ', 'ㄺ', 'ㄻ', 'ㄼ', 'ㄽ', 'ㄾ', 'ㄿ', 'ㅀ', 'ㅁ', 'ㅂ', 'ㅄ', 'ㅅ', 'ㅆ', 'ㅇ', 'ㅈ', 'ㅊ', 'ㅋ', 'ㅌ', 'ㅍ', 'ㅎ']
 
-function composeHangul(cho: string, jung: string, jong: string = ''): string {
-  const choIdx = CHO.indexOf(cho)
-  const jungIdx = JUNG.indexOf(jung)
-  const jongIdx = JONG.indexOf(jong)
-  if (choIdx === -1 || jungIdx === -1 || jongIdx === -1) return ''
-  return String.fromCharCode(0xac00 + choIdx * 21 * 28 + jungIdx * 28 + jongIdx)
-}
-
-// Consonant digraphs/letters mapped to an initial Hangul consonant, with an
-// explicit length so we don't need to infer it from the pattern itself.
-const CONSONANT_MAP: { letters: string; cho: string }[] = [
-  { letters: 'kh', cho: 'ㅋ' }, { letters: 'ph', cho: 'ㅍ' }, { letters: 'th', cho: 'ㅌ' },
-  { letters: 'ch', cho: 'ㅊ' }, { letters: 'sh', cho: 'ㅅ' }, { letters: 'zh', cho: 'ㅈ' },
-  { letters: 'ng', cho: 'ㅇ' },
-  { letters: 'b', cho: 'ㅂ' }, { letters: 'p', cho: 'ㅍ' }, { letters: 'v', cho: 'ㅂ' },
-  { letters: 'd', cho: 'ㄷ' }, { letters: 't', cho: 'ㅌ' },
-  { letters: 'g', cho: 'ㄱ' }, { letters: 'k', cho: 'ㅋ' },
-  { letters: 'j', cho: 'ㅈ' }, { letters: 'z', cho: 'ㅈ' },
-  { letters: 's', cho: 'ㅅ' }, { letters: 'c', cho: 'ㅅ' },
-  { letters: 'm', cho: 'ㅁ' }, { letters: 'n', cho: 'ㄴ' },
-  { letters: 'l', cho: 'ㄹ' }, { letters: 'r', cho: 'ㄹ' },
-  { letters: 'h', cho: 'ㅎ' }, { letters: 'f', cho: 'ㅍ' },
-  { letters: 'q', cho: 'ㅋ' }, { letters: 'x', cho: 'ㅅ' },
-  { letters: 'y', cho: 'ㅇ' }, { letters: 'w', cho: 'ㅇ' },
-].sort((a, b) => b.letters.length - a.letters.length) // longest match first
-
-const VOWEL_MAP: { letters: string; jung: string }[] = [
-  { letters: 'oo', jung: 'ㅜ' }, { letters: 'ee', jung: 'ㅣ' },
-  { letters: 'ai', jung: 'ㅐ' }, { letters: 'ay', jung: 'ㅐ' },
-  { letters: 'ya', jung: 'ㅑ' }, { letters: 'yo', jung: 'ㅛ' }, { letters: 'yu', jung: 'ㅠ' },
-  { letters: 'a', jung: 'ㅏ' }, { letters: 'e', jung: 'ㅔ' }, { letters: 'i', jung: 'ㅣ' },
-  { letters: 'o', jung: 'ㅗ' }, { letters: 'u', jung: 'ㅜ' }, { letters: 'y', jung: 'ㅣ' },
-].sort((a, b) => b.letters.length - a.letters.length)
-
-const FINAL_CONSONANT_MAP: Record<string, string> = {
-  n: 'ㄴ', m: 'ㅁ', l: 'ㄹ', r: 'ㄹ', k: 'ㄱ', g: 'ㄱ', t: 'ㄷ', d: 'ㄷ', p: 'ㅂ', b: 'ㅂ', s: 'ㅅ',
-}
-
-function transliterateWordToHangul(word: string): string {
-  const lower = word.toLowerCase().replace(/[^a-z]/g, '')
-  if (!lower) return word
-
-  let i = 0
-  let result = ''
-
-  while (i < lower.length) {
-    const rest = lower.slice(i)
-
-    const consonantMatch = CONSONANT_MAP.find(m => rest.startsWith(m.letters))
-    const cho = consonantMatch?.cho ?? 'ㅇ'
-    const consonantLen = consonantMatch ? consonantMatch.letters.length : 0
-
-    const afterConsonant = rest.slice(consonantLen)
-    const vowelMatch = VOWEL_MAP.find(m => afterConsonant.startsWith(m.letters))
-
-    if (!vowelMatch) {
-      // No vowel follows — attach a silent "eu" to render the consonant alone.
-      result += composeHangul(cho, 'ㅡ') || ''
-      i += Math.max(consonantLen, 1)
-      continue
-    }
-
-    let totalConsumed = consonantLen + vowelMatch.letters.length
-    let jong = ''
-
-    // A consonant that's followed by another consonant+vowel (i.e. starts
-    // the next syllable) closes out this syllable as a final consonant.
-    const afterVowel = lower.slice(i + totalConsumed)
-    const closingLetter = afterVowel[0]
-    const nextIsConsonant = closingLetter && /[a-z]/.test(closingLetter) && !VOWEL_MAP.some(v => afterVowel.startsWith(v.letters))
-    if (nextIsConsonant && FINAL_CONSONANT_MAP[closingLetter]) {
-      jong = FINAL_CONSONANT_MAP[closingLetter]
-      totalConsumed += 1
-    }
-
-    result += composeHangul(cho, vowelMatch.jung, jong) || ''
-    i += totalConsumed
-  }
-
-  return result || word
-}
-
-function transliterateNameToHangul(name: string): string {
-  if (!name) return name
-  return name
-    .split(' ')
-    .filter(Boolean)
-    .map(word => transliterateWordToHangul(word))
-    .join(' ')
-}
 
 export function StudentDetailClient({ studentId }: StudentDetailClientProps) {
   const supabase = createClient()
@@ -248,8 +152,7 @@ export function StudentDetailClient({ studentId }: StudentDetailClientProps) {
   // Fetch an AI-powered Korean transliteration of the Full Name only.
   // Family/Given Name are derived by splitting the translated full name,
   // mirroring how the English versions split selectedStudent.full_name.
-  // Falls back to the local phonetic approximation if no AI key is
-  // configured or the request fails. Never writes anything to Supabase.
+  // Requires an AI API key — no local fallback. Never writes anything to Supabase.
   const handleShowKorean = async () => {
     if (!selectedStudent) return
     setNameLanguage('KR')
@@ -279,8 +182,7 @@ export function StudentDetailClient({ studentId }: StudentDetailClientProps) {
     const model = provider === 'openai' ? aiSettings?.openaiModel : aiSettings?.model
 
     if (!apiKey) {
-      setTranslateError(null)
-      setKoreanNames(splitTranslatedFullName(transliterateNameToHangul(fullName)))
+      setTranslateError('No AI API key configured. Please add one in Settings to enable Korean name translation.')
       return
     }
 
@@ -296,11 +198,11 @@ export function StudentDetailClient({ studentId }: StudentDetailClientProps) {
       if (!response.ok) throw new Error(data.error || 'Translation failed')
 
       const [full] = data.results || []
-      setKoreanNames(splitTranslatedFullName(full || transliterateNameToHangul(fullName)))
+      if (!full) throw new Error('AI returned an empty result. Please try again.')
+      setKoreanNames(splitTranslatedFullName(full))
     } catch (err: any) {
-      console.error('AI name translation failed, falling back to local transliteration:', err)
-      setTranslateError(err.message || 'AI translation failed — showing approximate transliteration instead.')
-      setKoreanNames(splitTranslatedFullName(transliterateNameToHangul(fullName)))
+      console.error('AI name translation failed:', err)
+      setTranslateError(err.message || 'AI translation failed. Please check your API key and try again.')
     } finally {
       setIsTranslatingNames(false)
     }
