@@ -6,13 +6,14 @@ import Link from 'next/link'
 import { 
   Plus, Pencil, Loader2, AlertCircle, CheckCircle2, 
   Building2, Landmark, Tag, Layers, 
-  ChevronDown, Copy, RefreshCw, Trash2, ArrowLeft,
-  Mail, Calendar, MapPin, User, FileText, CheckSquare, GraduationCap, Hourglass, X
+  ChevronDown, Copy, ArrowLeft,
+  Mail, Calendar, MapPin, User, CheckSquare, GraduationCap, Hourglass, X
 } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import { type Student, type StudentLevel, type StudentTariff } from '@/types/database'
 import { PageShell } from '@/components/ui/PageShell'
 import { cn } from '@/lib/utils'
+import { useStudentDashboard } from '@/contexts/StudentDashboardContext'
 
 interface StudentDetailClientProps {
   studentId: string
@@ -119,6 +120,7 @@ function transliterateNameToHangul(name: string): string {
 export function StudentDetailClient({ studentId }: StudentDetailClientProps) {
   const supabase = createClient()
   const router = useRouter()
+  const { setDetailPageActions } = useStudentDashboard()
 
   // State for student details
   const [selectedStudent, setSelectedStudent] = useState<Student | null>(null)
@@ -545,6 +547,20 @@ export function StudentDetailClient({ studentId }: StudentDetailClientProps) {
     }
   }
 
+  // Register this page's action buttons (Fill By Document / Reload / Delete)
+  // so the shared Header component can render them in the top bar.
+  useEffect(() => {
+    if (!selectedStudent) return
+    setDetailPageActions({
+      onFillByDocument: () => router.push(`/students/${selectedStudent.id}/extract`),
+      onReload: fetchStudent,
+      onDelete: selectedStudent.is_deleted ? handleRestoreStudent : handleDeleteStudent,
+      isDeleted: selectedStudent.is_deleted,
+      isDeleting,
+    })
+    return () => setDetailPageActions(null)
+  }, [selectedStudent, isDeleting])
+
   // Helper to format currency values
   const formatCurrency = (val: number) => {
     return new Intl.NumberFormat('uz-UZ').format(val) + ' UZS'
@@ -592,7 +608,7 @@ export function StudentDetailClient({ studentId }: StudentDetailClientProps) {
             handleStartEditing(String(field), value, options.type === 'select' ? options.selectOptions?.[0] : '')
           }
         }}
-        className={`group relative bg-[var(--surface)] border border-[#E5E7EB] dark:border-[var(--border)] border-l-[3px] ${stripeColor} rounded-[var(--radius-md)] px-2.5 py-1.5 flex flex-col justify-between min-h-[58px] text-[var(--foreground)] hover:bg-[var(--surface-elevated)] transition-all duration-200 cursor-pointer`}
+        className={`group relative bg-[var(--surface)] border border-[#E5E7EB] dark:border-[var(--border)] border-l-[3px] ${stripeColor} rounded-[var(--radius-md)] px-2.5 py-1.5 flex flex-col justify-between min-h-[65px] text-[var(--foreground)] hover:bg-[var(--surface-elevated)] transition-all duration-200 cursor-pointer`}
         title={`${editable ? 'Double-click to edit. ' : ''}${copyable && value ? 'Single-click value to copy.' : ''}`}
       >
         {isMissing && (
@@ -746,7 +762,7 @@ export function StudentDetailClient({ studentId }: StudentDetailClientProps) {
             handleStartEditing(String(certField), certVal, certsAllowed[0]);
           }
         }}
-        className={`group relative bg-[var(--surface)] border border-[#E5E7EB] dark:border-[var(--border)] border-l-[3px] ${isMissing ? 'border-l-rose-600' : 'border-l-[var(--accent)]'} rounded-[var(--radius-md)] px-2.5 py-1.5 flex flex-col justify-between min-h-[58px] text-[var(--foreground)] hover:bg-[var(--surface-elevated)] transition-all duration-200 cursor-pointer`}
+        className={`group relative bg-[var(--surface)] border border-[#E5E7EB] dark:border-[var(--border)] border-l-[3px] ${isMissing ? 'border-l-rose-600' : 'border-l-[var(--accent)]'} rounded-[var(--radius-md)] px-2.5 py-1.5 flex flex-col justify-between min-h-[65px] text-[var(--foreground)] hover:bg-[var(--surface-elevated)] transition-all duration-200 cursor-pointer`}
         title="Double-click to edit. Single-click value to copy."
       >
         {isMissing && (
@@ -946,7 +962,7 @@ export function StudentDetailClient({ studentId }: StudentDetailClientProps) {
                 handleStartEditing(String(uniField), uniVal);
               }
             }}
-            className={`group relative bg-[var(--surface)] border border-[#E5E7EB] dark:border-[var(--border)] border-l-[3px] ${isMissing ? 'border-l-rose-600' : 'border-l-[var(--accent)]'} rounded-[var(--radius-md)] px-2.5 py-1.5 flex flex-col justify-between min-h-[58px] text-[var(--foreground)] hover:bg-[var(--surface-elevated)] transition-all duration-200 cursor-pointer`}
+            className={`group relative bg-[var(--surface)] border border-[#E5E7EB] dark:border-[var(--border)] border-l-[3px] ${isMissing ? 'border-l-rose-600' : 'border-l-[var(--accent)]'} rounded-[var(--radius-md)] px-2.5 py-1.5 flex flex-col justify-between min-h-[65px] text-[var(--foreground)] hover:bg-[var(--surface-elevated)] transition-all duration-200 cursor-pointer`}
             title="Double-click to edit. Single-click value to copy."
           >
             {isMissing && (
@@ -1097,7 +1113,7 @@ export function StudentDetailClient({ studentId }: StudentDetailClientProps) {
                           
                           {/* Dropdown Popover */}
                           <div 
-                            className="absolute left-0 mt-6 w-36 bg-white dark:bg-[#1c1c1e] border border-[var(--border)] rounded-lg shadow-lg z-40 py-1 flex flex-col gap-0.5 animate-in fade-in slide-in-from-top-1 duration-100"
+                            className="absolute left-0 mt-6 w-36 bg-white dark:bg-[#1c1c1e] border border-[var(--border)] rounded-[var(--radius-md)] shadow-lg z-40 py-1 flex flex-col gap-0.5 animate-in fade-in slide-in-from-top-1 duration-100"
                             onClick={(e) => e.stopPropagation()}
                           >
                             <div className="px-2.5 py-1 text-[10.5px] uppercase font-bold tracking-wider text-[var(--foreground-muted)] border-b border-[var(--border)] mb-0.5 select-none">
@@ -1139,7 +1155,7 @@ export function StudentDetailClient({ studentId }: StudentDetailClientProps) {
     const isMissing = !isLoading && (!value || value.trim() === '' || value.trim() === '—')
     return (
       <div
-        className={`group relative bg-[var(--surface)] border border-[#E5E7EB] dark:border-[var(--border)] border-l-[3px] ${isMissing ? 'border-l-rose-600' : 'border-l-[var(--accent)]'} rounded-[var(--radius-md)] px-2.5 py-1.5 flex flex-col justify-between min-h-[58px] text-[var(--foreground)] hover:bg-[var(--surface-elevated)] transition-all duration-200 cursor-pointer`}
+        className={`group relative bg-[var(--surface)] border border-[#E5E7EB] dark:border-[var(--border)] border-l-[3px] ${isMissing ? 'border-l-rose-600' : 'border-l-[var(--accent)]'} rounded-[var(--radius-md)] px-2.5 py-1.5 flex flex-col justify-between min-h-[65px] text-[var(--foreground)] hover:bg-[var(--surface-elevated)] transition-all duration-200 cursor-pointer`}
         title={value && !isLoading ? 'Single-click value to copy.' : ''}
       >
         {isMissing && (
@@ -1226,51 +1242,15 @@ export function StudentDetailClient({ studentId }: StudentDetailClientProps) {
   return (
     <PageShell className="p-3 gap-3">
       <div className="bg-background text-[var(--foreground)] transition-colors flex flex-col gap-2.5">
-        {/* Header Action Bar (Highly compact) */}
-        <div className="flex items-center justify-between gap-4 pb-2 border-b border-[var(--border)] flex-shrink-0">
+        {/* Student Header Identifier Banner (Extremely compact) */}
+        <div className="py-2.5 px-3 bg-[var(--surface)] border border-[var(--border)] rounded-[var(--radius-md)] flex items-center gap-3 shadow-[var(--shadow-sm)] transition-colors flex-shrink-0">
           <Link
             href="/students"
-            className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-[var(--surface-elevated)] hover:bg-[var(--border-subtle)] border border-[var(--border)] rounded-md text-[13.5px] font-semibold text-[var(--foreground)] transition-all shadow-[var(--shadow-sm)]"
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-[var(--surface-elevated)] hover:bg-[var(--border-subtle)] border border-[var(--border)] rounded-[var(--radius-md)] text-[13.5px] font-semibold text-[var(--foreground)] transition-all shadow-[var(--shadow-sm)] shrink-0"
           >
             <ArrowLeft className="h-3.5 w-3.5 text-[var(--accent)]" />
             Back
           </Link>
-
-          <div className="flex items-center gap-2">
-            <button 
-              onClick={fetchStudent}
-              className="inline-flex items-center gap-1 text-[var(--foreground-muted)] hover:text-[var(--foreground)] px-2.5 py-1.5 bg-[var(--surface-elevated)] hover:bg-[var(--border-subtle)] border border-[var(--border)] rounded-md text-[13.5px] font-semibold transition-all shadow-[var(--shadow-sm)] cursor-pointer"
-              title="Reload student data"
-            >
-              <RefreshCw className="h-3.5 w-3.5 text-[var(--accent)]" />
-              Reload
-            </button>
-            {selectedStudent.is_deleted ? (
-              <button 
-                disabled={isDeleting}
-                onClick={handleRestoreStudent}
-                className="inline-flex items-center gap-1 text-emerald-600 dark:text-emerald-400 hover:bg-[var(--border-subtle)] px-2.5 py-1.5 bg-[var(--surface-elevated)] border border-[var(--border)] rounded-md text-[13.5px] font-semibold transition-all shadow-[var(--shadow-sm)] cursor-pointer disabled:opacity-50"
-                title="Restore student profile"
-              >
-                {isDeleting ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <RefreshCw className="h-3.5 w-3.5 text-emerald-600 dark:text-emerald-400" />}
-                Restore
-              </button>
-            ) : (
-              <button 
-                disabled={isDeleting}
-                onClick={handleDeleteStudent}
-                className="inline-flex items-center gap-1 text-[var(--danger)] hover:bg-[var(--border-subtle)] hover:text-red-600 px-2.5 py-1.5 bg-[var(--surface-elevated)] border border-[var(--border)] rounded-md text-[13.5px] font-semibold transition-all shadow-[var(--shadow-sm)] cursor-pointer disabled:opacity-50"
-                title="Delete student profile"
-              >
-                {isDeleting ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Trash2 className="h-3.5 w-3.5" />}
-                Delete
-              </button>
-            )}
-          </div>
-        </div>
-
-        {/* Student Header Identifier Banner (Extremely compact) */}
-        <div className="py-2 px-3 bg-[var(--surface)] border border-[var(--border)] rounded-lg flex items-center gap-3 shadow-[var(--shadow-sm)] transition-colors flex-shrink-0">
           <div className="w-11 h-11 bg-[var(--accent)] rounded-full flex items-center justify-center font-bold text-white text-sm select-none shadow-[var(--shadow-sm)]">
             {getInitials(selectedStudent.full_name)}
           </div>
@@ -1301,12 +1281,12 @@ export function StudentDetailClient({ studentId }: StudentDetailClientProps) {
         </div>
 
         {/* Main Dashboard Layout (3-Column Grid) */}
-        <div className="grid grid-cols-1 lg:grid-cols-[1.54fr_1.36fr_0.5fr] gap-3 pb-1">
+        <div className="grid grid-cols-1 lg:grid-cols-[1.45fr_1.25fr_0.75fr] gap-3 pb-1">
           {/* Column 1: Personal Info & Contact Info */}
           <div className="flex flex-col gap-3">
             {/* Personal & Passport Block */}
-            <div className="bg-[var(--background)] border border-[var(--border)] rounded-lg p-2.5 shadow-[var(--shadow-md)] flex flex-col gap-2">
-              <div className="flex items-center justify-between gap-1.5 pb-1 border-b border-[var(--border)]">
+            <div className="bg-[var(--surface)] border border-[var(--border)] rounded-[var(--radius-md)] p-3 shadow-[var(--shadow-sm)] flex flex-col gap-2.5">
+              <div className="flex items-center justify-between gap-1.5 pb-1.5 border-b border-[var(--border)]">
                 <div className="flex items-center gap-1.5">
                   <User className="h-3.5 w-3.5 text-[var(--accent)]" />
                   <h3 className="text-[13px] font-semibold uppercase tracking-wide text-[#64748B]">
@@ -1315,7 +1295,7 @@ export function StudentDetailClient({ studentId }: StudentDetailClientProps) {
                 </div>
                 <div className="flex items-center gap-1.5">
                   {isTranslatingNames && <Loader2 className="h-3 w-3 animate-spin text-[var(--accent)]" />}
-                  <div className="flex items-center rounded-md border border-[var(--border)] overflow-hidden text-[10.5px] font-bold">
+                  <div className="flex items-center rounded-[var(--radius-md)] border border-[var(--border)] overflow-hidden text-[10.5px] font-bold">
                     <button
                       onClick={() => setNameLanguage('EN')}
                       className={`px-2 py-0.5 cursor-pointer transition-all ${nameLanguage === 'EN' ? 'bg-[var(--accent)] text-white' : 'bg-[var(--surface)] text-[#64748B] hover:bg-[var(--surface-elevated)]'}`}
@@ -1387,8 +1367,8 @@ export function StudentDetailClient({ studentId }: StudentDetailClientProps) {
           {/* Column 2: Academic & Universities */}
           <div className="flex flex-col gap-3">
             {/* Academic & Languages Block */}
-            <div className="bg-[var(--background)] border border-[var(--border)] rounded-lg p-2.5 shadow-[var(--shadow-md)] flex flex-col gap-2">
-              <div className="flex items-center gap-1.5 pb-1 border-b border-[var(--border)]">
+            <div className="bg-[var(--surface)] border border-[var(--border)] rounded-[var(--radius-md)] p-3 shadow-[var(--shadow-sm)] flex flex-col gap-2.5">
+              <div className="flex items-center gap-1.5 pb-1.5 border-b border-[var(--border)]">
                 <Layers className="h-3.5 w-3.5 text-[var(--accent)]" />
                 <h3 className="text-[13px] font-semibold uppercase tracking-wide text-[#64748B]">
                   Academic & Languages
@@ -1428,8 +1408,8 @@ export function StudentDetailClient({ studentId }: StudentDetailClientProps) {
             </div>
 
             {/* Universities & Docs Block */}
-            <div className="bg-[var(--background)] border border-[var(--border)] rounded-lg p-2.5 shadow-[var(--shadow-md)] flex flex-col gap-2">
-              <div className="flex items-center gap-1.5 pb-1 border-b border-[var(--border)]">
+            <div className="bg-[var(--surface)] border border-[var(--border)] rounded-[var(--radius-md)] p-3 shadow-[var(--shadow-sm)] flex flex-col gap-2.5">
+              <div className="flex items-center gap-1.5 pb-1.5 border-b border-[var(--border)]">
                 <GraduationCap className="h-3.5 w-3.5 text-[var(--accent)]" />
                 <h3 className="text-[13px] font-semibold uppercase tracking-wide text-[#64748B]">
                   Universities & Docs
@@ -1452,8 +1432,8 @@ export function StudentDetailClient({ studentId }: StudentDetailClientProps) {
           {/* Column 3: System & Finance */}
           <div className="flex flex-col gap-3">
             {/* System & Finance Block */}
-            <div className="bg-[var(--background)] border border-[var(--border)] rounded-lg p-2.5 shadow-[var(--shadow-md)] flex flex-col gap-2">
-              <div className="flex items-center gap-1.5 pb-1 border-b border-[var(--border)]">
+            <div className="bg-[var(--surface)] border border-[var(--border)] rounded-[var(--radius-md)] p-3 shadow-[var(--shadow-sm)] flex flex-col gap-2.5">
+              <div className="flex items-center gap-1.5 pb-1.5 border-b border-[var(--border)]">
                 <Landmark className="h-3.5 w-3.5 text-[var(--accent)]" />
                 <h3 className="text-[13px] font-semibold uppercase tracking-wide text-[#64748B]">
                   System & Finance
@@ -1467,7 +1447,7 @@ export function StudentDetailClient({ studentId }: StudentDetailClientProps) {
                       handleStartEditing('office', selectedStudent.office)
                     }
                   }}
-                  className="bg-blue-500 dark:bg-blue-600 rounded-[var(--radius-md)] p-2.5 text-white flex flex-col justify-between min-h-[55px] shadow-sm cursor-pointer"
+                  className="bg-blue-500 dark:bg-blue-600 rounded-[var(--radius-md)] p-2.5 text-white flex flex-col justify-between min-h-[62px] shadow-sm cursor-pointer"
                   title="Double-click to edit. Single-click value to copy."
                 >
                   <div className="flex items-center justify-between">
@@ -1555,7 +1535,7 @@ export function StudentDetailClient({ studentId }: StudentDetailClientProps) {
 
                 {/* Student Balance Card */}
                 <div 
-                  className={`rounded-[var(--radius-md)] p-2.5 text-white flex flex-col justify-between min-h-[55px] cursor-pointer ${
+                  className={`rounded-[var(--radius-md)] p-2.5 text-white flex flex-col justify-between min-h-[62px] cursor-pointer ${
                     selectedStudent.balance < 0 ? 'bg-rose-500 dark:bg-rose-600' : 'bg-emerald-500 dark:bg-emerald-600'
                   }`}
                   title="Single-click value to copy."
@@ -1598,7 +1578,7 @@ export function StudentDetailClient({ studentId }: StudentDetailClientProps) {
 
                 {/* Payments Done Card */}
                 <div 
-                  className="bg-emerald-500 dark:bg-emerald-600 rounded-[var(--radius-md)] p-2.5 text-white flex flex-col justify-between min-h-[55px] cursor-pointer"
+                  className="bg-emerald-500 dark:bg-emerald-600 rounded-[var(--radius-md)] p-2.5 text-white flex flex-col justify-between min-h-[62px] cursor-pointer"
                   title="Single-click value to copy."
                   onClick={() => {
                     handleCopy('payments_done', String(computedPaymentsDone))
@@ -1639,7 +1619,7 @@ export function StudentDetailClient({ studentId }: StudentDetailClientProps) {
 
                 {/* Discount Card */}
                 <div 
-                  className="bg-orange-500 dark:bg-orange-600 rounded-[var(--radius-md)] p-2.5 text-white flex flex-col justify-between min-h-[55px] cursor-pointer"
+                  className="bg-orange-500 dark:bg-orange-600 rounded-[var(--radius-md)] p-2.5 text-white flex flex-col justify-between min-h-[62px] cursor-pointer"
                   title="Single-click value to copy."
                   onClick={() => {
                     handleCopy('discount', String(computedDiscount))
@@ -1691,22 +1671,6 @@ export function StudentDetailClient({ studentId }: StudentDetailClientProps) {
                   badgeColor: 'bg-[#00b8d9] text-white',
                   titleColor: 'text-[var(--accent)]' 
                 })}
-
-                {/* AI Document Extraction Card (Copyable / Action Link) */}
-                <div 
-                  onClick={() => router.push(`/students/${selectedStudent.id}/extract`)}
-                  className="bg-[var(--surface)] border border-[var(--border)] rounded-[var(--radius-md)] p-2.5 hover:bg-[var(--border-subtle)] hover:border-[var(--accent)]/50 active:scale-[0.98] transition-all cursor-pointer flex items-center justify-between shadow-[var(--shadow-sm)] min-h-[55px]"
-                >
-                  <div>
-                    <span className="text-[11.5px] uppercase font-bold tracking-wider text-[var(--accent)] block">
-                      Fill By Document
-                    </span>
-                    <span className="text-[15px] font-bold text-[var(--foreground)] mt-0.5 block">
-                      AI Document Extraction
-                    </span>
-                  </div>
-                  <span className="text-[var(--foreground-subtle)] font-mono text-[17px] font-bold">&gt;</span>
-                </div>
 
                 {renderDetailCard('Missing Documents', 'pick_needed', selectedStudent.pick_needed, {
                   badgeColor: 'bg-[#5243aa] text-white',

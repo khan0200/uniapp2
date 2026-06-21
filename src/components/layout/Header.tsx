@@ -1,7 +1,7 @@
 'use client'
 
 import { usePathname } from 'next/navigation'
-import { Bell, Search, Plus, FileSpreadsheet } from 'lucide-react'
+import { Bell, Search, Plus, FileSpreadsheet, FileText, RefreshCw, Trash2, Loader2 } from 'lucide-react'
 import Link from 'next/link'
 import { useUser } from '@/contexts/UserContext'
 import { cn } from '@/lib/utils'
@@ -21,7 +21,7 @@ const PAGE_TITLES: Record<string, string> = {
 export function Header() {
   const pathname = usePathname()
   const { profile } = useUser()
-  const { searchQuery, setSearchQuery, setIsAddStudentModalOpen } = useStudentDashboard()
+  const { searchQuery, setSearchQuery, setIsAddStudentModalOpen, detailPageActions } = useStudentDashboard()
 
   // Find the best matching title
   const pageTitle =
@@ -94,6 +94,45 @@ export function Header() {
               className="pl-9 pr-4 py-2 text-sm border border-[var(--border)] bg-[var(--background)] rounded-[8px] text-[var(--foreground)] placeholder-[var(--foreground-muted)] focus:outline-none focus:border-[var(--accent)] focus:ring-1 focus:ring-[var(--accent)] transition-all w-full"
             />
           </div>
+        </div>
+      ) : pathname.startsWith('/students/') && detailPageActions ? (
+        <div className="flex flex-1 items-center justify-end gap-2">
+          <button
+            onClick={detailPageActions.onFillByDocument}
+            className="inline-flex items-center gap-1.5 text-[var(--foreground-muted)] hover:text-[var(--foreground)] px-3 py-1.5 bg-[var(--surface-elevated)] hover:bg-[var(--border-subtle)] border border-[var(--border)] rounded-[var(--radius-md)] text-[13.5px] font-semibold transition-all shadow-[var(--shadow-sm)] cursor-pointer"
+            title="Fill student details from a document using AI"
+          >
+            <FileText className="h-3.5 w-3.5 text-[var(--accent)]" />
+            <span className="hidden sm:inline">Fill By Document</span>
+          </button>
+          <button
+            onClick={detailPageActions.onReload}
+            className="inline-flex items-center gap-1.5 text-[var(--foreground-muted)] hover:text-[var(--foreground)] px-3 py-1.5 bg-[var(--surface-elevated)] hover:bg-[var(--border-subtle)] border border-[var(--border)] rounded-[var(--radius-md)] text-[13.5px] font-semibold transition-all shadow-[var(--shadow-sm)] cursor-pointer"
+            title="Reload student data"
+          >
+            <RefreshCw className="h-3.5 w-3.5 text-[var(--accent)]" />
+            <span className="hidden sm:inline">Reload</span>
+          </button>
+          <button
+            disabled={detailPageActions.isDeleting}
+            onClick={detailPageActions.onDelete}
+            className={cn(
+              'inline-flex items-center gap-1.5 px-3 py-1.5 bg-[var(--surface-elevated)] border border-[var(--border)] rounded-[var(--radius-md)] text-[13.5px] font-semibold transition-all shadow-[var(--shadow-sm)] cursor-pointer disabled:opacity-50',
+              detailPageActions.isDeleted
+                ? 'text-emerald-600 dark:text-emerald-400 hover:bg-[var(--border-subtle)]'
+                : 'text-[var(--danger)] hover:bg-[var(--border-subtle)] hover:text-red-600'
+            )}
+            title={detailPageActions.isDeleted ? 'Restore student profile' : 'Delete student profile'}
+          >
+            {detailPageActions.isDeleting ? (
+              <Loader2 className="h-3.5 w-3.5 animate-spin" />
+            ) : detailPageActions.isDeleted ? (
+              <RefreshCw className="h-3.5 w-3.5 text-emerald-600 dark:text-emerald-400" />
+            ) : (
+              <Trash2 className="h-3.5 w-3.5" />
+            )}
+            <span className="hidden sm:inline">{detailPageActions.isDeleted ? 'Restore' : 'Delete'}</span>
+          </button>
         </div>
       ) : pathname.startsWith('/students/') || pathname.startsWith('/payments') || pathname.startsWith('/settings') || pathname.startsWith('/users') ? (
         null

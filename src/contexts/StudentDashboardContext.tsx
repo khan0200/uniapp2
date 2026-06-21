@@ -4,18 +4,30 @@ import { createContext, useContext, useState, useEffect, type ReactNode } from '
 import { createClient } from '@/lib/supabase/client'
 import { type Student } from '@/types/database'
 
+interface StudentDetailPageActions {
+  onFillByDocument: () => void
+  onReload: () => void
+  onDelete: () => void
+  isDeleted: boolean
+  isDeleting: boolean
+}
+
 interface StudentDashboardContextValue {
   searchQuery: string
   setSearchQuery: (query: string) => void
   isAddStudentModalOpen: boolean
   setIsAddStudentModalOpen: (open: boolean) => void
-  
+
   // Hoisted state
   students: Student[]
   setStudents: React.Dispatch<React.SetStateAction<Student[]>>
   loading: boolean
   error: string | null
   fetchStudents: (force?: boolean) => Promise<void>
+
+  // Student detail page header action buttons (Fill By Document / Reload / Delete)
+  detailPageActions: StudentDetailPageActions | null
+  setDetailPageActions: (actions: StudentDetailPageActions | null) => void
 }
 
 const StudentDashboardContext = createContext<StudentDashboardContextValue | undefined>(undefined)
@@ -31,6 +43,7 @@ export function StudentDashboardProvider({ children }: { children: ReactNode }) 
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [hasFetched, setHasFetched] = useState(false)
+  const [detailPageActions, setDetailPageActions] = useState<StudentDetailPageActions | null>(null)
 
   const fetchStudents = async (force = false) => {
     // If not forced and we already have data, fetch in the background to update the state silently
@@ -77,7 +90,9 @@ export function StudentDashboardProvider({ children }: { children: ReactNode }) 
       setStudents,
       loading,
       error,
-      fetchStudents
+      fetchStudents,
+      detailPageActions,
+      setDetailPageActions
     }}>
       {children}
     </StudentDashboardContext.Provider>
