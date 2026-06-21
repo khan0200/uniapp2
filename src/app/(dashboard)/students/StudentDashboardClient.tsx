@@ -28,16 +28,30 @@ export const ROW_COLOR_MAP: Record<string, { bg: string; ball: string; name: str
   SLATE: { bg: 'rgba(100, 116, 139, 0.45)', ball: '#64748B', name: 'Slate' }
 }
 
-export const CUSTOM_TAG_EMOJIS = [
-  '🏷️','📌','⭐','🎯','🔥','✅','❌','⏳','🔄','💡',
-  '📞','📧','💬','📱','🤝','📲','📣','📢','🔔','🚨',
-  '📄','📋','🗂️','📁','📝','🧾','📃','🗃️','📎','🗒️',
-  '💰','💳','🏦','💵','💸','🤑','💹','📈','📉','🏧',
-  '🎓','📚','📖','🏫','✏️','🖊️','📐','🔬','🖥️','💻',
-  '✈️','🛂','🌐','🏠','🗓️','📅','🕐','🗺️','🌍','🏙️',
-  '🔴','🟡','🟢','🔵','🟣','🟠','⚪','⚫','🟤','🔶',
-  '🔑','🔒','📊','🚀','🏆','👤','👥','🤖','⚙️','🛠️'
+export const CUSTOM_TAG_ICONS: { id: string; emoji: string; label: string }[] = [
+  { id: 'tag',         emoji: '🏷️',  label: 'Tag' },
+  { id: 'phone',       emoji: '📞',  label: 'Phone' },
+  { id: 'message',     emoji: '💬',  label: 'Message' },
+  { id: 'email',       emoji: '📧',  label: 'Email' },
+  { id: 'document',    emoji: '📄',  label: 'Document' },
+  { id: 'folder',      emoji: '📁',  label: 'Folder' },
+  { id: 'calendar',    emoji: '📅',  label: 'Calendar' },
+  { id: 'clock',       emoji: '🕐',  label: 'Clock' },
+  { id: 'check',       emoji: '✅',  label: 'Check' },
+  { id: 'warning',     emoji: '⚠️',  label: 'Warning' },
+  { id: 'star',        emoji: '⭐',  label: 'Star' },
+  { id: 'flag',        emoji: '🚩',  label: 'Flag' },
+  { id: 'user',        emoji: '👤',  label: 'User' },
+  { id: 'users',       emoji: '👥',  label: 'Users' },
+  { id: 'graduation',  emoji: '🎓',  label: 'Graduation' },
+  { id: 'building',    emoji: '🏢',  label: 'Building' },
+  { id: 'money',       emoji: '💰',  label: 'Money' },
+  { id: 'creditcard',  emoji: '💳',  label: 'Credit Card' },
+  { id: 'megaphone',   emoji: '📣',  label: 'Megaphone' },
+  { id: 'target',      emoji: '🎯',  label: 'Target' },
 ]
+// Legacy flat list for backward compat (stored values are still emoji strings)
+export const CUSTOM_TAG_EMOJIS = CUSTOM_TAG_ICONS.map(i => i.emoji)
 
 export interface CustomTag {
   name: string
@@ -703,6 +717,7 @@ export function StudentDashboardClient() {
   const [newCustomTagEmoji, setNewCustomTagEmoji] = useState('🏷️')
   const [isEmojiPickerOpen, setIsEmojiPickerOpen] = useState(false)
   const [editingTag, setEditingTag] = useState<{ originalName: string; newName: string; emoji: string } | null>(null)
+  const [isSavingTagEdit, setIsSavingTagEdit] = useState(false)
 
 
 
@@ -841,9 +856,9 @@ export function StudentDashboardClient() {
   }
 
   const handleEditCustomTag = async (studentId: string, originalName: string, newName: string, emoji: string) => {
-    if (!newName.trim()) return
+    if (!newName.trim() || isSavingTagEdit) return
     const cleanedNewName = newName.trim()
-    const updatedRegistry = customTagsRegistry.map(t => 
+    const updatedRegistry = customTagsRegistry.map(t =>
       t.name === originalName ? { name: cleanedNewName, icon: emoji } : t
     )
     setCustomTagsRegistry(updatedRegistry)
@@ -857,8 +872,10 @@ export function StudentDashboardClient() {
       }
       return s
     }))
+    setIsSavingTagEdit(true)
+    setEditingTag(null)
     const affectedStudents = students.filter(s => s.task_tags && s.task_tags.includes(originalName))
-    for (const s of affectedStudents) {
+    await Promise.all(affectedStudents.map(async (s) => {
       const updatedTags = s.task_tags.map(t => t === originalName ? cleanedNewName : t)
       const { error: updateError } = await (supabase
         .from('students') as any)
@@ -867,8 +884,8 @@ export function StudentDashboardClient() {
       if (updateError) {
         console.error(`Failed to rename tag for student ${s.id}:`, updateError)
       }
-    }
-    setEditingTag(null)
+    }))
+    setIsSavingTagEdit(false)
   }
 
   const handleDeleteCustomTagGlobally = async (tagName: string) => {
@@ -885,8 +902,9 @@ export function StudentDashboardClient() {
       }
       return s
     }))
+    setIsSavingTagEdit(true)
     const affectedStudents = students.filter(s => s.task_tags && s.task_tags.includes(tagName))
-    for (const s of affectedStudents) {
+    await Promise.all(affectedStudents.map(async (s) => {
       const updatedTags = s.task_tags.filter(t => t !== tagName)
       const { error: updateError } = await (supabase
         .from('students') as any)
@@ -895,7 +913,8 @@ export function StudentDashboardClient() {
       if (updateError) {
         console.error(`Failed to remove deleted tag from student ${s.id}:`, updateError)
       }
-    }
+    }))
+    setIsSavingTagEdit(false)
   }
 
   const handleClearFlagsAndColor = async (studentId: string) => {
@@ -2395,8 +2414,16 @@ export function StudentDashboardClient() {
 
                   {/* ── Custom Tags Section ────────────────────── */}
                   <div>
-                    <div className="font-bold text-[var(--foreground-muted)] uppercase tracking-wider text-[10.5px] mb-3">
-                      Custom Tags
+                    <div className="flex items-center gap-2 mb-3">
+                      <div className="font-bold text-[var(--foreground-muted)] uppercase tracking-wider text-[10.5px]">
+                        Custom Tags
+                      </div>
+                      {isSavingTagEdit && (
+                        <div className="flex items-center gap-1 text-[10px] font-semibold text-[var(--accent)]">
+                          <Loader2 className="h-2.5 w-2.5 animate-spin" />
+                          Syncing...
+                        </div>
+                      )}
                     </div>
 
                     {/* Tag editing modal/input inline */}
@@ -2425,21 +2452,36 @@ export function StudentDashboardClient() {
                             }}
                           />
                         </div>
-                        {/* Emoji Picker Grid */}
+                        {/* iOS-style horizontal icon picker */}
                         {isEmojiPickerOpen && (
-                          <div className="grid grid-cols-10 gap-1.5 max-h-36 overflow-y-auto border border-[var(--border)] bg-[var(--surface-elevated)] rounded-[var(--radius-md)] p-2">
-                            {CUSTOM_TAG_EMOJIS.map((emoji) => (
-                              <button
-                                key={emoji}
-                                onClick={() => {
-                                  setEditingTag({ ...editingTag, emoji })
-                                  setIsEmojiPickerOpen(false)
-                                }}
-                                className="w-7 h-7 flex items-center justify-center text-sm rounded hover:bg-[var(--border-subtle)] cursor-pointer transition-all"
-                              >
-                                {emoji}
-                              </button>
-                            ))}
+                          <div
+                            className="flex gap-2 overflow-x-auto pb-1 border border-[var(--border)] bg-[var(--surface)] rounded-[var(--radius-md)] p-2"
+                            style={{ scrollbarWidth: 'thin', scrollbarColor: 'var(--border) transparent' }}
+                          >
+                            {CUSTOM_TAG_ICONS.map((icon) => {
+                              const isSelected = editingTag.emoji === icon.emoji
+                              return (
+                                <button
+                                  key={icon.id}
+                                  onClick={() => {
+                                    setEditingTag({ ...editingTag, emoji: icon.emoji })
+                                    setIsEmojiPickerOpen(false)
+                                  }}
+                                  title={icon.label}
+                                  className={`shrink-0 flex flex-col items-center justify-center gap-1 rounded-[10px] cursor-pointer transition-all duration-150 select-none ${
+                                    isSelected
+                                      ? 'bg-[var(--accent)] shadow-sm ring-2 ring-[var(--accent)] ring-offset-1 ring-offset-[var(--surface)] scale-110'
+                                      : 'bg-[var(--surface-elevated)] hover:bg-[var(--border-subtle)] hover:scale-105'
+                                  }`}
+                                  style={{ width: 48, height: 52, minWidth: 48 }}
+                                >
+                                  <span className="text-[22px] leading-none" style={{ filter: isSelected ? 'brightness(0) invert(1)' : undefined }}>{icon.emoji}</span>
+                                  <span className={`text-[8px] font-semibold leading-none tracking-wide ${
+                                    isSelected ? 'text-white' : 'text-[var(--foreground-muted)]'
+                                  }`}>{icon.label}</span>
+                                </button>
+                              )
+                            })}
                           </div>
                         )}
                         <div className="flex justify-end gap-2 pt-1">
@@ -2548,21 +2590,36 @@ export function StudentDashboardClient() {
                           </button>
                         </div>
 
-                        {/* Emoji Picker Grid */}
+                        {/* iOS-style horizontal icon picker */}
                         {isEmojiPickerOpen && (
-                          <div className="grid grid-cols-10 gap-1.5 max-h-36 overflow-y-auto border border-[var(--border)] bg-[var(--surface-elevated)] rounded-[var(--radius-md)] p-2 shadow-[var(--shadow-sm)] animate-in fade-in zoom-in duration-100">
-                            {CUSTOM_TAG_EMOJIS.map((emoji) => (
-                              <button
-                                key={emoji}
-                                onClick={() => {
-                                  setNewCustomTagEmoji(emoji)
-                                  setIsEmojiPickerOpen(false)
-                                }}
-                                className="w-7 h-7 flex items-center justify-center text-sm rounded hover:bg-[var(--border-subtle)] cursor-pointer transition-all"
-                              >
-                                {emoji}
-                              </button>
-                            ))}
+                          <div
+                            className="flex gap-2 overflow-x-auto pb-1 border border-[var(--border)] bg-[var(--surface)] rounded-[var(--radius-md)] p-2 shadow-[var(--shadow-sm)] animate-in fade-in zoom-in duration-100"
+                            style={{ scrollbarWidth: 'thin', scrollbarColor: 'var(--border) transparent' }}
+                          >
+                            {CUSTOM_TAG_ICONS.map((icon) => {
+                              const isSelected = newCustomTagEmoji === icon.emoji
+                              return (
+                                <button
+                                  key={icon.id}
+                                  onClick={() => {
+                                    setNewCustomTagEmoji(icon.emoji)
+                                    setIsEmojiPickerOpen(false)
+                                  }}
+                                  title={icon.label}
+                                  className={`shrink-0 flex flex-col items-center justify-center gap-1 rounded-[10px] cursor-pointer transition-all duration-150 select-none ${
+                                    isSelected
+                                      ? 'bg-[var(--accent)] shadow-sm ring-2 ring-[var(--accent)] ring-offset-1 ring-offset-[var(--surface)] scale-110'
+                                      : 'bg-[var(--surface-elevated)] hover:bg-[var(--border-subtle)] hover:scale-105'
+                                  }`}
+                                  style={{ width: 48, height: 52, minWidth: 48 }}
+                                >
+                                  <span className="text-[22px] leading-none" style={{ filter: isSelected ? 'brightness(0) invert(1)' : undefined }}>{icon.emoji}</span>
+                                  <span className={`text-[8px] font-semibold leading-none tracking-wide ${
+                                    isSelected ? 'text-white' : 'text-[var(--foreground-muted)]'
+                                  }`}>{icon.label}</span>
+                                </button>
+                              )
+                            })}
                           </div>
                         )}
                       </div>
