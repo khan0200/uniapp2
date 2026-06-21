@@ -48,6 +48,15 @@ function parseAmount(val: string) {
   return parseFloat(cleaned) || 0
 }
 
+// Live-formats a raw amount input with thousands separators as the user types.
+function formatAmountInput(val: string) {
+  const cleaned = val.replace(/[^\d.]/g, '')
+  if (!cleaned) return ''
+  const [intPart, ...rest] = cleaned.split('.')
+  const formattedInt = intPart === '' ? '' : new Intl.NumberFormat('uz-UZ').format(Number(intPart))
+  return rest.length > 0 ? `${formattedInt}.${rest.join('').slice(0, 2)}` : formattedInt
+}
+
 const compareStudentIds = (a: Student, b: Student, order: 'asc' | 'desc' = 'asc') => {
   const idA = a.id || ""
   const idB = b.id || ""
@@ -1308,7 +1317,7 @@ export function PaymentsClient() {
               <input
                 type="text"
                 value={addAmount}
-                onChange={e => setAddAmount(e.target.value)}
+                onChange={e => setAddAmount(formatAmountInput(e.target.value))}
                 placeholder="0"
                 className="mt-1 w-full px-3 py-2 text-sm border border-[var(--border)] rounded-[var(--radius-md)] bg-[var(--background)] text-[var(--foreground)] focus:outline-none focus:border-[var(--accent)]"
               />
@@ -1452,7 +1461,7 @@ export function PaymentsClient() {
               <input
                 type="text"
                 value={withdrawAmount}
-                onChange={e => setWithdrawAmount(e.target.value)}
+                onChange={e => setWithdrawAmount(formatAmountInput(e.target.value))}
                 placeholder="0"
                 className="mt-1 w-full px-3 py-2 text-sm border border-[var(--border)] rounded-[var(--radius-md)] bg-[var(--background)] text-[var(--foreground)] focus:outline-none focus:border-[var(--accent)]"
               />
@@ -1544,7 +1553,7 @@ export function PaymentsClient() {
               <input
                 type="text"
                 value={editAmount}
-                onChange={e => setEditAmount(e.target.value)}
+                onChange={e => setEditAmount(formatAmountInput(e.target.value))}
                 className="mt-1 w-full px-3 py-2 text-sm border border-[var(--border)] rounded-[var(--radius-md)] bg-[var(--background)] text-[var(--foreground)] focus:outline-none focus:border-[var(--accent)]"
               />
             </div>
