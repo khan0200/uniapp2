@@ -1458,7 +1458,7 @@ export function PaymentsClient() {
           </div>
 
           {/* Payment history cards */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 lg:gap-5">
             {paginatedPayments.map(payment => {
               const isWithdrawal = payment.amount < 0
               const timestamp = payment.created_at
@@ -1468,48 +1468,61 @@ export function PaymentsClient() {
                 <div
                   key={payment.id}
                   onClick={() => setViewingPayment(payment)}
-                  className="rounded-[var(--radius-lg)] border border-[var(--border)] bg-[var(--surface)] p-4 shadow-[var(--shadow-sm)] hover:bg-[var(--surface-elevated)]/50 transition-all cursor-pointer flex flex-col gap-2"
+                  className="rounded-xl border border-[var(--border)] bg-[var(--surface)] p-5 shadow-[var(--shadow-sm)] hover:-translate-y-0.5 hover:shadow-md hover:border-[var(--border-subtle)] transition-all duration-200 cursor-pointer flex flex-col justify-between h-full gap-4 group"
                 >
-                  <div className="flex items-center justify-between">
-                    <span className="font-bold text-xs uppercase text-[var(--foreground)] truncate">
-                      {payment.student_name || 'General Payment'}
-                    </span>
-                    <span className="text-[10px] text-[var(--foreground-subtle)]">{timestamp}</span>
-                  </div>
-                  <div className="flex items-center gap-2 flex-wrap">
-                    <span className={`text-sm font-extrabold px-2 py-0.5 rounded-full ${isWithdrawal ? 'bg-rose-500/10 text-rose-500' : 'bg-emerald-500/10 text-emerald-500'}`}>
-                      {isWithdrawal ? '-' : '+'}{formatAmount(Math.abs(payment.amount))} UZS
-                    </span>
-                    <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-[var(--surface-elevated)] text-[var(--foreground-muted)] border border-[var(--border)]">
-                      {payment.method}
-                    </span>
-                    <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-[var(--surface-elevated)] text-[var(--foreground-muted)] border border-[var(--border)]">
-                      {payment.received_by}
-                    </span>
-                  </div>
-                  {payment.notes && (
-                    <div className="text-[11px] text-[var(--foreground-muted)] italic truncate" title={payment.notes}>
-                      {payment.notes}
+                  <div className="flex flex-col gap-3">
+                    {/* Header Row */}
+                    <div className="flex items-start justify-between gap-3">
+                      <span className="font-bold text-[14.5px] uppercase tracking-wide text-[var(--foreground)] truncate group-hover:text-[var(--accent)] transition-colors" title={payment.student_name || 'General Payment'}>
+                        {payment.student_name || 'General Payment'}
+                      </span>
+                      <span className="text-[10px] font-medium text-[var(--foreground-subtle)] whitespace-nowrap pt-0.5">
+                        {timestamp}
+                      </span>
                     </div>
-                  )}
-                  <div className="flex items-center gap-1.5 mt-1 pt-2 border-t border-[var(--border)]">
+
+                    {/* Amount & Badges Row */}
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <span className={`inline-flex items-center px-2.5 py-1 rounded-[6px] text-[13.5px] font-extrabold ${isWithdrawal ? 'bg-rose-500/10 text-rose-600 dark:text-rose-400 border border-rose-500/25' : 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/25'}`}>
+                        {isWithdrawal ? '-' : '+'}{formatAmount(Math.abs(payment.amount))} UZS
+                      </span>
+                      <span className="inline-flex items-center px-2 py-0.5 rounded-[4px] text-[9.5px] font-bold uppercase tracking-wider bg-[var(--surface-interactive)] text-[var(--foreground-muted)] border border-[var(--border)]">
+                        {payment.method}
+                      </span>
+                      <span className="inline-flex items-center px-2 py-0.5 rounded-[4px] text-[9.5px] font-bold uppercase tracking-wider bg-[var(--surface-interactive)] text-[var(--foreground-muted)] border border-[var(--border)]">
+                        {payment.received_by}
+                      </span>
+                    </div>
+
+                    {/* Notes Section */}
+                    {payment.notes && (
+                      <div className="pt-2.5 border-t border-[var(--border-subtle)]">
+                        <div className="text-[11.5px] text-[var(--foreground-muted)] leading-relaxed italic line-clamp-2" title={payment.notes}>
+                          {payment.notes}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Actions Footer */}
+                  <div className="flex items-center gap-2 pt-3.5 border-t border-[var(--border-subtle)]">
                     <button
                       onClick={(e) => { e.stopPropagation(); openEditModal(payment); }}
-                      className="flex-1 flex items-center justify-center gap-1 py-1.5 text-xs font-semibold rounded-[var(--radius-sm)] border border-[var(--border)] hover:bg-[var(--surface-elevated)] cursor-pointer"
+                      className="flex-1 flex items-center justify-center gap-1 py-1.5 text-[11px] font-semibold rounded-[var(--radius-sm)] border border-[var(--border)] bg-[var(--surface)] text-[var(--foreground-muted)] hover:bg-[var(--surface-elevated)] hover:text-[var(--foreground)] transition-all cursor-pointer"
                     >
-                      <Pencil className="h-3 w-3" /> Edit
+                      <Pencil className="h-3.5 w-3.5" /> Edit
                     </button>
                     <button
                       onClick={(e) => { e.stopPropagation(); deletePayment(payment); }}
-                      className="flex-1 flex items-center justify-center gap-1 py-1.5 text-xs font-semibold rounded-[var(--radius-sm)] border border-[var(--border)] text-rose-500 hover:bg-rose-500/10 cursor-pointer"
+                      className="flex-1 flex items-center justify-center gap-1 py-1.5 text-[11px] font-semibold rounded-[var(--radius-sm)] border border-rose-200 bg-rose-50/50 text-rose-500 hover:bg-rose-500 hover:text-white transition-all cursor-pointer dark:bg-rose-500/5 dark:border-rose-500/20 dark:hover:bg-rose-500 dark:hover:text-white"
                     >
-                      <Trash2 className="h-3 w-3" /> Delete
+                      <Trash2 className="h-3.5 w-3.5" /> Delete
                     </button>
                     <button
                       onClick={(e) => { e.stopPropagation(); printReceipt(payment); }}
-                      className="flex-1 flex items-center justify-center gap-1 py-1.5 text-xs font-semibold rounded-[var(--radius-sm)] border border-[var(--border)] hover:bg-[var(--surface-elevated)] cursor-pointer"
+                      className="flex-1 flex items-center justify-center gap-1 py-1.5 text-[11px] font-semibold rounded-[var(--radius-sm)] border border-[var(--border)] bg-[var(--surface)] text-[var(--foreground-muted)] hover:bg-[var(--surface-elevated)] hover:text-[var(--foreground)] transition-all cursor-pointer"
                     >
-                      <Printer className="h-3 w-3" /> Print
+                      <Printer className="h-3.5 w-3.5" /> Print
                     </button>
                   </div>
                 </div>
