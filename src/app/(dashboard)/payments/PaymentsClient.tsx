@@ -1458,7 +1458,7 @@ export function PaymentsClient() {
           </div>
 
           {/* Payment history cards */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 min-[1400px]:grid-cols-4 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3">
             {paginatedPayments.map(payment => {
               const isWithdrawal = payment.amount < 0
               const timestamp = payment.created_at

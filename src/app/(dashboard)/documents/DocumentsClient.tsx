@@ -43,6 +43,10 @@ export function DocumentsClient() {
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [modalUpdating, setModalUpdating] = useState(false)
 
+  // Real payments done sum (fetched from payments table)
+  const [studentPaymentsDone, setStudentPaymentsDone] = useState<number | null>(null)
+  const [studentPaymentsDoneLoading, setStudentPaymentsDoneLoading] = useState(false)
+
   // Option lists
   const [tariffOptions, setTariffOptions] = useState<string[]>(['STANDART', 'PREMIUM', 'VISA PLUS', 'E-VISA', 'REGIONAL VISA'])
   const [levelOptions, setLevelOptions] = useState<string[]>(['COLLEGE', 'BACHELOR', 'MASTERS', 'MASTER NO CERTIFICATE', 'LANGUAGE COURSE'])
@@ -953,6 +957,24 @@ export function DocumentsClient() {
                       }
                       setSelectedStudent(updatedStudent)
                       setIsModalOpen(true)
+                      // Fetch real payments sum for this student
+                      setStudentPaymentsDone(null)
+                      setStudentPaymentsDoneLoading(true)
+                      supabase
+                        .from('payments')
+                        .select('amount, is_withdrawal, is_discount')
+                        .eq('student_id', updatedStudent.id)
+                        .then(({ data: pData }) => {
+                          if (pData) {
+                            const total = pData
+                              .filter((p: any) => !p.is_withdrawal && !p.is_discount && p.amount > 0)
+                              .reduce((sum: number, p: any) => sum + (p.amount || 0), 0)
+                            setStudentPaymentsDone(total)
+                          } else {
+                            setStudentPaymentsDone(0)
+                          }
+                          setStudentPaymentsDoneLoading(false)
+                        })
                     }}
                     className={`cursor-pointer hover:bg-[var(--surface-hover)] transition-colors text-sm text-[var(--foreground)] ${student.is_deleted ? 'bg-rose-500/5 dark:bg-rose-950/10' : ''}`}
                   >
@@ -1104,9 +1126,13 @@ export function DocumentsClient() {
               </div>
               <div>
                 <span className="block text-[10px] uppercase font-bold text-[var(--foreground-muted)] tracking-wider mb-1">Payments Done</span>
-                <span className="text-sm font-extrabold text-emerald-600 dark:text-emerald-400">
-                  {formatCurrency(Math.max(0, -selectedStudent.balance))}
-                </span>
+                {studentPaymentsDoneLoading ? (
+                  <span className="text-sm font-bold text-[var(--foreground-muted)] animate-pulse">Loading...</span>
+                ) : (
+                  <span className="text-sm font-extrabold text-emerald-600 dark:text-emerald-400">
+                    {formatCurrency(studentPaymentsDone ?? 0)}
+                  </span>
+                )}
               </div>
             </div>
 
