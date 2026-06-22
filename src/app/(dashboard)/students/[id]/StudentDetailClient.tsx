@@ -656,7 +656,7 @@ export function StudentDetailClient({ studentId }: StudentDetailClientProps) {
                 <select
                   value={editValue}
                   onChange={(e) => setEditValue(e.target.value)}
-                  className="bg-[var(--surface-elevated)] text-[15px] text-[var(--foreground)] pl-2 pr-14 py-1 rounded border border-[var(--accent)] focus:outline-none focus:border-[var(--accent)] w-full min-w-0 font-medium"
+                  className="bg-[var(--surface-elevated)] text-[15px] text-[var(--foreground)] pl-2 pr-14 py-1 rounded border-none outline-none w-full min-w-0 font-medium"
                 >
                   {options.selectOptions?.map(opt => (
                     <option key={opt} value={opt}>{opt}</option>
@@ -667,7 +667,7 @@ export function StudentDetailClient({ studentId }: StudentDetailClientProps) {
                   type={options.type === 'date' ? 'date' : 'text'}
                   value={editValue}
                   onChange={(e) => setEditValue(formatEditValueForField(String(field), e.target.value))}
-                  className={cn("bg-[var(--surface-elevated)] text-[15px] text-[var(--foreground)] pl-2 pr-14 py-1 rounded border border-[var(--accent)] focus:outline-none focus:border-[var(--accent)] w-full min-w-0 font-medium", options.valueClassName)}
+                  className={cn("bg-[var(--surface-elevated)] text-[15px] text-[var(--foreground)] pl-2 pr-14 py-1 rounded border-none outline-none w-full min-w-0 font-medium", options.valueClassName)}
                   placeholder={label}
                   autoFocus
                 />
@@ -833,7 +833,7 @@ export function StudentDetailClient({ studentId }: StudentDetailClientProps) {
               <select
                 value={editValue}
                 onChange={(e) => setEditValue(e.target.value)}
-                className="bg-[var(--surface-elevated)] text-[13px] text-[var(--foreground)] px-2 py-0.5 rounded border border-[var(--border)] w-full focus:outline-none focus:border-[var(--accent)]"
+                className="bg-[var(--surface-elevated)] text-[13px] text-[var(--foreground)] px-2 py-0.5 rounded border-none outline-none w-full"
               >
                 {certsAllowed.map(opt => (
                   <option key={opt} value={opt}>{opt}</option>
@@ -845,7 +845,7 @@ export function StudentDetailClient({ studentId }: StudentDetailClientProps) {
                   placeholder="Score"
                   id="edit-score-input"
                   defaultValue={scoreVal || ''}
-                  className="bg-[var(--surface-elevated)] text-[13px] text-[var(--foreground)] px-2 py-0.5 rounded border border-[var(--border)] w-full focus:outline-none"
+                  className="bg-[var(--surface-elevated)] text-[13px] text-[var(--foreground)] px-2 py-0.5 rounded border-none outline-none w-full"
                   autoFocus
                 />
               )}
@@ -1047,7 +1047,7 @@ export function StudentDetailClient({ studentId }: StudentDetailClientProps) {
                   <select
                     id="edit-uni-name-select"
                     defaultValue={uniVal || ''}
-                    className="bg-[var(--surface-elevated)] text-[13px] text-[var(--foreground)] px-2 py-0.5 rounded border border-[var(--border)] w-full focus:outline-none font-medium cursor-pointer"
+                    className="bg-[var(--surface-elevated)] text-[13px] text-[var(--foreground)] px-2 py-0.5 rounded border-none outline-none w-full font-medium cursor-pointer"
                     autoFocus
                   >
                     <option value="">None Selected</option>

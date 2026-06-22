@@ -6,7 +6,7 @@ import { useStudentDashboard } from '@/contexts/StudentDashboardContext'
 import { type Student } from '@/types/database'
 import { syncMissingDocuments, isFieldFilled } from '@/lib/validation'
 import { 
-  Folder, ChevronDown, ChevronUp, CheckCircle2, ShieldAlert,
+  Folder, ChevronDown, ChevronUp, ChevronLeft, ChevronRight, CheckCircle2, ShieldAlert,
   X, Loader2, ArrowLeft, Plus, AlertCircle, Info, RefreshCw, Hash, Users, Bookmark, UserCheck, Layers, Tag,
   FileText, CheckSquare
 } from 'lucide-react'
@@ -28,6 +28,7 @@ export function DocumentsClient() {
   const [selectedScores, setSelectedScores] = useState<string[]>([])
   const [selectedMissingDocs, setSelectedMissingDocs] = useState<string[]>([])
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('asc')
+  const [currentPage, setCurrentPage] = useState(1)
 
   // Filter dropdown state
   const [isTariffDropdownOpen, setIsTariffDropdownOpen] = useState(false)
@@ -273,6 +274,11 @@ export function DocumentsClient() {
     setSelectedScores([])
   }, [activeCertForScore])
 
+  // Reset to page 1 on any filter / sort change
+  useEffect(() => {
+    setCurrentPage(1)
+  }, [searchQuery, selectedTariffs, selectedLevels, selectedGroups, selectedCerts, selectedScores, selectedMissingDocs, sortOrder])
+
   const handleToggleMissingDocs = (opt: string) => {
     setSelectedMissingDocs(prev => prev.includes(opt) ? prev.filter(x => x !== opt) : [...prev, opt])
   }
@@ -500,12 +506,17 @@ export function DocumentsClient() {
 
   const sortedStudents = [...filteredStudents].sort((a, b) => compareStudentIds(a, b, sortOrder))
 
+  const PAGE_SIZE = 30
+  const totalPages = Math.max(1, Math.ceil(sortedStudents.length / PAGE_SIZE))
+  const safePage = Math.min(currentPage, totalPages)
+  const pagedStudents = sortedStudents.slice((safePage - 1) * PAGE_SIZE, safePage * PAGE_SIZE)
+
   // Render Pill badges
   const renderMissingPills = (s: Student) => {
     const missingDocs = getEffectiveMissingDocs(s)
     if (missingDocs.includes("FULL OK")) {
       return (
-        <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[10px] font-extrabold uppercase bg-emerald-500 text-white shadow-sm border-none">
+        <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full h-6 text-[12px] font-semibold uppercase bg-emerald-500 text-white shadow-sm border-none leading-none">
           ✔ FULL OK
         </span>
       )
@@ -513,11 +524,11 @@ export function DocumentsClient() {
     
     const items = missingDocs.filter(d => d !== "FULL OK" && !(d === "MARRIAGE CERTIFICATE" && s.has_mc === false))
     if (items.length === 0) {
-      return <span className="text-xs text-[var(--foreground-muted)] italic font-medium">No missing documents</span>
+      return <span className="text-[13px] text-[var(--foreground-muted)] italic font-normal opacity-70">No missing documents</span>
     }
 
     return (
-      <div className="flex flex-wrap gap-1.5 items-center">
+      <div className="flex flex-wrap gap-2 items-center">
         {items.map(d => {
           let label = d
           if (d === "BIRTH CERTIFICATE") label = "BC"
@@ -529,7 +540,7 @@ export function DocumentsClient() {
           return (
             <span
               key={d}
-              className="inline-flex px-2 py-0.5 rounded-full text-[9px] font-extrabold tracking-wide uppercase shadow-sm text-white border-none"
+              className="inline-flex px-2.5 py-0.5 rounded-full text-[10px] font-bold tracking-wide uppercase shadow-sm text-white border-none"
               style={{ backgroundColor: colors.bg }}
             >
               {label}
@@ -541,7 +552,7 @@ export function DocumentsClient() {
   }
 
   // Render cell counter statuses
-  const DOC_BADGE_BASE = "h-6 w-6 shrink-0 rounded-full inline-flex items-center justify-center leading-none font-bold text-[10px] shadow-sm border"
+  const DOC_BADGE_BASE = "h-[30px] w-[30px] shrink-0 rounded-full inline-flex items-center justify-center leading-none font-semibold text-[12px] shadow-sm border"
 
   const renderDocCell = (s: Student, docName: string) => {
     if (docName === "MARRIAGE CERTIFICATE" && s.has_mc === false) {
@@ -596,7 +607,7 @@ export function DocumentsClient() {
   }
 
   return (
-    <div className="flex flex-col gap-6 relative">
+    <div className="flex flex-col gap-3 relative">
       {/* Dropdowns Click-Outside Backdrop */}
       {(isTariffDropdownOpen || isLevelDropdownOpen || isGroupDropdownOpen || isCertDropdownOpen || isMissingDropdownOpen || isScoreDropdownOpen) && (
         <div className="fixed inset-0 z-30 bg-transparent cursor-default" onClick={closeAllDropdowns} />
@@ -843,7 +854,7 @@ export function DocumentsClient() {
       </div>
 
       {/* Roster Counter Summary */}
-      <div className="flex justify-between items-center text-xs text-[var(--foreground-muted)] italic px-1 font-semibold select-none">
+      <div className="flex justify-between items-center text-xs text-[var(--foreground-muted)] italic px-1 font-semibold select-none mt-3 mb-2">
         <div>
           {(searchQuery || selectedTariffs.length > 0 || selectedLevels.length > 0 || selectedGroups.length > 0 || selectedCerts.length > 0 || selectedScores.length > 0 || selectedMissingDocs.length > 0) ? (
             <span>Showing {filteredStudents.length} of {students.filter(s => selectedLevels.includes('DELETED') ? s.is_deleted : !s.is_deleted).length} students</span>
@@ -896,12 +907,12 @@ export function DocumentsClient() {
           <div className="overflow-x-auto">
             <table className="w-full border-collapse text-left">
               <thead>
-                <tr className="border-b border-[var(--border)] bg-[var(--surface-elevated)] text-[11px] font-bold uppercase tracking-wider text-[var(--foreground-muted)] dark:text-[var(--foreground)] select-none">
+                <tr className="border-b border-[var(--border)] bg-[var(--surface-elevated)] text-[12px] font-700 uppercase tracking-[0.04em] text-[var(--foreground-muted)] dark:text-[var(--foreground)] select-none">
                   <th 
-                    className="px-6 py-3.5 cursor-pointer hover:bg-[var(--surface-elevated)] transition-colors"
+                    className="px-6 py-4 cursor-pointer hover:bg-[var(--surface-elevated)] transition-colors"
                     onClick={() => setSortOrder(prev => prev === 'asc' ? 'desc' : 'asc')}
                   >
-                    <span className="flex items-center gap-1">
+                    <span className="flex items-center gap-1 font-bold">
                       ID / Name
                       {sortOrder === 'asc' ? (
                         <ChevronDown className="h-3.5 w-3.5 text-[var(--accent)]" />
@@ -910,15 +921,15 @@ export function DocumentsClient() {
                       )}
                     </span>
                   </th>
-                  <th className="px-6 py-3.5">Missing</th>
-                  <th className="px-4 py-3.5 text-center w-16">BC</th>
-                  <th className="px-4 py-3.5 text-center w-16">MC</th>
-                  <th className="px-4 py-3.5 text-center w-16">APOS</th>
-                  <th className="px-4 py-3.5 text-center w-16">PIC</th>
+                  <th className="px-6 py-4 font-bold">Missing</th>
+                  <th className="px-2 py-4 text-center w-[70px] font-bold">BC</th>
+                  <th className="px-2 py-4 text-center w-[70px] font-bold">MC</th>
+                  <th className="px-2 py-4 text-center w-[70px] font-bold">APOS</th>
+                  <th className="px-2 py-4 text-center w-[70px] font-bold">PIC</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-[var(--border)]">
-                {sortedStudents.map(student => (
+                {pagedStudents.map(student => (
                   <tr 
                     key={student.id} 
                     onClick={async () => {
@@ -945,34 +956,88 @@ export function DocumentsClient() {
                     }}
                     className={`cursor-pointer hover:bg-[var(--surface-hover)] transition-colors text-sm text-[var(--foreground)] ${student.is_deleted ? 'bg-rose-500/5 dark:bg-rose-950/10' : ''}`}
                   >
-                    <td className="px-6 py-4 align-middle">
+                    <td className="px-6 py-5 align-middle">
                       <div className="flex items-center gap-1.5">
                         {student.is_deleted && <ShieldAlert className="h-3.5 w-3.5 text-rose-500 shrink-0" />}
-                        <span className="font-bold uppercase tracking-wide text-xs">{student.full_name}</span>
+                        <span className="font-semibold text-[15px] uppercase tracking-wide leading-[1.4]">{student.full_name}</span>
                       </div>
-                      <span className="text-[10px] text-[var(--foreground-muted)] font-semibold tracking-wider uppercase mt-1.5 block">
+                      <span className="text-[12px] text-[var(--foreground-muted)] font-medium tracking-wide uppercase mt-1 block opacity-65">
                         {getGhostText(student)}
                       </span>
                     </td>
-                    <td className="px-6 py-4 align-middle">
+                    <td className="px-6 py-5 align-middle">
                       {renderMissingPills(student)}
                     </td>
-                    <td className="px-4 py-4 align-middle">
+                    <td className="px-2 py-5 align-middle w-[70px]">
                       <div className="flex items-center justify-center">{renderDocCell(student, "BIRTH CERTIFICATE")}</div>
                     </td>
-                    <td className="px-4 py-4 align-middle">
+                    <td className="px-2 py-5 align-middle w-[70px]">
                       <div className="flex items-center justify-center">{renderDocCell(student, "MARRIAGE CERTIFICATE")}</div>
                     </td>
-                    <td className="px-4 py-4 align-middle">
+                    <td className="px-2 py-5 align-middle w-[70px]">
                       <div className="flex items-center justify-center">{renderDocCell(student, "APOSTILLE")}</div>
                     </td>
-                    <td className="px-4 py-4 align-middle">
+                    <td className="px-2 py-5 align-middle w-[70px]">
                       <div className="flex items-center justify-center">{renderDocCell(student, "3.5x4.5")}</div>
                     </td>
                   </tr>
                 ))}
               </tbody>
             </table>
+          </div>
+        </div>
+      )}
+
+      {/* Pagination Controls */}
+      {!loading && !error && totalPages > 1 && (
+        <div className="flex items-center justify-between px-1 select-none">
+          <span className="text-xs text-[var(--foreground-muted)] font-medium">
+            Page {safePage} of {totalPages} &mdash; {sortedStudents.length} students
+          </span>
+          <div className="flex items-center gap-1.5">
+            <button
+              onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+              disabled={safePage === 1}
+              className="h-8 w-8 flex items-center justify-center rounded-[var(--radius-md)] border border-[var(--border)] bg-[var(--surface-elevated)] text-[var(--foreground-muted)] hover:bg-[var(--surface-hover)] hover:text-[var(--foreground)] disabled:opacity-40 disabled:pointer-events-none transition-all cursor-pointer"
+              title="Previous page"
+            >
+              <ChevronLeft className="h-4 w-4" />
+            </button>
+
+            {Array.from({ length: totalPages }, (_, i) => i + 1)
+              .filter(p => p === 1 || p === totalPages || Math.abs(p - safePage) <= 2)
+              .reduce<(number | 'ellipsis')[]>((acc, p, idx, arr) => {
+                if (idx > 0 && p - (arr[idx - 1] as number) > 1) acc.push('ellipsis')
+                acc.push(p)
+                return acc
+              }, [])
+              .map((item, idx) =>
+                item === 'ellipsis' ? (
+                  <span key={`e${idx}`} className="px-1 text-[var(--foreground-muted)] text-xs">…</span>
+                ) : (
+                  <button
+                    key={item}
+                    onClick={() => setCurrentPage(item as number)}
+                    className={`h-8 min-w-[32px] px-2 flex items-center justify-center rounded-[var(--radius-md)] border text-xs font-semibold transition-all cursor-pointer ${
+                      item === safePage
+                        ? 'border-[var(--accent)] bg-[var(--accent)] text-white shadow-sm'
+                        : 'border-[var(--border)] bg-[var(--surface-elevated)] text-[var(--foreground-muted)] hover:bg-[var(--surface-hover)] hover:text-[var(--foreground)]'
+                    }`}
+                  >
+                    {item}
+                  </button>
+                )
+              )
+            }
+
+            <button
+              onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+              disabled={safePage === totalPages}
+              className="h-8 w-8 flex items-center justify-center rounded-[var(--radius-md)] border border-[var(--border)] bg-[var(--surface-elevated)] text-[var(--foreground-muted)] hover:bg-[var(--surface-hover)] hover:text-[var(--foreground)] disabled:opacity-40 disabled:pointer-events-none transition-all cursor-pointer"
+              title="Next page"
+            >
+              <ChevronRight className="h-4 w-4" />
+            </button>
           </div>
         </div>
       )}

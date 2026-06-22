@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useMemo } from 'react'
+import { useState, useEffect, useMemo, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import {
   Plus, Filter, Users, X, Loader2, Search, AlertCircle, CheckCircle2,
@@ -255,9 +255,19 @@ export function StudentDashboardClient() {
     return score
   }
 
-  // Clear score filter when active certificate changes
+  // Clear score filter only when the active certificate genuinely changes to a
+  // different value (not on initial mount). This preserves the selectedScores
+  // state when navigating back to the list page with the same cert selected.
+  const prevActiveCertRef = useRef<string | null>(undefined as any)
   useEffect(() => {
-    setSelectedScores([])
+    const prev = prevActiveCertRef.current
+    prevActiveCertRef.current = activeCertForScore
+    // Skip the very first render (undefined → any)
+    if (prev === undefined) return
+    // Only reset when the cert actually switches to a different cert (or away)
+    if (prev !== activeCertForScore) {
+      setSelectedScores([])
+    }
   }, [activeCertForScore])
 
   // Excel Export Modal States
