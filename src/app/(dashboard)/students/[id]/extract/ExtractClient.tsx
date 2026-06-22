@@ -9,6 +9,7 @@ import {
 } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import { type Student, type StudentLanguageCertificate, type StudentLevel, type StudentTariff } from '@/types/database'
+import { syncMissingDocuments } from '@/lib/validation'
 
 interface ExtractClientProps {
   studentId: string
@@ -506,8 +507,12 @@ export function ExtractClient({ studentId }: ExtractClientProps) {
       }
 
       // Supabase update
+      const nextStudent = { ...selectedStudent!, [dbField]: finalValue }
+      const syncedPick = syncMissingDocuments(nextStudent)
+
       const updateData = {
         [dbField]: finalValue,
+        pick_needed: syncedPick,
         updated_at: new Date().toISOString()
       }
 

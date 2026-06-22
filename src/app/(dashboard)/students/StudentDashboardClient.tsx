@@ -16,6 +16,7 @@ import * as XLSX from 'xlsx-js-style'
 import { useStudentDashboard } from '@/contexts/StudentDashboardContext'
 import { motion, AnimatePresence } from 'framer-motion'
 import { sendTelegramNotification } from '@/lib/telegram'
+import { syncMissingDocuments } from '@/lib/validation'
 
 export const ROW_COLOR_MAP: Record<string, { bg: string; ball: string; name: string }> = {
   BLUE: { bg: 'rgba(37, 99, 235, 0.45)', ball: '#2563EB', name: 'Blue' },
@@ -971,7 +972,20 @@ export function StudentDashboardClient() {
           university_1_status: 'Chosen',
           balance: 0,
           discount: 0,
-          pick_needed: [] as string[],
+          pick_needed: syncMissingDocuments({
+            id: studentId.trim().toUpperCase(),
+            full_name: fullName.trim().toUpperCase(),
+            office: office,
+            phone1: null,
+            phone2: null,
+            father_phone: null,
+            mother_phone: null,
+            email: null,
+            passport: null,
+            address: null,
+            level: null,
+            pick_needed: []
+          } as unknown as Student),
           has_mc: false,
           bc_hand_count: 0,
           mc_hand_count: 0,

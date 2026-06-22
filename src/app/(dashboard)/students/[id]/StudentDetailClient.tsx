@@ -14,6 +14,7 @@ import { type Student, type StudentLevel, type StudentTariff } from '@/types/dat
 import { PageShell } from '@/components/ui/PageShell'
 import { cn } from '@/lib/utils'
 import { useStudentDashboard } from '@/contexts/StudentDashboardContext'
+import { syncMissingDocuments } from '@/lib/validation'
 
 interface StudentDetailClientProps {
   studentId: string
@@ -112,7 +113,30 @@ export function StudentDetailClient({ studentId }: StudentDetailClientProps) {
       ])
 
       if (studentRes.error) throw studentRes.error
-      setSelectedStudent(studentRes.data)
+      const fetchedStudent = studentRes.data as Student
+      
+      // Auto-validate and sync missing documents on load
+      const syncedPick = syncMissingDocuments(fetchedStudent)
+      let finalStudent = fetchedStudent
+
+      const originalPick = fetchedStudent.pick_needed || []
+      const isPickDifferent = originalPick.length !== syncedPick.length || 
+        !originalPick.every((val: string) => syncedPick.includes(val))
+
+      if (isPickDifferent) {
+        const { error: updateErr } = await (supabase
+          .from('students') as any)
+          .update({ pick_needed: syncedPick })
+          .eq('id', fetchedStudent.id)
+        
+        if (!updateErr) {
+          finalStudent = { ...fetchedStudent, pick_needed: syncedPick }
+        } else {
+          console.error('Error auto-syncing missing documents on page load:', updateErr)
+        }
+      }
+
+      setSelectedStudent(finalStudent)
       setPayments(paymentsRes.data || [])
     } catch (err: any) {
       console.error('Error fetching student details:', err)
@@ -242,8 +266,9 @@ export function StudentDetailClient({ studentId }: StudentDetailClientProps) {
     const digits = value.replace(/\D/g, '').slice(0, 9)
     const first = digits.slice(0, 2)
     const second = digits.slice(2, 5)
-    const third = digits.slice(5, 9)
-    return [first, second, third].filter(Boolean).join('-')
+    const third = digits.slice(5, 7)
+    const fourth = digits.slice(7, 9)
+    return [first, second, third, fourth].filter(Boolean).join('-')
   }
 
   const formatPassportValue = (value: string) => {
@@ -300,7 +325,9 @@ export function StudentDetailClient({ studentId }: StudentDetailClientProps) {
           return
         }
 
-        const updateData = { full_name: newFullName, korean_name: null }
+        const updateData: any = { full_name: newFullName, korean_name: null }
+        const nextStudent = { ...selectedStudent, ...updateData }
+        updateData.pick_needed = syncMissingDocuments(nextStudent)
         const { error: updateError } = await (supabase
           .from('students') as any)
           .update(updateData)
@@ -322,7 +349,9 @@ export function StudentDetailClient({ studentId }: StudentDetailClientProps) {
           return
         }
         const valToSave = -numericVal
-        const updateData = { balance: valToSave }
+        const updateData: any = { balance: valToSave }
+        const nextStudent = { ...selectedStudent, ...updateData }
+        updateData.pick_needed = syncMissingDocuments(nextStudent)
         
         const { error: updateError } = await (supabase
           .from('students') as any)
@@ -361,9 +390,9 @@ export function StudentDetailClient({ studentId }: StudentDetailClientProps) {
       }
 
       if (phoneFields.has(String(field)) && valToSave) {
-        const phonePattern = /^[0-9]{2}-[0-9]{3}-[0-9]{4}$/
+        const phonePattern = /^[0-9]{2}-[0-9]{3}-[0-9]{2}-[0-9]{2}$/
         if (!phonePattern.test(valToSave)) {
-          alert(`${String(field).toUpperCase().replace(/_/g, ' ')} must be formatted as XX-XXX-XXXX.`)
+          alert(`${String(field).toUpperCase().replace(/_/g, ' ')} must be formatted as XX-XXX-XX-XX.`)
           return
         }
       }
@@ -405,6 +434,11 @@ export function StudentDetailClient({ studentId }: StudentDetailClientProps) {
         }
       }
 
+      // Run syncMissingDocuments on updated student data
+      const nextStudent = { ...selectedStudent, ...updateData }
+      const syncedPick = syncMissingDocuments(nextStudent)
+      updateData.pick_needed = syncedPick
+
       const { error: updateError } = await (supabase
         .from('students') as any)
         .update(updateData)
@@ -435,8 +469,14 @@ export function StudentDetailClient({ studentId }: StudentDetailClientProps) {
       }
     } catch (err: any) {
       console.error('Error updating field details:', err)
-      const errMsg = err.message || (typeof err === 'object' ? JSON.stringify(err) : String(err))
-      alert(`Failed to update field: ${errMsg}\nCode: ${err.code}\nDetails: ${err.details}\nHint: ${err.hint}`)
+      if (err) {
+        console.error('Error details keys:', Object.keys(err))
+        console.error('Error message:', err.message)
+        console.error('Error string:', String(err))
+        console.error('Error stack:', err.stack)
+      }
+      const errMsg = err?.message || (typeof err === 'object' ? JSON.stringify(err) : String(err))
+      alert(`Failed to update field: ${errMsg}\nCode: ${err?.code}\nDetails: ${err?.details}\nHint: ${err?.hint}`)
     }
   }
 
@@ -772,12 +812,14 @@ export function StudentDetailClient({ studentId }: StudentDetailClientProps) {
                   try {
                      const certToSave = editValue === '' ? null : editValue
                      const scoreToSave = scoreInput === '' ? null : scoreInput
+                     const nextStudent = { ...selectedStudent!, [certField]: certToSave, [scoreField]: scoreToSave }
+                     const syncedPick = syncMissingDocuments(nextStudent)
                      const { error } = await (supabase
                        .from('students') as any)
-                       .update({ [certField]: certToSave, [scoreField]: scoreToSave })
+                       .update({ [certField]: certToSave, [scoreField]: scoreToSave, pick_needed: syncedPick })
                        .eq('id', selectedStudent!.id)
                      if (error) throw error
-                     const updated = { ...selectedStudent!, [certField]: certToSave, [scoreField]: scoreToSave }
+                     const updated = { ...selectedStudent!, [certField]: certToSave, [scoreField]: scoreToSave, pick_needed: syncedPick }
                      setSelectedStudent(updated)
                      setEditingField(null)
                   } catch (err: any) {
@@ -816,12 +858,14 @@ export function StudentDetailClient({ studentId }: StudentDetailClientProps) {
                     try {
                       const certToSave = editValue === '' ? null : editValue
                       const scoreToSave = scoreInput === '' ? null : scoreInput
+                      const nextStudent = { ...selectedStudent!, [certField]: certToSave, [scoreField]: scoreToSave }
+                      const syncedPick = syncMissingDocuments(nextStudent)
                       const { error } = await (supabase
                         .from('students') as any)
-                        .update({ [certField]: certToSave, [scoreField]: scoreToSave })
+                        .update({ [certField]: certToSave, [scoreField]: scoreToSave, pick_needed: syncedPick })
                         .eq('id', selectedStudent!.id)
                       if (error) throw error
-                      const updated = { ...selectedStudent!, [certField]: certToSave, [scoreField]: scoreToSave }
+                      const updated = { ...selectedStudent!, [certField]: certToSave, [scoreField]: scoreToSave, pick_needed: syncedPick }
                       setSelectedStudent(updated)
                       setEditingField(null)
                     } catch (err: any) {
@@ -891,16 +935,21 @@ export function StudentDetailClient({ studentId }: StudentDetailClientProps) {
         const handleStatusSelect = async (newStatus: string) => {
           if (!selectedStudent) return
           try {
+            const nextStudent = {
+              ...selectedStudent,
+              [statusField]: newStatus,
+              jarayon_updated_at: new Date().toISOString()
+            }
+            const syncedPick = syncMissingDocuments(nextStudent)
             const { error } = await (supabase
               .from('students') as any)
-              .update({ [statusField]: newStatus, jarayon_updated_at: new Date().toISOString() })
+              .update({ [statusField]: newStatus, jarayon_updated_at: new Date().toISOString(), pick_needed: syncedPick })
               .eq('id', selectedStudent.id)
             if (error) throw error
 
             setSelectedStudent({
-              ...selectedStudent,
-              [statusField]: newStatus,
-              jarayon_updated_at: new Date().toISOString()
+              ...nextStudent,
+              pick_needed: syncedPick
             })
             setActiveStatusDropdown(null)
           } catch (err: any) {
@@ -977,12 +1026,14 @@ export function StudentDetailClient({ studentId }: StudentDetailClientProps) {
                       const uniEl = document.getElementById('edit-uni-name-select') as HTMLSelectElement
                       const uniInput = uniEl ? uniEl.value : ''
                       try {
+                        const nextStudent = { ...selectedStudent!, [uniField]: uniInput || null }
+                        const syncedPick = syncMissingDocuments(nextStudent)
                         const { error } = await (supabase
                           .from('students') as any)
-                          .update({ [uniField]: uniInput || null, jarayon_updated_at: new Date().toISOString() })
+                          .update({ [uniField]: uniInput || null, jarayon_updated_at: new Date().toISOString(), pick_needed: syncedPick })
                           .eq('id', selectedStudent!.id)
                         if (error) throw error
-                        const updated = { ...selectedStudent!, [uniField]: uniInput || null, jarayon_updated_at: new Date().toISOString() }
+                        const updated = { ...selectedStudent!, [uniField]: uniInput || null, jarayon_updated_at: new Date().toISOString(), pick_needed: syncedPick }
                         setSelectedStudent(updated)
                         setEditingField(null)
                       } catch (err: any) {
@@ -1011,12 +1062,14 @@ export function StudentDetailClient({ studentId }: StudentDetailClientProps) {
                         const uniEl = document.getElementById('edit-uni-name-select') as HTMLSelectElement
                         const uniInput = uniEl ? uniEl.value : ''
                         try {
+                          const nextStudent = { ...selectedStudent!, [uniField]: uniInput || null }
+                          const syncedPick = syncMissingDocuments(nextStudent)
                           const { error } = await (supabase
                             .from('students') as any)
-                            .update({ [uniField]: uniInput || null, jarayon_updated_at: new Date().toISOString() })
+                            .update({ [uniField]: uniInput || null, jarayon_updated_at: new Date().toISOString(), pick_needed: syncedPick })
                             .eq('id', selectedStudent!.id)
                           if (error) throw error
-                          const updated = { ...selectedStudent!, [uniField]: uniInput || null, jarayon_updated_at: new Date().toISOString() }
+                          const updated = { ...selectedStudent!, [uniField]: uniInput || null, jarayon_updated_at: new Date().toISOString(), pick_needed: syncedPick }
                           setSelectedStudent(updated)
                           setEditingField(null)
                         } catch (err: any) {

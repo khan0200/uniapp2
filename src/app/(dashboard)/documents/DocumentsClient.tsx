@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { useStudentDashboard } from '@/contexts/StudentDashboardContext'
 import { type Student } from '@/types/database'
+import { syncMissingDocuments, isFieldFilled } from '@/lib/validation'
 import { 
   Folder, ChevronDown, ChevronUp, CheckCircle2, ShieldAlert,
   X, Loader2, ArrowLeft, Plus, AlertCircle, Info, RefreshCw, Hash, Users, Bookmark, UserCheck, Layers, Tag,
@@ -113,31 +114,7 @@ export function DocumentsClient() {
 
   // Document Helpers
   const getEffectiveMissingDocs = (s: Student): string[] => {
-    if (!s) return []
-    const manualMissing = s.pick_needed || []
-    if (manualMissing.includes("FULL OK")) return ["FULL OK"]
-    
-    const effectiveList = [...manualMissing]
-    
-    const addIfMissing = (condition: boolean, docName: string) => {
-      if (condition && !effectiveList.includes(docName)) {
-        effectiveList.push(docName)
-      }
-    }
-    
-    const phone1Empty = !s.phone1 || s.phone1 === "-" || s.phone1.trim() === ""
-    const phone2Empty = !s.phone2 || s.phone2 === "-" || s.phone2.trim() === ""
-    addIfMissing(phone1Empty && phone2Empty, "2 ta nomer")
-    
-    addIfMissing(!s.email || s.email === "-" || s.email.trim() === "", "Email")
-    addIfMissing(!s.passport || s.passport === "-" || s.passport.trim() === "", "Foreign passport")
-    addIfMissing(!s.address || s.address === "-" || s.address.trim() === "", "Manzil")
-    
-    const level1Empty = !s.level || (s.level as string) === "-" || (s.level as string).trim() === ""
-    const level2Empty = !s.level2 || (s.level2 as string) === "-" || (s.level2 as string).trim() === ""
-    addIfMissing(level1Empty && level2Empty, "Edu-Level")
-    
-    return effectiveList
+    return syncMissingDocuments(s)
   }
 
   const getDocColor = (docName: string) => {
@@ -238,6 +215,39 @@ export function DocumentsClient() {
     let updatedPick: string[] = student.pick_needed ? [...student.pick_needed] : []
     let showMessage: string | null = null
 
+    const isRemoving = updatedPick.includes(pill) || (pill === "FULL OK" && updatedPick.includes("FULL OK"))
+
+    if (isRemoving) {
+      if (pill === "2 ta nomer") {
+        const phoneFields = [student.phone1, student.phone2, student.father_phone, student.mother_phone]
+        const filledPhones = phoneFields.filter(isFieldFilled).length
+        if (filledPhones < 2) {
+          alert("Talabaga kamida 2 ta nomer kirgizing!")
+          return
+        }
+      } else if (pill === "Email") {
+        if (!isFieldFilled(student.email)) {
+          alert("Email manzilini kirgizing!")
+          return
+        }
+      } else if (pill === "Foreign passport") {
+        if (!isFieldFilled(student.passport)) {
+          alert("Pasport raqamini kirgizing!")
+          return
+        }
+      } else if (pill === "Manzil") {
+        if (!isFieldFilled(student.address)) {
+          alert("Talabaning manzilini kirgizing!")
+          return
+        }
+      } else if (pill === "Edu-Level") {
+        if (!isFieldFilled(student.level)) {
+          alert("Ta'lim darajasini kirgizing!")
+          return
+        }
+      }
+    }
+
     if (pill === "FULL OK") {
       if (updatedPick.includes("FULL OK")) {
         updatedPick = []
@@ -264,6 +274,11 @@ export function DocumentsClient() {
         updatedPick.push(pill)
       }
     }
+
+    // Run syncMissingDocuments to ensure required fields remain consistent
+    const nextStudent = { ...student, pick_needed: updatedPick }
+    const syncedPick = syncMissingDocuments(nextStudent)
+    updatedPick = syncedPick
 
     setModalUpdating(true)
     try {
@@ -761,7 +776,28 @@ export function DocumentsClient() {
                 {sortedStudents.map(student => (
                   <tr 
                     key={student.id} 
-                    onClick={() => { setSelectedStudent(student); setIsModalOpen(true) }}
+                    onClick={async () => {
+                      const syncedPick = syncMissingDocuments(student)
+                      const originalPick = student.pick_needed || []
+                      const isPickDifferent = originalPick.length !== syncedPick.length || 
+                        !originalPick.every((val: string) => syncedPick.includes(val))
+
+                      let updatedStudent = student
+                      if (isPickDifferent) {
+                        const { error: updateErr } = await (supabase
+                          .from('students') as any)
+                          .update({ pick_needed: syncedPick })
+                          .eq('id', student.id)
+                        if (!updateErr) {
+                          updatedStudent = { ...student, pick_needed: syncedPick }
+                          setStudents(prev => prev.map(s => s.id === student.id ? updatedStudent : s))
+                        } else {
+                          console.error('Error auto-syncing missing documents on modal open:', updateErr)
+                        }
+                      }
+                      setSelectedStudent(updatedStudent)
+                      setIsModalOpen(true)
+                    }}
                     className={`cursor-pointer hover:bg-[var(--surface-hover)] transition-colors text-sm text-[var(--foreground)] ${student.is_deleted ? 'bg-rose-500/5 dark:bg-rose-950/10' : ''}`}
                   >
                     <td className="px-6 py-4 align-middle">
