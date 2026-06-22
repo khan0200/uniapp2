@@ -252,8 +252,10 @@ export function ImportClient() {
     mapped.phone2 = rawPhone2 ? String(rawPhone2).trim() : null
 
     // Parents Information
+    mapped.father_name = isFirestore ? (getVal(['fatherName', 'father_name']) || null) : (getVal([excelMapping['father_name']]) || null)
     mapped.father_phone = isFirestore ? (getVal(['fatherPhone', 'father_phone']) || null) : (getVal([excelMapping['father_phone']]) || null)
     mapped.father_job = isFirestore ? (getVal(['fatherJob', 'father_job']) || null) : (getVal([excelMapping['father_job']]) || null)
+    mapped.mother_name = isFirestore ? (getVal(['motherName', 'mother_name']) || null) : (getVal([excelMapping['mother_name']]) || null)
     mapped.mother_phone = isFirestore ? (getVal(['motherPhone', 'mother_phone']) || null) : (getVal([excelMapping['mother_phone']]) || null)
     mapped.mother_job = isFirestore ? (getVal(['motherJob', 'mother_job']) || null) : (getVal([excelMapping['mother_job']]) || null)
 
@@ -503,8 +505,10 @@ export function ImportClient() {
           matchHeader('phone1', ['phone 1', 'phone1', 'phone', 'tel1', 'telefon', 'phone number'])
           matchHeader('phone2', ['phone 2', 'phone2', 'tel2', 'qoshimcha tel'])
           
+          matchHeader('father_name', ['father fullname', 'father name', 'ota ismi', 'otasi ismi', 'ota f.i.sh', 'ota fish'])
           matchHeader('father_phone', ['father phone', 'otasi tel', 'ota tel'])
           matchHeader('father_job', ['father job', 'father work', 'ota kasb'])
+          matchHeader('mother_name', ['mother fullname', 'mother name', 'ona ismi', 'onasi ismi', 'ona f.i.sh', 'ona fish'])
           matchHeader('mother_phone', ['mother phone', 'onasi tel', 'ona tel'])
           matchHeader('mother_job', ['mother job', 'mother work', 'ona kasb'])
           
@@ -1006,8 +1010,10 @@ export function ImportClient() {
                             { key: 'university_3_status', label: 'University 3 Status' },
                             { key: 'balance', label: 'Balance' },
                             { key: 'discount', label: 'Discount' },
+                            { key: 'father_name', label: 'Father Fullname' },
                             { key: 'father_phone', label: 'Father Phone' },
                             { key: 'father_job', label: 'Father Job' },
+                            { key: 'mother_name', label: 'Mother Fullname' },
                             { key: 'mother_phone', label: 'Mother Phone' },
                             { key: 'mother_job', label: 'Mother Job' },
                             { key: 'office', label: 'Office' },

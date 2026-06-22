@@ -562,9 +562,12 @@ export function StudentDashboardClient() {
       No: index + 1,
       'Student ID': s.id || '',
       'Full Name': s.full_name || '',
+      'Korean Name': s.korean_name || '',
       'Phone 1': s.phone1 || '',
       'Phone 2': s.phone2 || '',
+      'Father Fullname': s.father_name || '',
       'Father Phone': s.father_phone || '',
+      'Mother Fullname': s.mother_name || '',
       'Mother Phone': s.mother_phone || '',
       Email: s.email || '',
       Birthday: s.birthday || '',
@@ -608,9 +611,12 @@ export function StudentDashboardClient() {
       { wch: 5 },  // No
       { wch: 12 }, // Student ID
       { wch: 35 }, // Full Name
+      { wch: 35 }, // Korean Name
       { wch: 15 }, // Phone 1
       { wch: 15 }, // Phone 2
+      { wch: 35 }, // Father Fullname
       { wch: 15 }, // Father Phone
+      { wch: 35 }, // Mother Fullname
       { wch: 15 }, // Mother Phone
       { wch: 25 }, // Email
       { wch: 12 }, // Birthday

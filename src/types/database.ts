@@ -18,6 +18,7 @@ export interface Student {
   // 1. Personal & Contact Information
   id: string
   full_name: string
+  korean_name: string | null
   passport: string | null
   passport_issue_date: string | null
   passport_expire_date: string | null
@@ -25,8 +26,10 @@ export interface Student {
   birthday: string | null
   phone1: string | null
   phone2: string | null
+  father_name: string | null
   father_phone: string | null
   father_job: string | null
+  mother_name: string | null
   mother_phone: string | null
   mother_job: string | null
   email: string | null
@@ -139,6 +142,7 @@ export type Database = {
         Insert: {
           id: string
           full_name: string
+          korean_name?: string | null
           passport?: string | null
           passport_issue_date?: string | null
           passport_expire_date?: string | null
@@ -146,8 +150,10 @@ export type Database = {
           birthday?: string | null
           phone1?: string | null
           phone2?: string | null
+          father_name?: string | null
           father_phone?: string | null
           father_job?: string | null
+          mother_name?: string | null
           mother_phone?: string | null
           mother_job?: string | null
           email?: string | null
@@ -193,6 +199,7 @@ export type Database = {
         Update: {
           id?: string
           full_name?: string
+          korean_name?: string | null
           passport?: string | null
           passport_issue_date?: string | null
           passport_expire_date?: string | null
@@ -200,8 +207,10 @@ export type Database = {
           birthday?: string | null
           phone1?: string | null
           phone2?: string | null
+          father_name?: string | null
           father_phone?: string | null
           father_job?: string | null
+          mother_name?: string | null
           mother_phone?: string | null
           mother_job?: string | null
           email?: string | null

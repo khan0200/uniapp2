@@ -156,9 +156,6 @@ export function StudentDetailClient({ studentId }: StudentDetailClientProps) {
   const handleShowKorean = async () => {
     if (!selectedStudent) return
     setNameLanguage('KR')
-    if (koreanNames) return // already fetched for this student
-
-    const fullName = selectedStudent.full_name || ''
 
     const splitTranslatedFullName = (translatedFull: string) => {
       const parts = translatedFull.split(' ').filter(Boolean)
@@ -168,6 +165,15 @@ export function StudentDetailClient({ studentId }: StudentDetailClientProps) {
         given: parts.slice(1).join(' '),
       }
     }
+
+    if (selectedStudent.korean_name) {
+      setKoreanNames(splitTranslatedFullName(selectedStudent.korean_name))
+      return
+    }
+
+    if (koreanNames) return
+
+    const fullName = selectedStudent.full_name || ''
 
     let aiSettings: any = null
     try {
@@ -199,6 +205,15 @@ export function StudentDetailClient({ studentId }: StudentDetailClientProps) {
 
       const [full] = data.results || []
       if (!full) throw new Error('AI returned an empty result. Please try again.')
+
+      const { error: updateError } = await (supabase
+        .from('students') as any)
+        .update({ korean_name: full })
+        .eq('id', selectedStudent.id)
+
+      if (updateError) throw updateError
+
+      setSelectedStudent({ ...selectedStudent, korean_name: full })
       setKoreanNames(splitTranslatedFullName(full))
     } catch (err: any) {
       console.error('AI name translation failed:', err)
@@ -210,11 +225,14 @@ export function StudentDetailClient({ studentId }: StudentDetailClientProps) {
 
   const uppercaseFields = new Set([
     'full_name',
+    'korean_name',
     'address',
     'notes',
     'educational_background',
     'major',
+    'father_name',
     'father_job',
+    'mother_name',
     'mother_job',
   ])
 
@@ -282,7 +300,7 @@ export function StudentDetailClient({ studentId }: StudentDetailClientProps) {
           return
         }
 
-        const updateData = { full_name: newFullName }
+        const updateData = { full_name: newFullName, korean_name: null }
         const { error: updateError } = await (supabase
           .from('students') as any)
           .update(updateData)
@@ -292,6 +310,7 @@ export function StudentDetailClient({ studentId }: StudentDetailClientProps) {
 
         const updatedStudent = { ...selectedStudent, ...updateData }
         setSelectedStudent(updatedStudent)
+        setKoreanNames(null)
         setEditingField(null)
         return
       }
@@ -364,6 +383,10 @@ export function StudentDetailClient({ studentId }: StudentDetailClientProps) {
 
       const updateData: any = { [field]: valToSave }
 
+      if (field === 'full_name') {
+        updateData.korean_name = null
+      }
+
       // Recalculate balance when tariff or language certificate changes
       if (
         (field === 'tariff' && selectedStudent.tariff !== valToSave) ||
@@ -390,6 +413,20 @@ export function StudentDetailClient({ studentId }: StudentDetailClientProps) {
       if (updateError) throw updateError
 
       const updatedStudent = { ...selectedStudent, ...updateData }
+      if (field === 'full_name') {
+        setKoreanNames(null)
+      } else if (field === 'korean_name') {
+        if (valToSave) {
+          const parts = valToSave.split(' ').filter(Boolean)
+          setKoreanNames({
+            full: valToSave,
+            family: parts[0] || '',
+            given: parts.slice(1).join(' '),
+          })
+        } else {
+          setKoreanNames(null)
+        }
+      }
       setSelectedStudent(updatedStudent)
       setEditingField(null)
 
@@ -489,6 +526,8 @@ export function StudentDetailClient({ studentId }: StudentDetailClientProps) {
       badgeColor?: string
       titleColor?: string
       forceBorderColor?: 'blue' | 'red'
+      valueClassName?: string
+      compact?: boolean
     } = {}
   ) => {
     const isEditing = editingField === field
@@ -510,7 +549,11 @@ export function StudentDetailClient({ studentId }: StudentDetailClientProps) {
             handleStartEditing(String(field), value, options.type === 'select' ? options.selectOptions?.[0] : '')
           }
         }}
-        className={`group relative bg-[var(--surface)] border border-[#E5E7EB] dark:border-[var(--border)] border-l-[3px] ${stripeColor} rounded-[var(--radius-md)] px-2.5 py-1.5 flex flex-col justify-between min-h-[65px] text-[var(--foreground)] hover:bg-[var(--surface-elevated)] transition-all duration-200 cursor-pointer`}
+        className={cn(
+          "group relative bg-[var(--surface)] border border-[#E5E7EB] dark:border-[var(--border)] border-l-[3px] rounded-[var(--radius-md)] px-2.5 flex flex-col justify-between text-[var(--foreground)] hover:bg-[var(--surface-elevated)] transition-all duration-200 cursor-pointer",
+          stripeColor,
+          options.compact ? 'min-h-[52px] py-1' : 'min-h-[65px] py-1.5'
+        )}
         title={`${editable ? 'Double-click to edit. ' : ''}${copyable && value ? 'Single-click value to copy.' : ''}`}
       >
         {isMissing && (
@@ -584,7 +627,7 @@ export function StudentDetailClient({ studentId }: StudentDetailClientProps) {
                   type={options.type === 'date' ? 'date' : 'text'}
                   value={editValue}
                   onChange={(e) => setEditValue(formatEditValueForField(String(field), e.target.value))}
-                  className="bg-[var(--surface-elevated)] text-[15px] text-[var(--foreground)] pl-2 pr-14 py-1 rounded border border-[var(--accent)] focus:outline-none focus:border-[var(--accent)] w-full min-w-0 font-medium"
+                  className={cn("bg-[var(--surface-elevated)] text-[15px] text-[var(--foreground)] pl-2 pr-14 py-1 rounded border border-[var(--accent)] focus:outline-none focus:border-[var(--accent)] w-full min-w-0 font-medium", options.valueClassName)}
                   placeholder={label}
                   autoFocus
                 />
@@ -629,13 +672,13 @@ export function StudentDetailClient({ studentId }: StudentDetailClientProps) {
               Array.isArray(displayValue) ? (
                 <div className="flex flex-wrap gap-1.5 mt-0.5">
                   {displayValue.map((item, idx) => (
-                    <span key={idx} className="text-[15px] font-semibold tracking-wide text-[#0F172A] dark:text-[var(--foreground)]">
+                    <span key={idx} className={cn("text-[15px] font-semibold tracking-wide text-[#0F172A] dark:text-[var(--foreground)]", options.valueClassName)}>
                       {item}
                     </span>
                   ))}
                 </div>
               ) : (
-                <span className="text-[15px] font-semibold tracking-wide text-[#0F172A] dark:text-[var(--foreground)]">{displayValue}</span>
+                <span className={cn("text-[15px] font-semibold tracking-wide text-[#0F172A] dark:text-[var(--foreground)]", options.valueClassName)}>{displayValue}</span>
               )
             )
           )}
@@ -650,7 +693,10 @@ export function StudentDetailClient({ studentId }: StudentDetailClientProps) {
     certField: keyof Student,
     scoreField: keyof Student,
     certsAllowed: string[],
-    certColor: string = 'bg-[#de350b]'
+    certColor: string = 'bg-[#de350b]',
+    options: {
+      compact?: boolean
+    } = {}
   ) => {
     const isEditing = editingField === certField
     const certVal = selectedStudent?.[certField] as string
@@ -664,7 +710,11 @@ export function StudentDetailClient({ studentId }: StudentDetailClientProps) {
             handleStartEditing(String(certField), certVal, certsAllowed[0]);
           }
         }}
-        className={`group relative bg-[var(--surface)] border border-[#E5E7EB] dark:border-[var(--border)] border-l-[3px] ${isMissing ? 'border-l-rose-600' : 'border-l-[var(--accent)]'} rounded-[var(--radius-md)] px-2.5 py-1.5 flex flex-col justify-between min-h-[65px] text-[var(--foreground)] hover:bg-[var(--surface-elevated)] transition-all duration-200 cursor-pointer`}
+        className={cn(
+          "group relative bg-[var(--surface)] border border-[#E5E7EB] dark:border-[var(--border)] border-l-[3px] rounded-[var(--radius-md)] px-2.5 flex flex-col justify-between text-[var(--foreground)] hover:bg-[var(--surface-elevated)] transition-all duration-200 cursor-pointer",
+          isMissing ? 'border-l-rose-600' : 'border-l-[var(--accent)]',
+          options.compact ? 'min-h-[52px] py-1' : 'min-h-[65px] py-1.5'
+        )}
         title="Double-click to edit. Single-click value to copy."
       >
         {isMissing && (
@@ -814,7 +864,10 @@ export function StudentDetailClient({ studentId }: StudentDetailClientProps) {
       const renderUniversityCardDetails = (
         label: string,
         uniField: keyof Student,
-        statusField: keyof Student
+        statusField: keyof Student,
+        options: {
+          compact?: boolean
+        } = {}
       ) => {
         const isEditing = editingField === uniField
         const uniVal = selectedStudent?.[uniField] as string
@@ -864,7 +917,11 @@ export function StudentDetailClient({ studentId }: StudentDetailClientProps) {
                 handleStartEditing(String(uniField), uniVal);
               }
             }}
-            className={`group relative bg-[var(--surface)] border border-[#E5E7EB] dark:border-[var(--border)] border-l-[3px] ${isMissing ? 'border-l-rose-600' : 'border-l-[var(--accent)]'} rounded-[var(--radius-md)] px-2.5 py-1.5 flex flex-col justify-between min-h-[65px] text-[var(--foreground)] hover:bg-[var(--surface-elevated)] transition-all duration-200 cursor-pointer`}
+            className={cn(
+              "group relative bg-[var(--surface)] border border-[#E5E7EB] dark:border-[var(--border)] border-l-[3px] rounded-[var(--radius-md)] px-2.5 flex flex-col justify-between text-[var(--foreground)] hover:bg-[var(--surface-elevated)] transition-all duration-200 cursor-pointer",
+              isMissing ? 'border-l-rose-600' : 'border-l-[var(--accent)]',
+              options.compact ? 'min-h-[52px] py-1' : 'min-h-[65px] py-1.5'
+            )}
             title="Double-click to edit. Single-click value to copy."
           >
             {isMissing && (
@@ -1209,7 +1266,7 @@ export function StudentDetailClient({ studentId }: StudentDetailClientProps) {
                       onClick={handleShowKorean}
                       disabled={isTranslatingNames}
                       className={`px-2 py-0.5 cursor-pointer transition-all border-l border-[var(--border)] disabled:opacity-60 ${nameLanguage === 'KR' ? 'bg-[var(--accent)] text-white' : 'bg-[var(--surface)] text-[#64748B] hover:bg-[var(--surface-elevated)]'}`}
-                      title="Show names transliterated to Korean using AI (copy-only — does not change saved data)"
+                      title="Show name in Korean (uses AI translation if not saved yet)"
                     >
                       KR
                     </button>
@@ -1221,10 +1278,46 @@ export function StudentDetailClient({ studentId }: StudentDetailClientProps) {
               )}
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-1.5">
                 <div className="sm:col-span-2">
-                  {renderDetailCard('Full Name', 'full_name', nameLanguage === 'KR' ? (koreanNames?.full ?? (isTranslatingNames ? 'Translating...' : '')) : selectedStudent.full_name, { titleColor: 'text-[var(--accent)]', editable: nameLanguage === 'EN' && !isTranslatingNames, copyable: !(nameLanguage === 'KR' && isTranslatingNames) })}
+                  {nameLanguage === 'KR' ? (
+                    renderDetailCard(
+                      'Full Name (Korean)',
+                      'korean_name',
+                      selectedStudent.korean_name || (isTranslatingNames ? 'Translating...' : ''),
+                      {
+                        titleColor: 'text-[var(--accent)]',
+                        editable: !isTranslatingNames,
+                        copyable: !isTranslatingNames
+                      }
+                    )
+                  ) : (
+                    renderDetailCard(
+                      'Full Name',
+                      'full_name',
+                      selectedStudent.full_name,
+                      {
+                        titleColor: 'text-[var(--accent)]',
+                        editable: true,
+                        copyable: true
+                      }
+                    )
+                  )}
                 </div>
-                {renderAutoNameCard('Family Name', nameLanguage === 'KR' ? (koreanNames?.family ?? (isTranslatingNames ? 'Translating...' : '')) : (selectedStudent.full_name.split(' ')[0] || ''), 'family_name', nameLanguage === 'KR' && isTranslatingNames)}
-                {renderAutoNameCard('Given Name', nameLanguage === 'KR' ? (koreanNames?.given ?? (isTranslatingNames ? 'Translating...' : '')) : (selectedStudent.full_name.split(' ').slice(1).join(' ') || ''), 'given_name', nameLanguage === 'KR' && isTranslatingNames)}
+                {renderAutoNameCard(
+                  'Family Name',
+                  nameLanguage === 'KR'
+                    ? (selectedStudent.korean_name ? selectedStudent.korean_name.split(' ')[0] : (isTranslatingNames ? 'Translating...' : ''))
+                    : (selectedStudent.full_name.split(' ')[0] || ''),
+                  'family_name',
+                  nameLanguage === 'KR' && isTranslatingNames
+                )}
+                {renderAutoNameCard(
+                  'Given Name',
+                  nameLanguage === 'KR'
+                    ? (selectedStudent.korean_name ? selectedStudent.korean_name.split(' ').slice(1).join(' ') : (isTranslatingNames ? 'Translating...' : ''))
+                    : (selectedStudent.full_name.split(' ').slice(1).join(' ') || ''),
+                  'given_name',
+                  nameLanguage === 'KR' && isTranslatingNames
+                )}
                 <div className="sm:col-span-2 grid grid-cols-1 sm:grid-cols-4 gap-1.5">
                   <div className="sm:col-span-1">
                     {renderDetailCard('Sex', 'gender', selectedStudent.gender, {
@@ -1237,7 +1330,7 @@ export function StudentDetailClient({ studentId }: StudentDetailClientProps) {
                     {renderDetailCard('Birthday', 'birthday', selectedStudent.birthday, { type: 'date', titleColor: 'text-[var(--accent)]' })}
                   </div>
                   <div className="sm:col-span-2">
-                    {renderDetailCard('Email', 'email', selectedStudent.email, { titleColor: 'text-[var(--accent)]' })}
+                    {renderDetailCard('Email', 'email', selectedStudent.email, { titleColor: 'text-[var(--accent)]', valueClassName: 'text-[12px]' })}
                   </div>
                 </div>
                 <div className="sm:col-span-2 grid grid-cols-1 sm:grid-cols-2 gap-1.5">
@@ -1302,9 +1395,10 @@ export function StudentDetailClient({ studentId }: StudentDetailClientProps) {
                     type: 'select',
                     selectOptions: levelOptions,
                     badgeColor: 'bg-[#ff9900] text-white',
-                    titleColor: 'text-[var(--accent)]'
+                    titleColor: 'text-[var(--accent)]',
+                    compact: true
                   })}
-                  {renderCertificateCard('Language Certificate 3', 'language_certificate_3', 'certificate_score_3', ['TOPIK', 'IELTS', 'TOEFL', 'CEFR', 'SAT', 'SKA', 'NO CERTIFICATE'], 'bg-[#ff5630]')}
+                  {renderCertificateCard('Language Certificate 3', 'language_certificate_3', 'certificate_score_3', ['TOPIK', 'IELTS', 'TOEFL', 'CEFR', 'SAT', 'SKA', 'NO CERTIFICATE'], 'bg-[#ff5630]', { compact: true })}
                 </div>
               </div>
             </div>
@@ -1320,12 +1414,14 @@ export function StudentDetailClient({ studentId }: StudentDetailClientProps) {
               <div className="grid grid-cols-1 gap-1.5">
                 {renderUniversityCardDetails('University 1', 'university_1', 'university_1_status')}
                 {renderUniversityCardDetails('University 2', 'university_2', 'university_2_status')}
-                {renderUniversityCardDetails('University 3', 'university_3', 'university_3_status')}
+                {renderUniversityCardDetails('University 3', 'university_3', 'university_3_status', { compact: true })}
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-1.5">
-                  {renderDetailCard('Father Phone', 'father_phone', selectedStudent.father_phone, { titleColor: 'text-[var(--accent)]' })}
-                  {renderDetailCard('Mother Phone', 'mother_phone', selectedStudent.mother_phone, { titleColor: 'text-[var(--accent)]' })}
-                  {renderDetailCard('Father Job', 'father_job', selectedStudent.father_job, { titleColor: 'text-[var(--accent)]' })}
-                  {renderDetailCard('Mother Job', 'mother_job', selectedStudent.mother_job, { titleColor: 'text-[var(--accent)]' })}
+                  {renderDetailCard('Father Fullname', 'father_name', selectedStudent.father_name, { titleColor: 'text-[var(--accent)]', compact: true })}
+                  {renderDetailCard('Mother Fullname', 'mother_name', selectedStudent.mother_name, { titleColor: 'text-[var(--accent)]', compact: true })}
+                  {renderDetailCard('Father Phone', 'father_phone', selectedStudent.father_phone, { titleColor: 'text-[var(--accent)]', compact: true })}
+                  {renderDetailCard('Mother Phone', 'mother_phone', selectedStudent.mother_phone, { titleColor: 'text-[var(--accent)]', compact: true })}
+                  {renderDetailCard('Father Job', 'father_job', selectedStudent.father_job, { titleColor: 'text-[var(--accent)]', compact: true })}
+                  {renderDetailCard('Mother Job', 'mother_job', selectedStudent.mother_job, { titleColor: 'text-[var(--accent)]', compact: true })}
                 </div>
               </div>
             </div>
