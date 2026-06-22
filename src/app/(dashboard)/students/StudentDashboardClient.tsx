@@ -2071,8 +2071,38 @@ export function StudentDashboardClient() {
 
                       {/* Full Name & Tariff Info Column */}
                       <td className="px-2 py-3.5">
-                        <div className="font-bold uppercase tracking-wide text-xs text-[var(--foreground)]">
-                          {student.full_name}
+                        <div className="flex items-center gap-1.5">
+                          <span className="font-bold uppercase tracking-wide text-xs text-[var(--foreground)]">
+                            {student.full_name}
+                          </span>
+                          {(() => {
+                            const missing = syncMissingDocuments(student)
+                            const isFullOk = missing.includes('FULL OK')
+                            const hasMissing = missing.length > 0 && !isFullOk
+                            if (isFullOk) {
+                              return (
+                                <span
+                                  title="All required documents completed"
+                                  className="inline-flex items-center justify-center w-4 h-4 rounded-full bg-emerald-500 text-white shadow-sm flex-shrink-0"
+                                  style={{ fontSize: '9px', boxShadow: '0 1px 4px rgba(16,185,129,0.45)' }}
+                                >
+                                  ✓
+                                </span>
+                              )
+                            }
+                            if (hasMissing) {
+                              return (
+                                <span
+                                  title="Student has missing documents"
+                                  className="inline-flex items-center justify-center w-4 h-4 rounded-full bg-amber-500 text-white shadow-sm flex-shrink-0"
+                                  style={{ fontSize: '9px', fontWeight: 900, boxShadow: '0 1px 4px rgba(245,158,11,0.45)' }}
+                                >
+                                  !
+                                </span>
+                              )
+                            }
+                            return null
+                          })()}
                         </div>
                         <div className="text-[10px] text-[var(--foreground-muted)] font-semibold tracking-wider uppercase mt-1">
                           {student.tariff || 'NO TARIFF'}
