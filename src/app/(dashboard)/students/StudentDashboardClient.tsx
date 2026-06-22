@@ -2436,15 +2436,17 @@ export function StudentDashboardClient() {
 
                 {/* Action Buttons */}
                 <div className="pt-2 flex justify-end gap-3">
-                  <button
+                  <motion.button
+                    whileTap={{ scale: 0.96 }}
                     type="button"
                     disabled={submitting || modalSuccess}
                     onClick={() => setIsModalOpen(false)}
                     className="px-4 py-2 border border-[var(--border)] rounded-[var(--radius-md)] bg-transparent text-[var(--foreground-muted)] hover:bg-[var(--border-subtle)] hover:text-[var(--foreground)] text-sm font-semibold transition-all cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
                   >
                     Cancel
-                  </button>
-                  <button
+                  </motion.button>
+                  <motion.button
+                    whileTap={{ scale: 0.96 }}
                     type="submit"
                     disabled={submitting || modalSuccess}
                     className="flex items-center justify-center gap-1.5 px-4 py-2 bg-[var(--accent)] hover:bg-[var(--accent-hover)] text-white text-sm font-semibold rounded-[var(--radius-md)] transition-all cursor-pointer select-none disabled:opacity-50 disabled:cursor-not-allowed"
@@ -2458,7 +2460,7 @@ export function StudentDashboardClient() {
                     ) : (
                       'Save Student'
                     )}
-                  </button>
+                  </motion.button>
                 </div>
               </form>
             </motion.div>
@@ -2666,18 +2668,20 @@ export function StudentDashboardClient() {
                           </div>
                         )}
                         <div className="flex justify-end gap-2 pt-1">
-                          <button
+                          <motion.button
+                            whileTap={{ scale: 0.96 }}
                             onClick={() => setEditingTag(null)}
                             className="px-4 py-2 text-[12px] font-semibold border border-[var(--border)] rounded-[var(--radius-sm)] hover:bg-[var(--border-subtle)] cursor-pointer transition-all"
                           >
                             Cancel
-                          </button>
-                          <button
+                          </motion.button>
+                          <motion.button
+                            whileTap={{ scale: 0.96 }}
                             onClick={() => handleEditCustomTag(student.id, editingTag.originalName, editingTag.newName, editingTag.emoji)}
                             className="px-4 py-2 text-[12px] font-semibold bg-[var(--accent)] text-white rounded-[var(--radius-sm)] hover:bg-[var(--accent-hover)] cursor-pointer transition-all"
                           >
                             Save
-                          </button>
+                          </motion.button>
                         </div>
                       </div>
                     ) : (
@@ -2763,12 +2767,13 @@ export function StudentDashboardClient() {
                             }}
                           />
                           {/* Save Button */}
-                          <button
+                          <motion.button
+                            whileTap={{ scale: 0.9 }}
                             onClick={() => handleAddCustomTag(student.id)}
                             className="w-10 h-10 shrink-0 bg-[var(--accent)] hover:bg-[var(--accent-hover)] text-white cursor-pointer flex items-center justify-center transition-all"
                           >
                             <Plus className="h-4.5 w-4.5" />
-                          </button>
+                          </motion.button>
                         </div>
 
                         {/* iOS-style horizontal icon picker */}
@@ -2810,12 +2815,13 @@ export function StudentDashboardClient() {
 
                 {/* ── Clear All Flags Button ──────────────────── */}
                 <div className="px-6 pb-6 pt-2">
-                  <button
+                  <motion.button
+                    whileTap={{ scale: 0.97 }}
                     onClick={() => handleClearFlagsAndColor(student.id)}
                     className="w-full py-2.5 rounded-[var(--radius-md)] border border-red-500/25 bg-red-500/5 text-red-500 hover:bg-red-500/10 hover:border-red-500/40 font-semibold transition-all text-[11.5px] cursor-pointer"
                   >
                     Clear All Color & Tags
-                  </button>
+                  </motion.button>
                 </div>
               </motion.div>
             </div>

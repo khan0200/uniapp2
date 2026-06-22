@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect, useMemo, useRef } from 'react'
+import { motion, AnimatePresence } from 'framer-motion'
 import { createClient } from '@/lib/supabase/client'
 import { type Student, type Payment } from '@/types/database'
 import { sendTelegramNotification } from '@/lib/telegram'
@@ -1023,18 +1024,20 @@ export function PaymentsClient() {
         </div>
 
         <div className="flex items-center gap-2">
-          <button
+          <motion.button
+            whileTap={{ scale: 0.96 }}
             onClick={() => openAddModal()}
             className="flex items-center gap-2 rounded-[var(--radius-md)] bg-[var(--accent)] px-3.5 py-2 text-sm font-semibold text-white hover:bg-[var(--accent-hover)] transition-all cursor-pointer"
           >
             <Plus className="h-4 w-4" /> Add Payment
-          </button>
-          <button
+          </motion.button>
+          <motion.button
+            whileTap={{ scale: 0.96 }}
             onClick={() => { resetWithdrawForm(); setIsWithdrawModalOpen(true) }}
             className="flex items-center gap-2 rounded-[var(--radius-md)] border border-[var(--border)] bg-[var(--surface)] px-3.5 py-2 text-sm font-semibold text-[var(--foreground)] hover:bg-[var(--surface-elevated)] transition-all cursor-pointer"
           >
             <Minus className="h-4 w-4" /> Withdraw
-          </button>
+          </motion.button>
         </div>
       </div>
 
@@ -1559,12 +1562,23 @@ export function PaymentsClient() {
       )}
 
       {/* ── Add Payment Modal ────────────────────────────── */}
-      {isAddModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4" onClick={() => setIsAddModalOpen(false)}>
-          <div
-            className="w-full max-w-lg max-h-[90vh] overflow-y-auto rounded-[var(--radius-lg)] border border-[var(--border)] bg-[var(--surface-elevated)] p-6 shadow-[var(--shadow-lg)] flex flex-col gap-4"
-            onClick={e => e.stopPropagation()}
-          >
+      <AnimatePresence>
+        {isAddModalOpen && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => setIsAddModalOpen(false)}
+              className="fixed inset-0 bg-black/50"
+            />
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95, y: 15 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: 15 }}
+              className="relative z-10 w-full max-w-lg max-h-[90vh] overflow-y-auto rounded-[var(--radius-lg)] border border-[var(--border)] bg-[var(--surface-elevated)] p-6 shadow-[var(--shadow-lg)] flex flex-col gap-4"
+              onClick={e => e.stopPropagation()}
+            >
             <div className="flex items-center justify-between">
               <h3 className="text-base font-bold text-[var(--foreground)] flex items-center gap-2">
                 <CreditCard className="h-4 w-4 text-[var(--accent)]" /> Add Payment
@@ -1691,24 +1705,37 @@ export function PaymentsClient() {
               </div>
             )}
 
-            <button
+            <motion.button
+              whileTap={{ scale: 0.96 }}
               onClick={submitAddPayment}
               disabled={submitting}
               className="mt-2 w-full py-2.5 rounded-[var(--radius-md)] bg-[var(--accent)] text-white font-semibold text-sm hover:bg-[var(--accent-hover)] transition-all cursor-pointer disabled:opacity-50"
             >
               {submitting ? 'Saving...' : 'Save Payment'}
-            </button>
+            </motion.button>
+            </motion.div>
           </div>
-        </div>
-      )}
+        )}
+      </AnimatePresence>
 
       {/* ── Withdraw Modal ───────────────────────────────── */}
-      {isWithdrawModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4" onClick={() => setIsWithdrawModalOpen(false)}>
-          <div
-            className="w-full max-w-lg max-h-[90vh] overflow-y-auto rounded-[var(--radius-lg)] border border-[var(--border)] bg-[var(--surface-elevated)] p-6 shadow-[var(--shadow-lg)] flex flex-col gap-4"
-            onClick={e => e.stopPropagation()}
-          >
+      <AnimatePresence>
+        {isWithdrawModalOpen && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => setIsWithdrawModalOpen(false)}
+              className="fixed inset-0 bg-black/50"
+            />
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95, y: 15 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: 15 }}
+              className="relative z-10 w-full max-w-lg max-h-[90vh] overflow-y-auto rounded-[var(--radius-lg)] border border-[var(--border)] bg-[var(--surface-elevated)] p-6 shadow-[var(--shadow-lg)] flex flex-col gap-4"
+              onClick={e => e.stopPropagation()}
+            >
             <div className="flex items-center justify-between">
               <h3 className="text-base font-bold text-[var(--foreground)] flex items-center gap-2">
                 <Wallet className="h-4 w-4 text-rose-500" /> Withdraw Payment
@@ -1774,24 +1801,37 @@ export function PaymentsClient() {
               />
             </div>
 
-            <button
+            <motion.button
+              whileTap={{ scale: 0.96 }}
               onClick={submitWithdrawal}
               disabled={submitting}
               className="mt-2 w-full py-2.5 rounded-[var(--radius-md)] bg-rose-500 text-white font-semibold text-sm hover:bg-rose-600 transition-all cursor-pointer disabled:opacity-50"
             >
               {submitting ? 'Saving...' : 'Confirm Withdrawal'}
-            </button>
+            </motion.button>
+            </motion.div>
           </div>
-        </div>
-      )}
+        )}
+      </AnimatePresence>
 
       {/* ── Edit Payment Modal ───────────────────────────── */}
-      {editingPayment && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4" onClick={() => setEditingPayment(null)}>
-          <div
-            className="w-full max-w-lg max-h-[90vh] overflow-y-auto rounded-[var(--radius-lg)] border border-[var(--border)] bg-[var(--surface-elevated)] p-6 shadow-[var(--shadow-lg)] flex flex-col gap-4"
-            onClick={e => e.stopPropagation()}
-          >
+      <AnimatePresence>
+        {editingPayment && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => setEditingPayment(null)}
+              className="fixed inset-0 bg-black/50"
+            />
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95, y: 15 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: 15 }}
+              className="relative z-10 w-full max-w-lg max-h-[90vh] overflow-y-auto rounded-[var(--radius-lg)] border border-[var(--border)] bg-[var(--surface-elevated)] p-6 shadow-[var(--shadow-lg)] flex flex-col gap-4"
+              onClick={e => e.stopPropagation()}
+            >
             <div className="flex items-center justify-between">
               <h3 className="text-base font-bold text-[var(--foreground)] flex items-center gap-2">
                 <Pencil className="h-4 w-4 text-[var(--accent)]" /> Edit Payment
@@ -1855,23 +1895,36 @@ export function PaymentsClient() {
               />
             </div>
 
-            <button
+            <motion.button
+              whileTap={{ scale: 0.96 }}
               onClick={submitEditPayment}
               disabled={submitting}
               className="mt-2 w-full py-2.5 rounded-[var(--radius-md)] bg-[var(--accent)] text-white font-semibold text-sm hover:bg-[var(--accent-hover)] transition-all cursor-pointer disabled:opacity-50"
             >
               {submitting ? 'Saving...' : 'Save Changes'}
-            </button>
+            </motion.button>
+            </motion.div>
           </div>
-        </div>
-      )}
+        )}
+      </AnimatePresence>
 
       {/* ── Payment Details Modal ───────────────────────── */}
-      {viewingPayment && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4" onClick={() => setViewingPayment(null)}>
-          <div
-            className="w-full max-w-lg max-h-[90vh] overflow-y-auto rounded-[var(--radius-lg)] border border-[var(--border)] bg-[var(--surface-elevated)] p-6 shadow-[var(--shadow-lg)] flex flex-col gap-4"
-            onClick={e => e.stopPropagation()}
+      <AnimatePresence>
+        {viewingPayment && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => setViewingPayment(null)}
+              className="fixed inset-0 bg-black/50"
+            />
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95, y: 15 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: 15 }}
+              className="relative z-10 w-full max-w-lg max-h-[90vh] overflow-y-auto rounded-[var(--radius-lg)] border border-[var(--border)] bg-[var(--surface-elevated)] p-6 shadow-[var(--shadow-lg)] flex flex-col gap-4"
+              onClick={e => e.stopPropagation()}
           >
             <div className="flex items-center justify-between border-b border-[var(--border)] pb-3">
               <h3 className="text-base font-bold text-[var(--foreground)] flex items-center gap-2">
@@ -1981,7 +2034,8 @@ export function PaymentsClient() {
 
             {/* Action buttons footer */}
             <div className="flex items-center gap-2 mt-4 pt-3 border-t border-[var(--border)]">
-              <button
+              <motion.button
+                whileTap={{ scale: 0.96 }}
                 onClick={() => {
                   setViewingPayment(null);
                   openEditModal(viewingPayment);
@@ -1989,25 +2043,28 @@ export function PaymentsClient() {
                 className="flex-1 flex items-center justify-center gap-1.5 py-2 text-sm font-semibold rounded-[var(--radius-md)] border border-[var(--border)] hover:bg-[var(--surface)] transition-all cursor-pointer text-[var(--foreground)]"
               >
                 <Pencil className="h-4 w-4" /> Edit
-              </button>
-              <button
+              </motion.button>
+              <motion.button
+                whileTap={{ scale: 0.96 }}
                 onClick={() => {
                   printReceipt(viewingPayment);
                 }}
                 className="flex-1 flex items-center justify-center gap-1.5 py-2 text-sm font-semibold rounded-[var(--radius-md)] border border-[var(--border)] hover:bg-[var(--surface)] transition-all cursor-pointer text-[var(--foreground)]"
               >
                 <Printer className="h-4 w-4" /> Print
-              </button>
-              <button
+              </motion.button>
+              <motion.button
+                whileTap={{ scale: 0.96 }}
                 onClick={() => setViewingPayment(null)}
                 className="flex-1 py-2 text-sm font-semibold rounded-[var(--radius-md)] bg-[var(--accent)] hover:bg-[var(--accent-hover)] text-white transition-all cursor-pointer"
               >
                 Close
-              </button>
+              </motion.button>
             </div>
+            </motion.div>
           </div>
-        </div>
-      )}
+        )}
+      </AnimatePresence>
     </div>
   )
 }

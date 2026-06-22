@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect, useMemo } from 'react'
+import { motion } from 'framer-motion'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { 
@@ -673,20 +674,22 @@ export function StudentDetailClient({ studentId }: StudentDetailClientProps) {
                 />
               )}
               <div className="absolute right-1 top-1/2 -translate-y-1/2 flex items-center gap-1">
-                <button
+                <motion.button
+                  whileTap={{ scale: 0.85 }}
                   onClick={() => handleSaveField(field)}
                   className="h-5 w-5 inline-flex items-center justify-center rounded bg-emerald-500 hover:bg-emerald-600 text-white cursor-pointer transition-colors"
                   title="Save"
                 >
                   <CheckCircle2 className="h-3 w-3" />
-                </button>
-                <button
+                </motion.button>
+                <motion.button
+                  whileTap={{ scale: 0.85 }}
                   onClick={handleCancelEditing}
                   className="h-5 w-5 inline-flex items-center justify-center rounded bg-rose-500 hover:bg-rose-600 text-white cursor-pointer transition-colors"
                   title="Cancel"
                 >
                   <X className="h-3 w-3" />
-                </button>
+                </motion.button>
               </div>
             </div>
           ) : (
@@ -1241,7 +1244,7 @@ export function StudentDetailClient({ studentId }: StudentDetailClientProps) {
           <p className="text-[15.5px] text-[var(--foreground-muted)] mb-6">{error || 'Student not found or has been deleted.'}</p>
           <Link
             href="/students"
-            className="inline-flex items-center gap-2 px-5 py-2.5 bg-[var(--accent)] hover:bg-[var(--accent-hover)] text-white rounded-[var(--radius-md)] text-[15.5px] font-semibold transition-all shadow-sm"
+            className="inline-flex items-center gap-2 px-5 py-2.5 bg-[var(--accent)] hover:bg-[var(--accent-hover)] text-white rounded-[var(--radius-md)] text-[15.5px] font-semibold transition-all shadow-sm active:scale-95"
           >
             <ArrowLeft className="h-4 w-4" />
             Back to Students
@@ -1258,7 +1261,7 @@ export function StudentDetailClient({ studentId }: StudentDetailClientProps) {
         <div className="py-2.5 px-3 bg-[var(--surface)] border border-[var(--border)] rounded-[var(--radius-md)] flex items-center gap-3 shadow-[var(--shadow-sm)] transition-colors flex-shrink-0">
           <Link
             href="/students"
-            className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-[var(--surface-elevated)] hover:bg-[var(--border-subtle)] border border-[var(--border)] rounded-[var(--radius-md)] text-[13.5px] font-semibold text-[var(--foreground)] transition-all shadow-[var(--shadow-sm)] shrink-0"
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-[var(--surface-elevated)] hover:bg-[var(--border-subtle)] border border-[var(--border)] rounded-[var(--radius-md)] text-[13.5px] font-semibold text-[var(--foreground)] transition-all shadow-[var(--shadow-sm)] shrink-0 active:scale-95"
           >
             <ArrowLeft className="h-3.5 w-3.5 text-[var(--accent)]" />
             Back
@@ -1561,18 +1564,20 @@ export function StudentDetailClient({ studentId }: StudentDetailClientProps) {
                           <option value="ANDIJON OFFIS">ANDIJON OFFIS</option>
                           <option value="TOSHKENT OFFIS">TOSHKENT OFFIS</option>
                         </select>
-                        <button
+                        <motion.button
+                          whileTap={{ scale: 0.85 }}
                           onClick={() => handleSaveField('office')}
                           className="p-0.5 hover:bg-blue-700 rounded text-emerald-250 cursor-pointer"
                         >
                           <CheckCircle2 className="h-4 w-4" />
-                        </button>
-                        <button
+                        </motion.button>
+                        <motion.button
+                          whileTap={{ scale: 0.85 }}
                           onClick={handleCancelEditing}
                           className="p-0.5 hover:bg-blue-700 rounded text-rose-250 cursor-pointer"
                         >
                           <X className="h-4 w-4" />
-                        </button>
+                        </motion.button>
                       </div>
                     ) : (
                       copiedField === 'office' ? (

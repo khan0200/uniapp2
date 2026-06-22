@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
+import { motion, AnimatePresence } from 'framer-motion'
 import { createClient } from '@/lib/supabase/client'
 import { useUser } from '@/contexts/UserContext'
 import { type Profile, type UserRole } from '@/types/database'
@@ -253,7 +254,8 @@ export function UsersClient() {
         <h3 className="text-sm font-bold text-[var(--foreground-muted)] uppercase tracking-wider">
           System Users ({users.length})
         </h3>
-        <button
+        <motion.button
+          whileTap={{ scale: 0.96 }}
           onClick={handleOpenAdd}
           disabled={dbMissing}
           className="flex items-center gap-2 rounded-[var(--radius-md)] bg-[var(--accent)] hover:bg-[var(--accent-hover)] text-white text-xs font-semibold px-4 py-2 transition-all shadow-sm cursor-pointer select-none border-none disabled:opacity-50 disabled:cursor-not-allowed"
@@ -261,7 +263,7 @@ export function UsersClient() {
         >
           <Plus className="h-4 w-4" />
           Add New User
-        </button>
+        </motion.button>
       </div>
 
       {/* Main List Box */}
@@ -407,13 +409,22 @@ export function UsersClient() {
       )}
 
       {/* Add / Edit Users Modal */}
-      {isModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-          <div
-            onClick={() => { if (!submitting) setIsModalOpen(false) }}
-            className="fixed inset-0 bg-black/60 backdrop-blur-sm"
-          />
-          <div className="relative w-full max-w-sm overflow-hidden rounded-[var(--radius-lg)] border border-[var(--border)] bg-[var(--surface-elevated)] p-6 shadow-[var(--shadow-lg)] z-10 animate-in zoom-in-95 duration-150">
+      <AnimatePresence>
+        {isModalOpen && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => { if (!submitting) setIsModalOpen(false) }}
+              className="fixed inset-0 bg-black/60 backdrop-blur-sm"
+            />
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95, y: 15 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: 15 }}
+              className="relative w-full max-w-sm overflow-hidden rounded-[var(--radius-lg)] border border-[var(--border)] bg-[var(--surface-elevated)] p-6 shadow-[var(--shadow-lg)] z-10"
+            >
             {/* Close Button */}
             <button
               disabled={submitting}
@@ -526,27 +537,30 @@ export function UsersClient() {
 
               {/* Submit Buttons */}
               <div className="pt-2 flex justify-end gap-2.5">
-                <button
+                <motion.button
+                  whileTap={{ scale: 0.96 }}
                   type="button"
                   disabled={submitting}
                   onClick={() => setIsModalOpen(false)}
                   className="px-3.5 py-1.5 border border-[var(--border)] rounded-[var(--radius-md)] bg-transparent text-[var(--foreground-muted)] hover:bg-[var(--border-subtle)] hover:text-[var(--foreground)] text-xs font-semibold cursor-pointer"
                 >
                   Cancel
-                </button>
-                <button
+                </motion.button>
+                <motion.button
+                  whileTap={{ scale: 0.96 }}
                   type="submit"
                   disabled={submitting}
                   className="flex items-center justify-center gap-1 px-4 py-1.5 bg-[var(--accent)] hover:bg-[var(--accent-hover)] text-white text-xs font-semibold rounded-[var(--radius-md)] cursor-pointer select-none"
                 >
                   {submitting && <Loader2 className="h-3 w-3 animate-spin" />}
                   {modalMode === 'add' ? 'Create' : 'Save Changes'}
-                </button>
+                </motion.button>
               </div>
             </form>
+            </motion.div>
           </div>
-        </div>
-      )}
+        )}
+      </AnimatePresence>
     </div>
   )
 }

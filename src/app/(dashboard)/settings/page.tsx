@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
+import { motion, AnimatePresence } from 'framer-motion'
 import { PageShell } from '@/components/ui/PageShell'
 import { createClient } from '@/lib/supabase/client'
 import { 
@@ -255,13 +256,14 @@ export default function SettingsPage() {
                     <p className="text-[10px] text-slate-500 dark:text-slate-400 font-medium mt-0.5">Manage pricing plans</p>
                   </div>
                 </div>
-                <button
+                <motion.button
+                  whileTap={{ scale: 0.94 }}
                   onClick={() => handleOpenAdd('tariff')}
                   className="inline-flex items-center gap-1 bg-[#0070F3] hover:bg-[#0051C3] text-white text-xs font-semibold px-3 py-1.5 rounded-full transition-all shadow-sm cursor-pointer select-none border-none"
                 >
                   <PlusCircle className="h-3.5 w-3.5" />
                   Add
-                </button>
+                </motion.button>
               </div>
               <div className="flex-1 overflow-y-auto space-y-3 pr-0.5">
                 {tariffs.length === 0 ? (
@@ -308,13 +310,14 @@ export default function SettingsPage() {
                     <p className="text-[10px] text-slate-500 dark:text-slate-400 font-medium mt-0.5">Manage education level options</p>
                   </div>
                 </div>
-                <button
+                <motion.button
+                  whileTap={{ scale: 0.94 }}
                   onClick={() => handleOpenAdd('level')}
                   className="inline-flex items-center gap-1 bg-[#0070F3] hover:bg-[#0051C3] text-white text-xs font-semibold px-3 py-1.5 rounded-full transition-all shadow-sm cursor-pointer select-none border-none"
                 >
                   <PlusCircle className="h-3.5 w-3.5" />
                   Add
-                </button>
+                </motion.button>
               </div>
               <div className="flex-1 overflow-y-auto space-y-3 pr-0.5">
                 {levels.length === 0 ? (
@@ -358,13 +361,14 @@ export default function SettingsPage() {
                     <p className="text-[10px] text-slate-500 dark:text-slate-400 font-medium mt-0.5">Manage student groups</p>
                   </div>
                 </div>
-                <button
+                <motion.button
+                  whileTap={{ scale: 0.94 }}
                   onClick={() => handleOpenAdd('group')}
                   className="inline-flex items-center gap-1 bg-[#0070F3] hover:bg-[#0051C3] text-white text-xs font-semibold px-3 py-1.5 rounded-full transition-all shadow-sm cursor-pointer select-none border-none"
                 >
                   <PlusCircle className="h-3.5 w-3.5" />
                   Add
-                </button>
+                </motion.button>
               </div>
               <div className="flex-1 overflow-y-auto space-y-3 pr-0.5">
                 {groups.length === 0 ? (
@@ -408,13 +412,14 @@ export default function SettingsPage() {
                     <p className="text-[10px] text-slate-500 dark:text-slate-400 font-medium mt-0.5">Manage lead source options</p>
                   </div>
                 </div>
-                <button
+                <motion.button
+                  whileTap={{ scale: 0.94 }}
                   onClick={() => handleOpenAdd('lead')}
                   className="inline-flex items-center gap-1 bg-[#0070F3] hover:bg-[#0051C3] text-white text-xs font-semibold px-3 py-1.5 rounded-full transition-all shadow-sm cursor-pointer select-none border-none"
                 >
                   <PlusCircle className="h-3.5 w-3.5" />
                   Add
-                </button>
+                </motion.button>
               </div>
               <div className="flex-1 overflow-y-auto space-y-3 pr-0.5">
                 {leads.length === 0 ? (
@@ -458,13 +463,14 @@ export default function SettingsPage() {
                     <p className="text-[10px] text-slate-500 dark:text-slate-400 font-medium mt-0.5">Manage coordinator options</p>
                   </div>
                 </div>
-                <button
+                <motion.button
+                  whileTap={{ scale: 0.94 }}
                   onClick={() => handleOpenAdd('coordinator')}
                   className="inline-flex items-center gap-1 bg-[#0070F3] hover:bg-[#0051C3] text-white text-xs font-semibold px-3 py-1.5 rounded-full transition-all shadow-sm cursor-pointer select-none border-none"
                 >
                   <PlusCircle className="h-3.5 w-3.5" />
                   Add
-                </button>
+                </motion.button>
               </div>
               <div className="flex-1 overflow-y-auto space-y-3 pr-0.5">
                 {coordinators.length === 0 ? (
@@ -510,13 +516,14 @@ export default function SettingsPage() {
                   <p className="text-[10px] text-slate-500 dark:text-slate-400 font-medium mt-0.5">Manage university options by education level</p>
                 </div>
               </div>
-              <button
+              <motion.button
+                whileTap={{ scale: 0.94 }}
                 onClick={() => handleOpenAdd('university')}
                 className="inline-flex items-center gap-1 bg-[#0070F3] hover:bg-[#0051C3] text-white text-xs font-semibold px-4.5 py-2 rounded-full transition-all shadow-sm cursor-pointer select-none border-none animate-in fade-in duration-200"
               >
                 <PlusCircle className="h-3.5 w-3.5" />
                 Add University
-              </button>
+              </motion.button>
             </div>
 
             <div className="flex flex-col gap-3">
@@ -577,14 +584,23 @@ export default function SettingsPage() {
       </div>
 
       {/* Add / Edit Options Modal */}
-      {isModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-          <div 
-            onClick={() => { if (!submitting) setIsModalOpen(false) }}
-            className="fixed inset-0 bg-black/60 backdrop-blur-sm"
-          />
-          <div className="relative w-full max-w-sm overflow-hidden rounded-[var(--radius-lg)] border border-[var(--border)] bg-[var(--surface-elevated)] p-6 shadow-[var(--shadow-lg)] z-10 animate-in zoom-in-95 duration-150">
-            
+      <AnimatePresence>
+        {isModalOpen && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => { if (!submitting) setIsModalOpen(false) }}
+              className="fixed inset-0 bg-black/60 backdrop-blur-sm"
+            />
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95, y: 15 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: 15 }}
+              className="relative w-full max-w-sm overflow-hidden rounded-[var(--radius-lg)] border border-[var(--border)] bg-[var(--surface-elevated)] p-6 shadow-[var(--shadow-lg)] z-10"
+            >
+
             <button
               disabled={submitting}
               onClick={() => setIsModalOpen(false)}
@@ -647,27 +663,30 @@ export default function SettingsPage() {
 
               {/* Submit Buttons */}
               <div className="pt-2 flex justify-end gap-2.5">
-                <button
+                <motion.button
+                  whileTap={{ scale: 0.96 }}
                   type="button"
                   disabled={submitting}
                   onClick={() => setIsModalOpen(false)}
                   className="px-3.5 py-1.5 border border-[var(--border)] rounded-[var(--radius-md)] bg-transparent text-[var(--foreground-muted)] hover:bg-[var(--border-subtle)] hover:text-[var(--foreground)] text-xs font-semibold cursor-pointer"
                 >
                   Cancel
-                </button>
-                <button
+                </motion.button>
+                <motion.button
+                  whileTap={{ scale: 0.96 }}
                   type="submit"
                   disabled={submitting}
                   className="flex items-center justify-center gap-1 px-4 py-1.5 bg-[var(--accent)] hover:bg-[var(--accent-hover)] text-white text-xs font-semibold rounded-[var(--radius-md)] cursor-pointer select-none"
                 >
                   {submitting && <Loader2 className="h-3 w-3 animate-spin" />}
                   {modalMode === 'add' ? 'Create' : 'Save'}
-                </button>
+                </motion.button>
               </div>
             </form>
+            </motion.div>
           </div>
-        </div>
-      )}
+        )}
+      </AnimatePresence>
     </PageShell>
   )
 }

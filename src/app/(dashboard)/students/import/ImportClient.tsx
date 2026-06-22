@@ -670,13 +670,14 @@ export function ImportClient() {
     <div className="min-h-screen bg-[var(--background)] p-6 text-[var(--foreground)]">
       {/* Back to Students Dashboard */}
       <div className="max-w-6xl mx-auto mb-6 flex items-center justify-between">
-        <button
+        <motion.button
+          whileTap={{ scale: 0.96 }}
           onClick={() => router.push('/students')}
           className="flex items-center gap-2 text-sm font-semibold text-[var(--foreground-muted)] hover:text-[var(--foreground)] transition-colors cursor-pointer"
         >
           <ArrowLeft className="h-4 w-4" />
           Back to Students List
-        </button>
+        </motion.button>
         <div className="flex items-center gap-1.5 rounded-full px-3 py-1 border border-indigo-200 bg-indigo-50/50 text-indigo-700 dark:border-indigo-800 dark:bg-indigo-950/30 dark:text-indigo-400 text-xs font-semibold">
           <Database className="h-3.5 w-3.5" />
           Migration Engine v2.0

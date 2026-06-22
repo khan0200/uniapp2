@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect, useRef } from 'react'
+import { motion, AnimatePresence } from 'framer-motion'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { 
@@ -566,7 +567,7 @@ export function ExtractClient({ studentId }: ExtractClientProps) {
         <p className="text-sm text-[var(--foreground-muted)] mb-6">{error || 'Student profile not found.'}</p>
         <Link
           href={`/students/${studentId}`}
-          className="inline-flex items-center gap-2 px-5 py-2.5 bg-[var(--accent)] hover:bg-[var(--accent-hover)] text-white rounded-[var(--radius-md)] text-sm font-semibold transition-all shadow-sm"
+          className="inline-flex items-center gap-2 px-5 py-2.5 bg-[var(--accent)] hover:bg-[var(--accent-hover)] text-white rounded-[var(--radius-md)] text-sm font-semibold transition-all shadow-sm active:scale-95"
         >
           <ArrowLeft className="h-4 w-4" />
           Back to Details
@@ -1120,7 +1121,8 @@ export function ExtractClient({ studentId }: ExtractClientProps) {
                         </button>
 
                         {dbField && (
-                          <button
+                          <motion.button
+                            whileTap={isSaved || isAlreadyMatching ? undefined : { scale: 0.94 }}
                             disabled={isSaved || isAlreadyMatching}
                             onClick={() => handleSaveFieldToProfile(field.key, field.value)}
                             className={`px-3 py-1.5 rounded-full text-[10px] font-extrabold uppercase transition-all flex items-center gap-1 cursor-pointer select-none border ${
@@ -1137,7 +1139,7 @@ export function ExtractClient({ studentId }: ExtractClientProps) {
                             ) : (
                               'Save to >>'
                             )}
-                          </button>
+                          </motion.button>
                         )}
                       </div>
                     </div>
@@ -1152,16 +1154,30 @@ export function ExtractClient({ studentId }: ExtractClientProps) {
       {/* Raw OCR Panel Removed */}
 
       {/* Edit Modal Overlay */}
-      {isEditModalOpen && (
-        <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 animate-in fade-in duration-200">
-          <div className="bg-[var(--surface)] border border-[var(--border)] rounded-3xl max-w-sm w-full p-5 flex flex-col gap-5 shadow-xl">
+      <AnimatePresence>
+        {isEditModalOpen && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => setIsEditModalOpen(false)}
+              className="fixed inset-0 bg-black/60 backdrop-blur-sm"
+            />
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95, y: 15 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: 15 }}
+              className="relative z-10 bg-[var(--surface)] border border-[var(--border)] rounded-3xl max-w-sm w-full p-5 flex flex-col gap-5 shadow-xl"
+              onClick={(e) => e.stopPropagation()}
+            >
             <div className="flex items-center justify-between border-b border-[var(--border)] pb-3">
               <h3 className="text-xs font-extrabold uppercase tracking-wider text-[var(--accent)] flex items-center gap-2">
                 <Edit className="h-4.5 w-4.5" />
                 Edit Extracted Field
               </h3>
             </div>
-            
+
             <div className="flex flex-col gap-1.5">
               <label className="text-[10px] uppercase font-bold text-[var(--foreground-muted)]">Field Value</label>
               <input
@@ -1174,22 +1190,25 @@ export function ExtractClient({ studentId }: ExtractClientProps) {
             </div>
 
             <div className="flex gap-3">
-              <button
+              <motion.button
+                whileTap={{ scale: 0.96 }}
                 onClick={() => setIsEditModalOpen(false)}
-                className="flex-1 py-2.5 border border-[var(--border)] hover:bg-[var(--border-subtle)] text-xs font-bold rounded-xl transition-all cursor-pointer hover:scale-[1.02] active:scale-[0.98]"
+                className="flex-1 py-2.5 border border-[var(--border)] hover:bg-[var(--border-subtle)] text-xs font-bold rounded-xl transition-all cursor-pointer"
               >
                 Cancel
-              </button>
-              <button
+              </motion.button>
+              <motion.button
+                whileTap={{ scale: 0.96 }}
                 onClick={saveEditedField}
-                className="flex-1 py-2.5 bg-[var(--accent)] hover:bg-[var(--accent-hover)] text-white text-xs font-bold rounded-xl transition-all cursor-pointer hover:scale-[1.02] active:scale-[0.98]"
+                className="flex-1 py-2.5 bg-[var(--accent)] hover:bg-[var(--accent-hover)] text-white text-xs font-bold rounded-xl transition-all cursor-pointer"
               >
                 Save
-              </button>
+              </motion.button>
             </div>
+            </motion.div>
           </div>
-        </div>
-      )}
+        )}
+      </AnimatePresence>
 
     </div>
   )

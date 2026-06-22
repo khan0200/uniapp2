@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
+import { motion, AnimatePresence } from 'framer-motion'
 import { createClient } from '@/lib/supabase/client'
 import { useStudentDashboard } from '@/contexts/StudentDashboardContext'
 import { type Student } from '@/types/database'
@@ -1065,15 +1066,27 @@ export function DocumentsClient() {
       )}
 
       {/* Dynamic Manage Documents Modal */}
-      {isModalOpen && selectedStudent && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 animate-in fade-in duration-200">
-          <div className="fixed inset-0 bg-black/60 backdrop-blur-sm" onClick={() => setIsModalOpen(false)} />
-          
-          <div className="relative w-full max-w-4xl max-h-[95vh] overflow-y-auto rounded-3xl border border-[var(--border)] bg-[var(--surface-elevated)] p-6 shadow-[var(--shadow-lg)] z-10 flex flex-col gap-6">
+      <AnimatePresence>
+        {isModalOpen && selectedStudent && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="fixed inset-0 bg-black/60 backdrop-blur-sm"
+              onClick={() => setIsModalOpen(false)}
+            />
+
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95, y: 15 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: 15 }}
+              className="relative w-full max-w-4xl max-h-[95vh] overflow-y-auto rounded-3xl border border-[var(--border)] bg-[var(--surface-elevated)] p-6 shadow-[var(--shadow-lg)] z-10 flex flex-col gap-6"
+            >
             {/* Close Button */}
-            <button 
+            <button
               disabled={modalUpdating}
-              onClick={() => setIsModalOpen(false)} 
+              onClick={() => setIsModalOpen(false)}
               className="absolute right-6 top-6 rounded-full p-2 text-[var(--foreground-muted)] hover:bg-[var(--border-subtle)] hover:text-[var(--foreground)] transition-all cursor-pointer disabled:opacity-50 border border-[var(--border)]"
             >
               <X className="h-5 w-5" />
@@ -1307,18 +1320,20 @@ export function DocumentsClient() {
 
             {/* Footer with Done button */}
             <div className="flex justify-end mt-2">
-              <button
+              <motion.button
+                whileTap={{ scale: 0.96 }}
                 type="button"
                 onClick={() => setIsModalOpen(false)}
-                className="bg-[#007aff] hover:bg-blue-600 text-white rounded-full px-6 py-2.5 flex items-center gap-2 font-bold text-sm shadow-md transition-all cursor-pointer hover:scale-[1.02] active:scale-95"
+                className="bg-[#007aff] hover:bg-blue-600 text-white rounded-full px-6 py-2.5 flex items-center gap-2 font-bold text-sm shadow-md transition-all cursor-pointer"
               >
                 <CheckCircle2 className="h-4.5 w-4.5" />
                 Done
-              </button>
+              </motion.button>
             </div>
+            </motion.div>
           </div>
-        </div>
-      )}
+        )}
+      </AnimatePresence>
     </div>
   )
 }
