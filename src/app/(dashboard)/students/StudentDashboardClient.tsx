@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 import { useRouter } from 'next/navigation'
 import {
   Plus, Filter, Users, X, Loader2, Search, AlertCircle, CheckCircle2,
@@ -350,6 +350,10 @@ export function StudentDashboardClient() {
     return matchesTag
   })
 
+  const sortedExcelStudents = useMemo(() => {
+    return [...excelFilteredStudents].sort((a, b) => compareStudentIds(a, b, sortOrder))
+  }, [excelFilteredStudents, sortOrder])
+
   // Helper to style SheetJS worksheets beautifully
   const styleWorksheet = (ws: any, isStudentSingle: boolean = false) => {
     if (!ws) return
@@ -554,8 +558,8 @@ export function StudentDashboardClient() {
       return
     }
 
-    // Get student data for selected IDs
-    const selectedStudents = students.filter((s) => selectedExcelIds.includes(s.id))
+    // Get student data for selected IDs, matching the sorted order in the modal table
+    const selectedStudents = sortedExcelStudents.filter((s) => selectedExcelIds.includes(s.id))
 
     // Prepare data for Excel
     const excelData = selectedStudents.map((s, index) => ({
@@ -664,10 +668,10 @@ export function StudentDashboardClient() {
     setIsExcelModalOpen(false)
   }
 
-  // Auto-sync initial select checklist when modal opens or query changes
+  // Reset select checklist to empty when modal opens or query changes (unchecked by default)
   useEffect(() => {
     if (isExcelModalOpen) {
-      setSelectedExcelIds(excelFilteredStudents.map(s => s.id))
+      setSelectedExcelIds([])
     }
   }, [isExcelModalOpen, excelSearchQuery, excelSearchType, excelTariffFilter, excelLevelFilter, excelGroupFilter, excelCertFilter, excelTagFilter])
 
@@ -688,7 +692,7 @@ export function StudentDashboardClient() {
   }
 
   const handleToggleSelectAllExcel = () => {
-    const allFilteredIds = excelFilteredStudents.map(s => s.id)
+    const allFilteredIds = sortedExcelStudents.map(s => s.id)
     const allSelected = allFilteredIds.every(id => selectedExcelIds.includes(id))
     
     if (allSelected) {
@@ -701,7 +705,7 @@ export function StudentDashboardClient() {
     }
   }
 
-  const allFilteredIds = excelFilteredStudents.map(s => s.id)
+  const allFilteredIds = sortedExcelStudents.map(s => s.id)
   const checkedFilteredCount = allFilteredIds.filter(id => selectedExcelIds.includes(id)).length
   const isAllExcelSelected = allFilteredIds.length > 0 && checkedFilteredCount === allFilteredIds.length
   const isExcelIndeterminate = checkedFilteredCount > 0 && checkedFilteredCount < allFilteredIds.length
@@ -2822,7 +2826,7 @@ export function StudentDashboardClient() {
                   Select Students to Export
                 </span>
                 <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-500 text-white shadow-sm">
-                  {checkedFilteredCount}/{excelFilteredStudents.length} SELECTED
+                  {checkedFilteredCount}/{sortedExcelStudents.length} SELECTED
                 </span>
               </div>
 
@@ -2849,14 +2853,14 @@ export function StudentDashboardClient() {
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-[var(--border)]">
-                    {excelFilteredStudents.length === 0 ? (
+                    {sortedExcelStudents.length === 0 ? (
                       <tr>
                         <td colSpan={5} className="px-6 py-12 text-center text-[var(--foreground-subtle)] font-semibold italic">
                           No students match the active export search filters.
                         </td>
                       </tr>
                     ) : (
-                      excelFilteredStudents.map(student => {
+                      sortedExcelStudents.map(student => {
                         const isChecked = selectedExcelIds.includes(student.id)
                         const bgObj = getRowBgStyleAndClass(student)
                         return (
