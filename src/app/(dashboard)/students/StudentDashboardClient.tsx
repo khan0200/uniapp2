@@ -280,6 +280,7 @@ export function StudentDashboardClient() {
   const [excelCertFilter, setExcelCertFilter] = useState<string>('ALL')
   const [excelTagFilter, setExcelTagFilter] = useState<string>('ALL')
   const [selectedExcelIds, setSelectedExcelIds] = useState<string[]>([])
+  const [excelExportMode, setExcelExportMode] = useState<'full' | 'partial'>('full')
 
   const excelFilteredStudents = students.filter(student => {
     if (student.is_deleted) return false
@@ -583,105 +584,168 @@ export function StudentDashboardClient() {
       .filter((s) => selectedExcelIds.includes(s.id))
       .sort((a, b) => compareStudentIds(a, b, sortOrder))
 
-    // Prepare data for Excel
-    const excelData = selectedStudents.map((s, index) => ({
-      No: index + 1,
-      'Student ID': s.id || '',
-      'Full Name': s.full_name || '',
-      'Korean Name': s.korean_name || '',
-      'Phone 1': s.phone1 || '',
-      'Phone 2': s.phone2 || '',
-      'Father Fullname': s.father_name || '',
-      'Father Phone': s.father_phone || '',
-      'Mother Fullname': s.mother_name || '',
-      'Mother Phone': s.mother_phone || '',
-      Email: s.email || '',
-      Birthday: s.birthday || '',
-      Sex: s.gender || '',
-      Passport: s.passport || '',
-      'Date of Issue': s.passport_issue_date || '',
-      'Date of Expiration': s.passport_expire_date || '',
-      'Education Level 1': s.level || '',
-      'Education Level 2': s.level2 || '',
-      Tariff: s.tariff || '',
-      Group: s.student_group || '',
-      'Lead by': s.lead_by || '',
-      Office: s.office || '',
-      'Educational Background': s.educational_background || '',
-      'University 1': s.university_1 || '',
-      'University 1 Status': s.university_1_status || '',
-      'University 2': s.university_2 || '',
-      'University 2 Status': s.university_2_status || '',
-      'University 3': s.university_3 || '',
-      'University 3 Status': s.university_3_status || '',
-      'Language Certificate 1': s.language_certificate || '',
-      'Score 1': s.certificate_score || '',
-      'Language Certificate 2': s.language_certificate_2 || '',
-      'Score 2': s.certificate_score_2 || '',
-      'Language Certificate 3': s.language_certificate_3 || '',
-      'Score 3': s.certificate_score_3 || '',
-      Address: s.address || '',
-      Notes: s.notes || '',
-      Priority: s.row_color || '',
-      'Balance (UZS)': s.balance !== undefined ? s.balance : '',
-      'Discount (UZS)': s.discount !== undefined ? s.discount : '',
-    }))
+    let excelData: Record<string, any>[]
+    let colWidths: { wch: number }[]
+
+    if (excelExportMode === 'partial') {
+      // ── Partial export: personal / contact / certificate columns only ──
+      excelData = selectedStudents.map((s, index) => ({
+        No: index + 1,
+        'Student ID': s.id || '',
+        'Full Name': s.full_name || '',
+        'Korean Name': s.korean_name || '',
+        'Phone 1': s.phone1 || '',
+        'Phone 2': s.phone2 || '',
+        Email: s.email || '',
+        Birthday: s.birthday || '',
+        Sex: s.gender || '',
+        Passport: s.passport || '',
+        'Date of Issue': s.passport_issue_date || '',
+        'Date of Expiration': s.passport_expire_date || '',
+        'Language Certificate 1': s.language_certificate || '',
+        'Score 1': s.certificate_score || '',
+        'Language Certificate 2': s.language_certificate_2 || '',
+        'Score 2': s.certificate_score_2 || '',
+        'Language Certificate 3': s.language_certificate_3 || '',
+        'Score 3': s.certificate_score_3 || '',
+        Address: s.address || '',
+        'Educational Background': s.educational_background || '',
+        major: s.major || '',
+        'Father Fullname': s.father_name || '',
+        'Father Phone': s.father_phone || '',
+        'Mother Fullname': s.mother_name || '',
+        'Mother Phone': s.mother_phone || '',
+      }))
+      colWidths = [
+        { wch: 5 },  // No
+        { wch: 12 }, // Student ID
+        { wch: 35 }, // Full Name
+        { wch: 35 }, // Korean Name
+        { wch: 15 }, // Phone 1
+        { wch: 15 }, // Phone 2
+        { wch: 25 }, // Email
+        { wch: 12 }, // Birthday
+        { wch: 6 },  // Sex
+        { wch: 12 }, // Passport
+        { wch: 12 }, // Date of Issue
+        { wch: 12 }, // Date of Expiration
+        { wch: 20 }, // Language Certificate 1
+        { wch: 8 },  // Score 1
+        { wch: 20 }, // Language Certificate 2
+        { wch: 8 },  // Score 2
+        { wch: 20 }, // Language Certificate 3
+        { wch: 8 },  // Score 3
+        { wch: 40 }, // Address
+        { wch: 35 }, // Educational Background
+        { wch: 20 }, // major
+        { wch: 35 }, // Father Fullname
+        { wch: 15 }, // Father Phone
+        { wch: 35 }, // Mother Fullname
+        { wch: 15 }, // Mother Phone
+      ]
+    } else {
+      // ── Full export: all columns ──
+      excelData = selectedStudents.map((s, index) => ({
+        No: index + 1,
+        'Student ID': s.id || '',
+        'Full Name': s.full_name || '',
+        'Korean Name': s.korean_name || '',
+        'Phone 1': s.phone1 || '',
+        'Phone 2': s.phone2 || '',
+        Email: s.email || '',
+        Birthday: s.birthday || '',
+        Sex: s.gender || '',
+        Passport: s.passport || '',
+        'Date of Issue': s.passport_issue_date || '',
+        'Date of Expiration': s.passport_expire_date || '',
+        'Language Certificate 1': s.language_certificate || '',
+        'Score 1': s.certificate_score || '',
+        'Language Certificate 2': s.language_certificate_2 || '',
+        'Score 2': s.certificate_score_2 || '',
+        'Language Certificate 3': s.language_certificate_3 || '',
+        'Score 3': s.certificate_score_3 || '',
+        Address: s.address || '',
+        'Education Level 1': s.level || '',
+        'Education Level 2': s.level2 || '',
+        Tariff: s.tariff || '',
+        Group: s.student_group || '',
+        'Lead by': s.lead_by || '',
+        Office: s.office || '',
+        'Educational Background': s.educational_background || '',
+        major: s.major || '',
+        'Father Fullname': s.father_name || '',
+        'Father Phone': s.father_phone || '',
+        'Mother Fullname': s.mother_name || '',
+        'Mother Phone': s.mother_phone || '',
+        'University 1': s.university_1 || '',
+        'University 1 Status': s.university_1_status || '',
+        'University 2': s.university_2 || '',
+        'University 2 Status': s.university_2_status || '',
+        'University 3': s.university_3 || '',
+        'University 3 Status': s.university_3_status || '',
+        Notes: s.notes || '',
+        Priority: s.row_color || '',
+        'Balance (UZS)': s.balance !== undefined ? s.balance : '',
+        'Discount (UZS)': s.discount !== undefined ? s.discount : '',
+      }))
+      colWidths = [
+        { wch: 5 },  // No
+        { wch: 12 }, // Student ID
+        { wch: 35 }, // Full Name
+        { wch: 35 }, // Korean Name
+        { wch: 15 }, // Phone 1
+        { wch: 15 }, // Phone 2
+        { wch: 25 }, // Email
+        { wch: 12 }, // Birthday
+        { wch: 6 },  // Sex
+        { wch: 12 }, // Passport
+        { wch: 12 }, // Date of Issue
+        { wch: 12 }, // Date of Expiration
+        { wch: 20 }, // Language Certificate 1
+        { wch: 8 },  // Score 1
+        { wch: 20 }, // Language Certificate 2
+        { wch: 8 },  // Score 2
+        { wch: 20 }, // Language Certificate 3
+        { wch: 8 },  // Score 3
+        { wch: 40 }, // Address
+        { wch: 20 }, // Education Level 1
+        { wch: 20 }, // Education Level 2
+        { wch: 15 }, // Tariff
+        { wch: 15 }, // Group
+        { wch: 15 }, // Lead by
+        { wch: 15 }, // Office
+        { wch: 35 }, // Educational Background
+        { wch: 20 }, // major
+        { wch: 35 }, // Father Fullname
+        { wch: 15 }, // Father Phone
+        { wch: 35 }, // Mother Fullname
+        { wch: 15 }, // Mother Phone
+        { wch: 30 }, // University 1
+        { wch: 18 }, // University 1 Status
+        { wch: 30 }, // University 2
+        { wch: 18 }, // University 2 Status
+        { wch: 30 }, // University 3
+        { wch: 18 }, // University 3 Status
+        { wch: 30 }, // Notes
+        { wch: 12 }, // Priority
+        { wch: 15 }, // Balance (UZS)
+        { wch: 15 }, // Discount (UZS)
+      ]
+    }
 
     // Create workbook and worksheet
     const ws = XLSX.utils.json_to_sheet(excelData)
     const wb = XLSX.utils.book_new()
     XLSX.utils.book_append_sheet(wb, ws, 'Students')
-
-    // Set column widths
-    ws['!cols'] = [
-      { wch: 5 },  // No
-      { wch: 12 }, // Student ID
-      { wch: 35 }, // Full Name
-      { wch: 35 }, // Korean Name
-      { wch: 15 }, // Phone 1
-      { wch: 15 }, // Phone 2
-      { wch: 35 }, // Father Fullname
-      { wch: 15 }, // Father Phone
-      { wch: 35 }, // Mother Fullname
-      { wch: 15 }, // Mother Phone
-      { wch: 25 }, // Email
-      { wch: 12 }, // Birthday
-      { wch: 6 },  // Sex
-      { wch: 12 }, // Passport
-      { wch: 12 }, // Date of Issue
-      { wch: 12 }, // Date of Expiration
-      { wch: 20 }, // Education Level 1
-      { wch: 20 }, // Education Level 2
-      { wch: 15 }, // Tariff
-      { wch: 15 }, // Group
-      { wch: 15 }, // Lead by
-      { wch: 15 }, // Office
-      { wch: 35 }, // Educational Background
-      { wch: 30 }, // University 1
-      { wch: 18 }, // University 1 Status
-      { wch: 30 }, // University 2
-      { wch: 18 }, // University 2 Status
-      { wch: 30 }, // University 3
-      { wch: 18 }, // University 3 Status
-      { wch: 20 }, // Language Certificate 1
-      { wch: 8 },  // Score 1
-      { wch: 20 }, // Language Certificate 2
-      { wch: 8 },  // Score 2
-      { wch: 20 }, // Language Certificate 3
-      { wch: 8 },  // Score 3
-      { wch: 40 }, // Address
-      { wch: 30 }, // Notes
-      { wch: 12 }, // Priority
-      { wch: 15 }, // Balance
-      { wch: 15 }  // Discount
-    ]
+    ws['!cols'] = colWidths
 
     // Apply premium styling
     styleWorksheet(ws, false)
 
     // Generate filename
     const dateStr = new Date().toISOString().split('T')[0]
-    const filename = `Students_Export_${dateStr}.xlsx`
+    const suffix = excelExportMode === 'partial' ? '_Partial' : '_Full'
+    const filename = `Students_Export${suffix}_${dateStr}.xlsx`
 
     // Download
     XLSX.writeFile(wb, filename)
@@ -3039,25 +3103,65 @@ export function StudentDashboardClient() {
                 </table>
               </div>
 
-              {/* ── Footer Action Buttons ───────────────────────── */}
-              <div className="mt-5 pt-3 border-t border-[var(--border)] flex justify-end gap-3">
-                <button
-                  type="button"
-                  onClick={() => setIsExcelModalOpen(false)}
-                  className="px-4 py-2 border border-[var(--border)] rounded-[var(--radius-md)] bg-transparent text-[var(--foreground-muted)] hover:bg-[var(--border-subtle)] hover:text-[var(--foreground)] text-xs font-bold uppercase tracking-wider transition-all cursor-pointer"
-                >
-                  Cancel
-                </button>
-                <button
-                  type="button"
-                  onClick={downloadSelectedAsExcel}
-                  disabled={selectedExcelIds.length === 0}
-                  className="flex items-center justify-center gap-1.5 px-4 py-2 bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 text-white text-xs font-bold uppercase tracking-wider rounded-[var(--radius-md)] transition-all cursor-pointer select-none"
-                  style={{ boxShadow: '0 4px 12px rgba(16, 185, 129, 0.2)' }}
-                >
-                  <FileSpreadsheet className="h-4 w-4" />
-                  Download Excel
-                </button>
+              {/* ── Footer: Export Mode Toggle + Action Buttons ──── */}
+              <div className="mt-5 pt-4 border-t border-[var(--border)] flex flex-col gap-3">
+
+                {/* Full / Partial segmented toggle */}
+                <div className="flex items-center gap-3">
+                  <span className="text-[10px] font-bold uppercase tracking-wider text-[var(--foreground-muted)] shrink-0">
+                    Export Mode
+                  </span>
+                  <div className="flex rounded-[var(--radius-md)] border border-[var(--border)] bg-[var(--surface)] p-0.5 gap-0.5 shadow-inner">
+                    <button
+                      type="button"
+                      onClick={() => setExcelExportMode('full')}
+                      className={`px-4 py-1.5 rounded-[calc(var(--radius-md)-2px)] text-[11px] font-bold uppercase tracking-wider transition-all cursor-pointer select-none ${
+                        excelExportMode === 'full'
+                          ? 'bg-emerald-600 text-white shadow-sm'
+                          : 'text-[var(--foreground-muted)] hover:text-[var(--foreground)] hover:bg-[var(--border-subtle)]'
+                      }`}
+                    >
+                      Full
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setExcelExportMode('partial')}
+                      className={`px-4 py-1.5 rounded-[calc(var(--radius-md)-2px)] text-[11px] font-bold uppercase tracking-wider transition-all cursor-pointer select-none ${
+                        excelExportMode === 'partial'
+                          ? 'bg-emerald-600 text-white shadow-sm'
+                          : 'text-[var(--foreground-muted)] hover:text-[var(--foreground)] hover:bg-[var(--border-subtle)]'
+                      }`}
+                    >
+                      Partial
+                    </button>
+                  </div>
+                  <span className="text-[10px] text-[var(--foreground-subtle)] italic">
+                    {excelExportMode === 'full'
+                      ? 'All columns — complete student record'
+                      : 'Personal & contact info only (25 cols)'}
+                  </span>
+                </div>
+
+                {/* Cancel + Download row */}
+                <div className="flex justify-end gap-3">
+                  <button
+                    type="button"
+                    onClick={() => setIsExcelModalOpen(false)}
+                    className="px-4 py-2 border border-[var(--border)] rounded-[var(--radius-md)] bg-transparent text-[var(--foreground-muted)] hover:bg-[var(--border-subtle)] hover:text-[var(--foreground)] text-xs font-bold uppercase tracking-wider transition-all cursor-pointer"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="button"
+                    onClick={downloadSelectedAsExcel}
+                    disabled={selectedExcelIds.length === 0}
+                    className="flex items-center justify-center gap-1.5 px-4 py-2 bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 text-white text-xs font-bold uppercase tracking-wider rounded-[var(--radius-md)] transition-all cursor-pointer select-none"
+                    style={{ boxShadow: '0 4px 12px rgba(16, 185, 129, 0.2)' }}
+                  >
+                    <FileSpreadsheet className="h-4 w-4" />
+                    Download {excelExportMode === 'partial' ? 'Partial' : 'Full'} Excel
+                  </button>
+                </div>
               </div>
             </motion.div>
           </div>
