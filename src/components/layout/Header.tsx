@@ -29,6 +29,141 @@ export function Header() {
       .sort(([a], [b]) => b.length - a.length)
       .find(([path]) => pathname.startsWith(path))?.[1] ?? 'Dashboard'
 
+  const renderNotificationsButton = () => (
+    <button
+      id="header-notifications-btn"
+      className={cn(
+        'relative flex h-9 w-9 items-center justify-center rounded-[var(--radius-md)]',
+        'text-[var(--foreground-muted)] hover:text-[var(--foreground)]',
+        'hover:bg-[var(--background)] border border-[var(--border)]',
+        'transition-all duration-150 shrink-0'
+      )}
+      aria-label="Notifications"
+    >
+      <Bell className="h-4 w-4" />
+      <span className="absolute right-1.5 top-1.5 h-2 w-2 rounded-full bg-[var(--accent)] ring-2 ring-[var(--surface)]" />
+    </button>
+  )
+
+  const renderRoleBadge = () => profile?.role && (
+    <div
+      className={cn(
+        'hidden sm:flex items-center gap-1.5 rounded-full px-3 py-1',
+        'border text-xs font-semibold shrink-0 select-none',
+        profile.role === 'Head Manager'
+          ? 'border-amber-200 bg-amber-50 text-amber-700 dark:border-amber-800/40 dark:bg-amber-950/40 dark:text-amber-400'
+          : profile.role === 'Manager'
+            ? 'border-blue-200 bg-blue-50 text-blue-700 dark:border-blue-800/40 dark:bg-blue-950/40 dark:text-blue-400'
+            : 'border-purple-200 bg-purple-50 text-purple-700 dark:border-purple-800/40 dark:bg-purple-950/40 dark:text-purple-400'
+      )}
+    >
+      <span
+        className={cn(
+          'h-1.5 w-1.5 rounded-full',
+          profile.role === 'Head Manager'
+            ? 'bg-amber-500'
+            : profile.role === 'Manager'
+              ? 'bg-blue-500'
+              : 'bg-purple-500'
+        )}
+      />
+      {profile.role}
+    </div>
+  )
+
+  // Conditionally render the custom Dynamic Island header for /students and /documents pages
+  if (pathname === '/students' || pathname === '/documents') {
+    return (
+      <header
+        className={cn(
+          'flex flex-col md:flex-row flex-shrink-0 justify-between items-stretch md:items-center gap-3 md:gap-4 px-4 md:px-6 relative',
+          'h-auto py-4 md:h-20 md:py-0',
+          'border-b border-[var(--border)] bg-[var(--surface)]',
+          'sticky top-0 z-20'
+        )}
+        style={{ boxShadow: 'var(--shadow-sm)' }}
+      >
+        {/* Left Side: Title */}
+        <div className="flex-shrink-0 flex items-center justify-between md:block">
+          <div>
+            <h1 className="text-lg font-bold text-[var(--foreground)]">{pageTitle}</h1>
+            <p className="text-xs text-[var(--foreground-muted)]">
+              {new Date().toLocaleDateString('en-US', {
+                weekday: 'long',
+                year: 'numeric',
+                month: 'long',
+                day: 'numeric',
+              })}
+            </p>
+          </div>
+          
+          {/* Mobile Notifications and Role Badge next to Title */}
+          <div className="flex md:hidden items-center gap-2">
+            {renderNotificationsButton()}
+            {renderRoleBadge()}
+          </div>
+        </div>
+
+        {/* Center: iOS Dynamic Island Inspired Search Bar (Fixed size) */}
+        <div 
+          className={cn(
+            "relative flex items-center rounded-full border border-[var(--border)] bg-[var(--surface-elevated)]/60 backdrop-blur-md shadow-[0_8px_30px_rgba(0,0,0,0.06)] hover:bg-[var(--surface-elevated)]/85 hover:shadow-[0_12px_40px_rgba(0,0,0,0.08)] transition-all duration-300 ease-out",
+            "w-full h-[48px] md:h-[54px] z-30",
+            "md:absolute md:left-1/2 md:top-1/2 md:-translate-x-1/2 md:-translate-y-1/2",
+            "max-w-full md:max-w-[450px] lg:max-w-[600px]",
+            "focus-within:border-[var(--foreground-muted)] dark:focus-within:border-[var(--foreground-subtle)] focus-within:bg-[var(--surface-elevated)] focus-within:shadow-[0_16px_36px_rgba(0,0,0,0.08)] dark:focus-within:shadow-[0_16px_36px_rgba(0,0,0,0.4)]"
+          )}
+        >
+          <div className="relative flex items-center w-full h-full rounded-full px-5 bg-transparent">
+            <Search className="h-5 w-5 text-[var(--foreground-muted)] flex-shrink-0 mr-3" />
+            <input
+              type="text"
+              placeholder={pathname === '/students' ? "Search students by name, ID, passport or phone..." : "Search by name, ID or phone..."}
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="w-full bg-transparent text-[16px] md:text-sm text-[var(--foreground)] placeholder-[var(--foreground-subtle)] py-2 no-focus-outline border-none focus:border-none focus:ring-0 focus-visible:ring-0 shadow-none focus:shadow-none"
+            />
+          </div>
+        </div>
+
+        {/* Right Side Actions */}
+        {pathname === '/students' ? (
+          <div className="flex items-center gap-2 md:gap-3 justify-end md:ml-auto z-10 w-full md:w-auto mt-1 md:mt-0">
+            <Link
+              id="students-import-btn"
+              href="/students/import"
+              className="flex-1 md:flex-initial flex items-center justify-center gap-2 rounded-[var(--radius-md)] border border-[var(--border)] bg-[var(--background)] hover:bg-[var(--surface-elevated)] px-3 py-2 text-sm font-semibold text-[var(--foreground)] transition-all cursor-pointer select-none h-9 md:h-10 shrink-0"
+            >
+              <FileSpreadsheet className="h-4 w-4 text-[var(--foreground-muted)]" />
+              <span>Import</span>
+            </Link>
+            <button
+              id="students-add-btn"
+              onClick={() => setIsAddStudentModalOpen(true)}
+              className="flex-1 md:flex-initial flex items-center justify-center gap-2 rounded-[var(--radius-md)] bg-[var(--accent)] px-3.5 py-2 text-sm font-semibold text-white hover:bg-[var(--accent-hover)] transition-all cursor-pointer select-none h-9 md:h-10 shrink-0"
+              style={{ boxShadow: '0 4px 12px rgba(59, 127, 245, 0.2)' }}
+            >
+              <Plus className="h-4 w-4" />
+              <span>Add Student</span>
+            </button>
+
+            {/* Desktop Notifications and Role Badge */}
+            <div className="hidden md:flex items-center gap-2 md:gap-3">
+              {renderNotificationsButton()}
+              {renderRoleBadge()}
+            </div>
+          </div>
+        ) : (
+          <div className="hidden md:flex items-center gap-2 md:gap-3 justify-end md:ml-auto z-10 w-auto">
+            {renderNotificationsButton()}
+            {renderRoleBadge()}
+          </div>
+        )}
+      </header>
+    )
+  }
+
+  // Original layout preserved for all other pages
   return (
     <header
       className={cn(
@@ -52,50 +187,7 @@ export function Header() {
       </div>
 
       {/* Unified Search and Action Button */}
-      {pathname === '/students' ? (
-        <div className="flex flex-1 items-center justify-center gap-3">
-          <div className="relative w-full max-w-md">
-            <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[var(--foreground-muted)]" />
-            <input
-              type="text"
-              placeholder="Search by name, ID or phone..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="pl-9 pr-4 py-2 text-sm border border-[var(--border)] bg-[var(--background)] rounded-[8px] text-[var(--foreground)] placeholder-[var(--foreground-muted)] focus:outline-none focus:border-[var(--accent)] focus:ring-1 focus:ring-[var(--accent)] transition-all w-full"
-            />
-          </div>
-          <Link
-            id="students-import-btn"
-            href="/students/import"
-            className="flex items-center gap-2 rounded-[var(--radius-md)] border border-[var(--border)] bg-[var(--background)] hover:bg-[var(--surface-elevated)] px-3 py-2 text-sm font-semibold text-[var(--foreground)] transition-all cursor-pointer select-none shrink-0"
-          >
-            <FileSpreadsheet className="h-4 w-4 text-[var(--foreground-muted)]" />
-            <span className="hidden sm:inline">Import</span>
-          </Link>
-          <button
-            id="students-add-btn"
-            onClick={() => setIsAddStudentModalOpen(true)}
-            className="flex items-center gap-2 rounded-[var(--radius-md)] bg-[var(--accent)] px-3.5 py-2 text-sm font-semibold text-white hover:bg-[var(--accent-hover)] transition-all cursor-pointer select-none shrink-0"
-            style={{ boxShadow: '0 4px 12px rgba(59, 127, 245, 0.2)' }}
-          >
-            <Plus className="h-4 w-4" />
-            Add Student
-          </button>
-        </div>
-      ) : pathname === '/documents' ? (
-        <div className="flex flex-1 items-center justify-center">
-          <div className="relative w-full max-w-md">
-            <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[var(--foreground-muted)]" />
-            <input
-              type="text"
-              placeholder="Search by name, ID or phone..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="pl-9 pr-4 py-2 text-sm border border-[var(--border)] bg-[var(--background)] rounded-[8px] text-[var(--foreground)] placeholder-[var(--foreground-muted)] focus:outline-none focus:border-[var(--accent)] focus:ring-1 focus:ring-[var(--accent)] transition-all w-full"
-            />
-          </div>
-        </div>
-      ) : pathname.startsWith('/students/') && detailPageActions ? (
+      {pathname.startsWith('/students/') && detailPageActions ? (
         <div className="flex flex-1 items-center justify-end gap-2">
           <button
             onClick={detailPageActions.onFillByDocument}

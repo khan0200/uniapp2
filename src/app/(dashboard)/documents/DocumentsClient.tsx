@@ -25,6 +25,7 @@ export function DocumentsClient() {
   const [selectedLevels, setSelectedLevels] = useState<string[]>([])
   const [selectedGroups, setSelectedGroups] = useState<string[]>([])
   const [selectedCerts, setSelectedCerts] = useState<string[]>([])
+  const [selectedScores, setSelectedScores] = useState<string[]>([])
   const [selectedMissingDocs, setSelectedMissingDocs] = useState<string[]>([])
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('asc')
 
@@ -33,6 +34,7 @@ export function DocumentsClient() {
   const [isLevelDropdownOpen, setIsLevelDropdownOpen] = useState(false)
   const [isGroupDropdownOpen, setIsGroupDropdownOpen] = useState(false)
   const [isCertDropdownOpen, setIsCertDropdownOpen] = useState(false)
+  const [isScoreDropdownOpen, setIsScoreDropdownOpen] = useState(false)
   const [isMissingDropdownOpen, setIsMissingDropdownOpen] = useState(false)
 
   // Selected student for details modal
@@ -110,6 +112,7 @@ export function DocumentsClient() {
     setIsGroupDropdownOpen(false)
     setIsCertDropdownOpen(false)
     setIsMissingDropdownOpen(false)
+    setIsScoreDropdownOpen(false)
   }
 
   // Document Helpers
@@ -163,11 +166,40 @@ export function DocumentsClient() {
     return Math.max(0, 3 - used)
   }
 
-  // Sorting
-  const compareStudentNames = (a: Student, b: Student, order: 'asc' | 'desc' = 'asc') => {
-    const nameA = a.full_name || ""
-    const nameB = b.full_name || ""
-    return order === 'asc' ? nameA.localeCompare(nameB) : nameB.localeCompare(nameA)
+  // Sorting (Alphanumeric sorting logic matching legacy compareStudentIds helper)
+  const compareStudentIds = (a: Student, b: Student, order: 'asc' | 'desc' = 'asc') => {
+    const idA = a.id || ""
+    const idB = b.id || ""
+
+    const parseId = (idStr: string) => {
+      const str = idStr.trim()
+      const match = str.match(/^([A-Za-z\s_-]*)(\d*)$/)
+      if (match) {
+        return {
+          prefix: match[1] || "",
+          num: match[2] ? parseInt(match[2], 10) : null
+        }
+      }
+      return { prefix: str, num: null }
+    }
+
+    const valA = parseId(idA)
+    const valB = parseId(idB)
+
+    const prefixComp = valA.prefix.localeCompare(valB.prefix, undefined, { sensitivity: 'base' })
+    if (prefixComp !== 0) {
+      return order === 'asc' ? prefixComp : -prefixComp
+    }
+
+    if (valA.num !== null && valB.num !== null) {
+      return order === 'asc' ? valA.num - valB.num : valB.num - valA.num
+    } else if (valA.num !== null) {
+      return order === 'asc' ? 1 : -1
+    } else if (valB.num !== null) {
+      return order === 'asc' ? -1 : 1
+    }
+
+    return order === 'asc' ? idA.localeCompare(idB) : idB.localeCompare(idA)
   }
 
   // Filters Reset & Toggles
@@ -199,6 +231,47 @@ export function DocumentsClient() {
   const handleToggleAllCerts = () => {
     setSelectedCerts(prev => prev.length === certOptions.length ? [] : [...certOptions])
   }
+
+  const showScoreFilter = selectedCerts.length === 1 && (selectedCerts[0] === 'TOPIK' || selectedCerts[0] === 'IELTS')
+  const activeCertForScore = showScoreFilter ? selectedCerts[0] : null
+
+  const getScoreOptions = () => {
+    if (activeCertForScore === 'TOPIK') {
+      return ['EXPECTED', '1', '2', '3', '4', '5', '6']
+    }
+    if (activeCertForScore === 'IELTS') {
+      return ['EXPECTED', '5.0', '5.5', '6.0', '6.5', '7.0', '7.5', '8.0', '8.5', '9.0']
+    }
+    return []
+  }
+
+  const scoreOptions = getScoreOptions()
+
+  const handleToggleScore = (score: string) => {
+    setSelectedScores(prev =>
+      prev.includes(score)
+        ? prev.filter(s => s !== score)
+        : [...prev, score]
+    )
+  }
+
+  const handleToggleAllScores = () => {
+    setSelectedScores(prev =>
+      prev.length === scoreOptions.length ? [] : [...scoreOptions]
+    )
+  }
+
+  const getScoreLabel = (score: string) => {
+    if (score === 'EXPECTED') return 'Expected'
+    if (activeCertForScore === 'TOPIK') return `TOPIK ${score}`
+    if (activeCertForScore === 'IELTS') return `IELTS ${score}`
+    return score
+  }
+
+  // Clear score filter when active certificate changes
+  useEffect(() => {
+    setSelectedScores([])
+  }, [activeCertForScore])
 
   const handleToggleMissingDocs = (opt: string) => {
     setSelectedMissingDocs(prev => prev.includes(opt) ? prev.filter(x => x !== opt) : [...prev, opt])
@@ -389,6 +462,19 @@ export function DocumentsClient() {
         .some(c => c && c !== 'NO CERTIFICATE' && selectedCerts.includes(c))
       if (certMatches) matchesCert = true
       
+      // If a specific score sub-filter is also active, additionally check score
+      if (matchesCert && selectedScores.length > 0 && selectedCerts.length === 1) {
+        const cert = selectedCerts[0] || ""
+        const scores = [student.certificate_score, student.certificate_score_2, student.certificate_score_3]
+        const certs  = [student.language_certificate, student.language_certificate_2, student.language_certificate_3]
+        matchesCert = certs.some((c, i) => {
+          if (!c || c === "NO CERTIFICATE") return false
+          if (c.toUpperCase() !== cert.toUpperCase()) return false
+          const score = (scores[i] || "").trim().toUpperCase()
+          return selectedScores.some(f => f.toUpperCase() === score)
+        })
+      }
+
       if (!matchesCert) return false
     }
 
@@ -412,7 +498,7 @@ export function DocumentsClient() {
     return true
   })
 
-  const sortedStudents = [...filteredStudents].sort((a, b) => compareStudentNames(a, b, sortOrder))
+  const sortedStudents = [...filteredStudents].sort((a, b) => compareStudentIds(a, b, sortOrder))
 
   // Render Pill badges
   const renderMissingPills = (s: Student) => {
@@ -512,13 +598,13 @@ export function DocumentsClient() {
   return (
     <div className="flex flex-col gap-6 relative">
       {/* Dropdowns Click-Outside Backdrop */}
-      {(isTariffDropdownOpen || isLevelDropdownOpen || isGroupDropdownOpen || isCertDropdownOpen || isMissingDropdownOpen) && (
+      {(isTariffDropdownOpen || isLevelDropdownOpen || isGroupDropdownOpen || isCertDropdownOpen || isMissingDropdownOpen || isScoreDropdownOpen) && (
         <div className="fixed inset-0 z-30 bg-transparent cursor-default" onClick={closeAllDropdowns} />
       )}
 
       {/* Roster Filters Menu Card */}
       <div className="rounded-[var(--radius-lg)] border border-[var(--border)] bg-[var(--surface)] p-4 shadow-[var(--shadow-sm)] flex flex-wrap gap-3 items-center justify-between z-40">
-        <div className="grid grid-cols-2 md:grid-cols-5 gap-3 w-full">
+        <div className={`grid grid-cols-2 md:grid-cols-3 ${showScoreFilter ? 'lg:grid-cols-6' : 'lg:grid-cols-5'} gap-3 w-full`}>
           {/* Tariffs Filter */}
           <div className="relative">
             <button
@@ -664,6 +750,63 @@ export function DocumentsClient() {
             )}
           </div>
 
+          {/* Dynamic Score Filter (shown for TOPIK/IELTS) */}
+          {showScoreFilter && (
+            <div className="relative animate-in fade-in zoom-in-95 duration-100">
+              <button
+                type="button"
+                onClick={() => { closeAllDropdowns(); setIsScoreDropdownOpen(prev => !prev) }}
+                className="w-full pl-9 pr-7 py-2 border border-[var(--border)] rounded-[var(--radius-md)] bg-[var(--surface-elevated)] text-[var(--foreground)] focus:outline-none hover:border-blue-400 transition-all text-xs font-semibold cursor-pointer flex items-center justify-between text-left h-[34px] relative"
+              >
+                <Hash className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[var(--foreground-muted)] pointer-events-none" />
+                <span className="truncate pr-1">
+                  {selectedScores.length === 0
+                    ? 'All Scores'
+                    : selectedScores.length === scoreOptions.length
+                    ? 'All Scores'
+                    : selectedScores.map(getScoreLabel).join(', ')}
+                </span>
+                <ChevronDown className="absolute right-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-[var(--foreground-subtle)] pointer-events-none" />
+              </button>
+
+              {isScoreDropdownOpen && (
+                <div className="absolute left-0 mt-1 w-56 rounded-[var(--radius-md)] border border-[var(--border)] bg-[var(--surface-elevated)] shadow-lg py-1.5 z-50 max-h-72 overflow-y-auto">
+                  <div 
+                    className="px-3 py-1.5 flex items-center gap-2 cursor-pointer hover:bg-[var(--border-subtle)] transition-colors select-none text-[11px] font-bold text-[var(--foreground)]" 
+                    onClick={handleToggleAllScores}
+                  >
+                    <input
+                      type="checkbox"
+                      checked={selectedScores.length === scoreOptions.length}
+                      readOnly
+                      className="h-3.5 w-3.5 rounded border-[var(--border)] text-blue-600 focus:ring-blue-500 cursor-pointer"
+                    />
+                    <span>Select All</span>
+                  </div>
+                  <div className="h-px bg-[var(--border)] my-1" />
+                  {scoreOptions.map(score => {
+                    const isChecked = selectedScores.includes(score)
+                    return (
+                      <div
+                        key={score}
+                        onClick={() => handleToggleScore(score)}
+                        className="px-3 py-1.5 flex items-center gap-2 cursor-pointer hover:bg-[var(--border-subtle)] transition-colors select-none text-[11px] font-medium text-[var(--foreground)]"
+                      >
+                        <input
+                          type="checkbox"
+                          checked={isChecked}
+                          readOnly
+                          className="h-3.5 w-3.5 rounded border-[var(--border)] text-blue-600 focus:ring-blue-500 cursor-pointer"
+                        />
+                        <span>{getScoreLabel(score)}</span>
+                      </div>
+                    )
+                  })}
+                </div>
+              )}
+            </div>
+          )}
+
           {/* Missing Docs Filter */}
           <div className="relative">
             <button
@@ -702,12 +845,14 @@ export function DocumentsClient() {
       {/* Roster Counter Summary */}
       <div className="flex justify-between items-center text-xs text-[var(--foreground-muted)] italic px-1 font-semibold select-none">
         <div>
-          {(selectedTariffs.length > 0 || selectedLevels.length > 0 || selectedGroups.length > 0 || selectedCerts.length > 0 || selectedMissingDocs.length > 0) && (
-            <span>Found {filteredStudents.length} matching students</span>
+          {(searchQuery || selectedTariffs.length > 0 || selectedLevels.length > 0 || selectedGroups.length > 0 || selectedCerts.length > 0 || selectedScores.length > 0 || selectedMissingDocs.length > 0) ? (
+            <span>Showing {filteredStudents.length} of {students.filter(s => selectedLevels.includes('DELETED') ? s.is_deleted : !s.is_deleted).length} students</span>
+          ) : (
+            <span>Showing all {selectedLevels.includes('DELETED') ? 'deleted' : 'active'} students</span>
           )}
         </div>
         <div className="text-right">
-          Total {students.length} students
+          Total {filteredStudents.length} students
         </div>
       </div>
 
@@ -757,7 +902,7 @@ export function DocumentsClient() {
                     onClick={() => setSortOrder(prev => prev === 'asc' ? 'desc' : 'asc')}
                   >
                     <span className="flex items-center gap-1">
-                      Full Name
+                      ID / Name
                       {sortOrder === 'asc' ? (
                         <ChevronDown className="h-3.5 w-3.5 text-[var(--accent)]" />
                       ) : (

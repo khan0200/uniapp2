@@ -99,8 +99,6 @@ export function StudentDashboardClient() {
   const router = useRouter()
   const supabase = createClient()
 
-  const [currentPage, setCurrentPage] = useState(1)
-  const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('asc')
   const [activeTooltip, setActiveTooltip] = useState<{ studentId: string; tagKey: string } | null>(null)
 
   // Context shared state
@@ -112,18 +110,29 @@ export function StudentDashboardClient() {
     setStudents,
     loading,
     error,
-    fetchStudents
+    fetchStudents,
+    selectedTariffs,
+    setSelectedTariffs,
+    selectedLevels,
+    setSelectedLevels,
+    selectedGroups,
+    setSelectedGroups,
+    selectedCerts,
+    setSelectedCerts,
+    selectedScores,
+    setSelectedScores,
+    selectedTags,
+    setSelectedTags,
+    selectedLeads,
+    setSelectedLeads,
+    sortOrder,
+    setSortOrder,
+    currentPage,
+    setCurrentPage,
+    setScrollPosition,
+    getScrollPosition,
+    resetAllFilters
   } = useStudentDashboard()
-
-  // Search & Filters state
-  // Multi-select array states
-  const [selectedTariffs, setSelectedTariffs] = useState<string[]>([])
-  const [selectedLevels, setSelectedLevels] = useState<string[]>([])
-  const [selectedGroups, setSelectedGroups] = useState<string[]>([])
-  const [selectedCerts, setSelectedCerts] = useState<string[]>([])
-  const [selectedScores, setSelectedScores] = useState<string[]>([])
-  const [selectedTags, setSelectedTags] = useState<string[]>([])
-  const [selectedLeads, setSelectedLeads] = useState<string[]>([])
 
   // Toggle states for filter dropdowns
   const [isTariffDropdownOpen, setIsTariffDropdownOpen] = useState(false)
@@ -764,6 +773,35 @@ export function StudentDashboardClient() {
     fetchStudents()
     fetchFilterOptions()
   }, [])
+
+  // Listen to scroll events on main-content container and save to context
+  useEffect(() => {
+    const mainContent = document.getElementById('main-content')
+    if (!mainContent) return
+
+    const handleScroll = () => {
+      setScrollPosition(mainContent.scrollTop)
+    }
+
+    mainContent.addEventListener('scroll', handleScroll, { passive: true })
+    return () => {
+      mainContent.removeEventListener('scroll', handleScroll)
+    }
+  }, [setScrollPosition])
+
+  // Restore scroll position after data is loaded and rendered
+  useEffect(() => {
+    if (!loading && students.length > 0) {
+      const mainContent = document.getElementById('main-content')
+      if (mainContent) {
+        // Use a small timeout to ensure the DOM is settled
+        const timeoutId = setTimeout(() => {
+          mainContent.scrollTop = getScrollPosition()
+        }, 50)
+        return () => clearTimeout(timeoutId)
+      }
+    }
+  }, [loading, students, getScrollPosition])
 
   useEffect(() => {
     const saved = localStorage.getItem('customTagsRegistry')
@@ -1879,17 +1917,30 @@ export function StudentDashboardClient() {
           </div>
         </div>
 
-        {/* Excel Export Button */}
-        <button
-          onClick={() => {
-            setIsExcelModalOpen(true)
-            setSelectedExcelIds(excelFilteredStudents.map(s => s.id))
-          }}
-          className="flex-shrink-0 flex items-center justify-center p-2 rounded-[var(--radius-md)] border border-emerald-600/30 bg-emerald-50 hover:bg-emerald-100/70 text-emerald-700 dark:bg-emerald-950/20 dark:border-emerald-800/40 dark:text-emerald-400 transition-all cursor-pointer shadow-sm select-none"
-          title="Export Roster to Excel"
-        >
-          <FileSpreadsheet className="h-4.5 w-4.5" />
-        </button>
+        {/* Action buttons wrapper */}
+        <div className="flex items-center gap-2 flex-shrink-0">
+          {/* Reset Filters Button */}
+          <button
+            onClick={resetAllFilters}
+            className="flex items-center gap-1.5 px-3 py-2 rounded-[var(--radius-md)] border border-[var(--border)] bg-[var(--surface-elevated)] hover:bg-[var(--border-subtle)] text-[var(--foreground)] text-xs font-semibold transition-all cursor-pointer shadow-sm select-none h-[34px]"
+            title="Reset all filters and search"
+          >
+            <X className="h-4 w-4 text-[var(--foreground-muted)]" />
+            <span className="hidden sm:inline">Reset Filters</span>
+          </button>
+
+          {/* Excel Export Button */}
+          <button
+            onClick={() => {
+              setIsExcelModalOpen(true)
+              setSelectedExcelIds(excelFilteredStudents.map(s => s.id))
+            }}
+            className="flex-shrink-0 flex items-center justify-center p-2 rounded-[var(--radius-md)] border border-emerald-600/30 bg-emerald-50 hover:bg-emerald-100/70 text-emerald-700 dark:bg-emerald-950/20 dark:border-emerald-800/40 dark:text-emerald-400 transition-all cursor-pointer shadow-sm select-none h-[34px] w-[34px]"
+            title="Export Roster to Excel"
+          >
+            <FileSpreadsheet className="h-4.5 w-4.5" />
+          </button>
+        </div>
       </div>
 
       {/* Roster Total Count */}

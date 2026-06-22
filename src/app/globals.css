@@ -249,3 +249,13 @@ button, a, [role="button"] {
   background: currentColor;
   animation: wave-dot-ring 1.6s ease-out infinite;
 }
+
+/* Custom utility to strip input borders and outlines completely */
+.no-focus-outline,
+.no-focus-outline:focus,
+.no-focus-outline:focus-visible {
+  outline: none !important;
+  border: none !important;
+  box-shadow: none !important;
+  background-color: transparent !important;
+}

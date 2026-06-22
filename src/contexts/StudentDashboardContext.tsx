@@ -1,6 +1,6 @@
 'use client'
 
-import { createContext, useContext, useState, useEffect, type ReactNode } from 'react'
+import { createContext, useContext, useState, useEffect, useRef, type ReactNode } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { type Student } from '@/types/database'
 
@@ -28,6 +28,29 @@ interface StudentDashboardContextValue {
   // Student detail page header action buttons (Fill By Document / Reload / Delete)
   detailPageActions: StudentDetailPageActions | null
   setDetailPageActions: (actions: StudentDetailPageActions | null) => void
+
+  // Hoisted filter, sorting, pagination, and scroll states
+  selectedTariffs: string[]
+  setSelectedTariffs: React.Dispatch<React.SetStateAction<string[]>>
+  selectedLevels: string[]
+  setSelectedLevels: React.Dispatch<React.SetStateAction<string[]>>
+  selectedGroups: string[]
+  setSelectedGroups: React.Dispatch<React.SetStateAction<string[]>>
+  selectedCerts: string[]
+  setSelectedCerts: React.Dispatch<React.SetStateAction<string[]>>
+  selectedScores: string[]
+  setSelectedScores: React.Dispatch<React.SetStateAction<string[]>>
+  selectedTags: string[]
+  setSelectedTags: React.Dispatch<React.SetStateAction<string[]>>
+  selectedLeads: string[]
+  setSelectedLeads: React.Dispatch<React.SetStateAction<string[]>>
+  sortOrder: 'asc' | 'desc'
+  setSortOrder: React.Dispatch<React.SetStateAction<'asc' | 'desc'>>
+  currentPage: number
+  setCurrentPage: React.Dispatch<React.SetStateAction<number>>
+  setScrollPosition: (pos: number) => void
+  getScrollPosition: () => number
+  resetAllFilters: () => void
 }
 
 const StudentDashboardContext = createContext<StudentDashboardContextValue | undefined>(undefined)
@@ -44,6 +67,37 @@ export function StudentDashboardProvider({ children }: { children: ReactNode }) 
   const [error, setError] = useState<string | null>(null)
   const [hasFetched, setHasFetched] = useState(false)
   const [detailPageActions, setDetailPageActions] = useState<StudentDetailPageActions | null>(null)
+
+  // Hoisted state values
+  const [selectedTariffs, setSelectedTariffs] = useState<string[]>([])
+  const [selectedLevels, setSelectedLevels] = useState<string[]>([])
+  const [selectedGroups, setSelectedGroups] = useState<string[]>([])
+  const [selectedCerts, setSelectedCerts] = useState<string[]>([])
+  const [selectedScores, setSelectedScores] = useState<string[]>([])
+  const [selectedTags, setSelectedTags] = useState<string[]>([])
+  const [selectedLeads, setSelectedLeads] = useState<string[]>([])
+  const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('asc')
+  const [currentPage, setCurrentPage] = useState(1)
+
+  const scrollPositionRef = useRef(0)
+  const setScrollPosition = (pos: number) => {
+    scrollPositionRef.current = pos
+  }
+  const getScrollPosition = () => scrollPositionRef.current
+
+  const resetAllFilters = () => {
+    setSearchQuery('')
+    setSelectedTariffs([])
+    setSelectedLevels([])
+    setSelectedGroups([])
+    setSelectedCerts([])
+    setSelectedScores([])
+    setSelectedTags([])
+    setSelectedLeads([])
+    setSortOrder('asc')
+    setCurrentPage(1)
+    scrollPositionRef.current = 0
+  }
 
   const fetchStudents = async (force = false) => {
     // If not forced and we already have data, fetch in the background to update the state silently
@@ -92,7 +146,28 @@ export function StudentDashboardProvider({ children }: { children: ReactNode }) 
       error,
       fetchStudents,
       detailPageActions,
-      setDetailPageActions
+      setDetailPageActions,
+      selectedTariffs,
+      setSelectedTariffs,
+      selectedLevels,
+      setSelectedLevels,
+      selectedGroups,
+      setSelectedGroups,
+      selectedCerts,
+      setSelectedCerts,
+      selectedScores,
+      setSelectedScores,
+      selectedTags,
+      setSelectedTags,
+      selectedLeads,
+      setSelectedLeads,
+      sortOrder,
+      setSortOrder,
+      currentPage,
+      setCurrentPage,
+      setScrollPosition,
+      getScrollPosition,
+      resetAllFilters
     }}>
       {children}
     </StudentDashboardContext.Provider>
