@@ -6,8 +6,9 @@ import { type Student, type Payment } from '@/types/database'
 import { sendTelegramNotification } from '@/lib/telegram'
 import {
   Users, Receipt, Plus, Minus, Search, ChevronDown, ChevronUp, X, Loader2,
-  Pencil, Trash2, Printer, CreditCard, Wallet, LayoutGrid, Table
+  Pencil, Trash2, Printer, CreditCard, Wallet, LayoutGrid, Table, FileSpreadsheet
 } from 'lucide-react'
+import * as XLSX from 'xlsx-js-style'
 
 const PAYMENT_METHODS = ['Karta J.A', 'Karta Abdulaziz', 'Naqd', 'Karta M.A', 'Bank', 'Discount']
 const RECEIVED_BY_OPTIONS = ['ABDULAZIZ', 'MUSLIHIDDIN', 'BAXTIYOR', 'MUHAMMADALI', 'JASUR', 'ADMIN', 'Discount']
@@ -741,6 +742,247 @@ export function PaymentsClient() {
   const addSelectedStudent = students.find(s => s.id === addStudentId)
   const withdrawSelectedStudent = students.find(s => s.id === withdrawStudentId)
 
+  // Helper to style SheetJS worksheets beautifully for Payment History
+  const styleWorksheet = (ws: any) => {
+    if (!ws) return
+
+    const ref = ws['!ref']
+    if (!ref) return
+    
+    const decodeRange = (rangeStr: string) => {
+      const parts = rangeStr.split(':')
+      const start = parts[0]
+      const end = parts[1] || parts[0]
+      
+      const parseCell = (cellStr: string) => {
+        const match = cellStr.match(/^([A-Z]+)([0-9]+)$/)
+        if (!match) return { c: 0, r: 0 }
+        
+        let c = 0
+        const colStr = match[1]
+        for (let i = 0; i < colStr.length; i++) {
+          c = c * 26 + (colStr.charCodeAt(i) - 64)
+        }
+        return { c: c - 1, r: parseInt(match[2], 10) - 1 }
+      }
+      
+      return { s: parseCell(start), e: parseCell(end) }
+    }
+
+    const encodeCell = (cell: { c: number; r: number }) => {
+      let colStr = ''
+      let temp = cell.c
+      while (temp >= 0) {
+        colStr = String.fromCharCode((temp % 26) + 65) + colStr
+        temp = Math.floor(temp / 26) - 1
+      }
+      return colStr + (cell.r + 1)
+    }
+
+    const range = decodeRange(ref)
+
+    const headerStyle = {
+      font: { name: 'Segoe UI', sz: 11, bold: true, color: { rgb: 'FFFFFF' } },
+      fill: { fgColor: { rgb: '1F497D' } }, // Premium Deep Navy Blue
+      alignment: { horizontal: 'center', vertical: 'center', wrapText: true },
+      border: {
+        top: { style: 'thin', color: { rgb: '1F497D' } },
+        bottom: { style: 'medium', color: { rgb: '000000' } },
+        left: { style: 'thin', color: { rgb: '1F497D' } },
+        right: { style: 'thin', color: { rgb: '1F497D' } }
+      }
+    }
+
+    const centerStyleEven = {
+      font: { name: 'Segoe UI', sz: 10 },
+      fill: { fgColor: { rgb: 'F2F6FB' } }, // Subtle light blue-gray for zebra striping
+      alignment: { horizontal: 'center', vertical: 'center' },
+      border: {
+        top: { style: 'thin', color: { rgb: 'D9D9D9' } },
+        bottom: { style: 'thin', color: { rgb: 'D9D9D9' } },
+        left: { style: 'thin', color: { rgb: 'D9D9D9' } },
+        right: { style: 'thin', color: { rgb: 'D9D9D9' } }
+      }
+    }
+
+    const centerStyleOdd = {
+      font: { name: 'Segoe UI', sz: 10 },
+      fill: { fgColor: { rgb: 'FFFFFF' } },
+      alignment: { horizontal: 'center', vertical: 'center' },
+      border: {
+        top: { style: 'thin', color: { rgb: 'D9D9D9' } },
+        bottom: { style: 'thin', color: { rgb: 'D9D9D9' } },
+        left: { style: 'thin', color: { rgb: 'D9D9D9' } },
+        right: { style: 'thin', color: { rgb: 'D9D9D9' } }
+      }
+    }
+
+    const leftStyleEven = {
+      font: { name: 'Segoe UI', sz: 10 },
+      fill: { fgColor: { rgb: 'F2F6FB' } },
+      alignment: { horizontal: 'left', vertical: 'center' },
+      border: {
+        top: { style: 'thin', color: { rgb: 'D9D9D9' } },
+        bottom: { style: 'thin', color: { rgb: 'D9D9D9' } },
+        left: { style: 'thin', color: { rgb: 'D9D9D9' } },
+        right: { style: 'thin', color: { rgb: 'D9D9D9' } }
+      }
+    }
+
+    const leftStyleOdd = {
+      font: { name: 'Segoe UI', sz: 10 },
+      fill: { fgColor: { rgb: 'FFFFFF' } },
+      alignment: { horizontal: 'left', vertical: 'center' },
+      border: {
+        top: { style: 'thin', color: { rgb: 'D9D9D9' } },
+        bottom: { style: 'thin', color: { rgb: 'D9D9D9' } },
+        left: { style: 'thin', color: { rgb: 'D9D9D9' } },
+        right: { style: 'thin', color: { rgb: 'D9D9D9' } }
+      }
+    }
+
+    const rightStyleEven = {
+      font: { name: 'Segoe UI', sz: 10 },
+      fill: { fgColor: { rgb: 'F2F6FB' } },
+      alignment: { horizontal: 'right', vertical: 'center' },
+      border: {
+        top: { style: 'thin', color: { rgb: 'D9D9D9' } },
+        bottom: { style: 'thin', color: { rgb: 'D9D9D9' } },
+        left: { style: 'thin', color: { rgb: 'D9D9D9' } },
+        right: { style: 'thin', color: { rgb: 'D9D9D9' } }
+      }
+    }
+
+    const rightStyleOdd = {
+      font: { name: 'Segoe UI', sz: 10 },
+      fill: { fgColor: { rgb: 'FFFFFF' } },
+      alignment: { horizontal: 'right', vertical: 'center' },
+      border: {
+        top: { style: 'thin', color: { rgb: 'D9D9D9' } },
+        bottom: { style: 'thin', color: { rgb: 'D9D9D9' } },
+        left: { style: 'thin', color: { rgb: 'D9D9D9' } },
+        right: { style: 'thin', color: { rgb: 'D9D9D9' } }
+      }
+    }
+
+    // Loop through all cell coordinates in range
+    for (let R = range.s.r; R <= range.e.r; ++R) {
+      for (let C = range.s.c; C <= range.e.c; ++C) {
+        const cellRef = encodeCell({ r: R, c: C })
+        let cell = ws[cellRef]
+        if (!cell) {
+          cell = { t: 's', v: '' }
+          ws[cellRef] = cell
+        }
+
+        if (R === 0) {
+          cell.s = headerStyle
+          continue
+        }
+
+        const isEven = R % 2 === 0
+        let style = isEven ? leftStyleEven : leftStyleOdd
+
+        const colHeaderCell = ws[encodeCell({ r: 0, c: C })]
+        const headerName = colHeaderCell ? String(colHeaderCell.v).toUpperCase() : ''
+
+        if (
+          headerName === 'NO' ||
+          headerName === 'PAYMENT ID' ||
+          headerName === 'STUDENT ID' ||
+          headerName === 'TRANSACTION TYPE' ||
+          headerName === 'PAYMENT METHOD' ||
+          headerName === 'RECEIVED BY' ||
+          headerName === 'DATE & TIME'
+        ) {
+          style = isEven ? centerStyleEven : centerStyleOdd
+        } else if (headerName.includes('UZS') || headerName.includes('AMOUNT') || headerName.includes('BALANCE')) {
+          style = isEven ? rightStyleEven : rightStyleOdd
+          if (cell.v !== '' && cell.v !== null && cell.v !== undefined) {
+            const num = parseFloat(String(cell.v).replace(/,/g, ''))
+            if (!isNaN(num)) {
+              cell.t = 'n'
+              cell.v = num
+              cell.z = '#,##0'
+            }
+          }
+        }
+
+        cell.s = style
+      }
+    }
+
+    const rowHeights = []
+    rowHeights.push({ hpx: 28 }) // Header
+    for (let R = 1; R <= range.e.r; ++R) {
+      rowHeights.push({ hpx: 22 })
+    }
+    ws['!rows'] = rowHeights
+  }
+
+  // Export current filtered payment history to Excel
+  const exportPaymentHistoryToExcel = () => {
+    if (filteredPayments.length === 0) {
+      alert('No payments to export!')
+      return
+    }
+
+    const pad = (n: number) => String(n).padStart(2, '0')
+    const formatDate = (dateStr: string) => {
+      if (!dateStr) return ''
+      const d = new Date(dateStr)
+      if (isNaN(d.getTime())) return dateStr
+      return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`
+    }
+
+    const excelData = filteredPayments.map((p, index) => {
+      let txType = 'Standard Payment'
+      if (p.is_withdrawal) {
+        txType = 'Withdrawal'
+      } else if (p.is_discount) {
+        txType = 'Discount'
+      }
+
+      return {
+        No: index + 1,
+        'Payment ID': p.id ? p.id.toUpperCase() : '',
+        'Student ID': p.student_id || '—',
+        'Student Name': p.student_name || 'General Payment',
+        'Amount (UZS)': p.amount !== undefined ? p.amount : '',
+        'Transaction Type': txType,
+        'Payment Method': p.method || '',
+        'Received By': p.received_by || '',
+        'Date & Time': formatDate(p.created_at),
+        Notes: p.notes || ''
+      }
+    })
+
+    const colWidths = [
+      { wch: 5 },   // No
+      { wch: 20 },  // Payment ID
+      { wch: 15 },  // Student ID
+      { wch: 30 },  // Student Name
+      { wch: 18 },  // Amount (UZS)
+      { wch: 18 },  // Transaction Type
+      { wch: 18 },  // Payment Method
+      { wch: 18 },  // Received By
+      { wch: 22 },  // Date & Time
+      { wch: 35 }   // Notes
+    ]
+
+    const ws = XLSX.utils.json_to_sheet(excelData)
+    const wb = XLSX.utils.book_new()
+    XLSX.utils.book_append_sheet(wb, ws, 'Payment History')
+    ws['!cols'] = colWidths
+
+    styleWorksheet(ws)
+
+    const dateStr = new Date().toISOString().split('T')[0]
+    const filename = `Payment_History_Export_${dateStr}.xlsx`
+
+    XLSX.writeFile(wb, filename)
+  }
+
   if (loading) {
     return (
       <div className="flex items-center justify-center py-24">
@@ -1202,6 +1444,13 @@ export function PaymentsClient() {
               <option value="">All Receivers</option>
               {RECEIVED_BY_OPTIONS.map(r => <option key={r} value={r}>{r}</option>)}
             </select>
+            <button
+              onClick={exportPaymentHistoryToExcel}
+              className="flex items-center gap-2 rounded-[var(--radius-md)] border border-[var(--border)] bg-[var(--surface)] hover:bg-[var(--surface-elevated)] px-4 py-2 text-sm font-semibold text-[var(--foreground)] transition-all cursor-pointer"
+              title="Download Payment History as Excel"
+            >
+              <FileSpreadsheet className="h-4 w-4 text-emerald-600 dark:text-emerald-500" /> Export Excel
+            </button>
           </div>
 
           <div className="text-xs text-[var(--foreground-muted)] italic px-1">
