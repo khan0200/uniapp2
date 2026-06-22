@@ -558,8 +558,10 @@ export function StudentDashboardClient() {
       return
     }
 
-    // Get student data for selected IDs, matching the sorted order in the modal table
-    const selectedStudents = sortedExcelStudents.filter((s) => selectedExcelIds.includes(s.id))
+    // Get student data for selected IDs globally, matching the alphabetical sort order
+    const selectedStudents = students
+      .filter((s) => selectedExcelIds.includes(s.id))
+      .sort((a, b) => compareStudentIds(a, b, sortOrder))
 
     // Prepare data for Excel
     const excelData = selectedStudents.map((s, index) => ({
@@ -668,12 +670,12 @@ export function StudentDashboardClient() {
     setIsExcelModalOpen(false)
   }
 
-  // Reset select checklist to empty when modal opens or query changes (unchecked by default)
+  // Reset select checklist to empty ONLY when the modal transitions from closed to open (unchecked by default)
   useEffect(() => {
     if (isExcelModalOpen) {
       setSelectedExcelIds([])
     }
-  }, [isExcelModalOpen, excelSearchQuery, excelSearchType, excelTariffFilter, excelLevelFilter, excelGroupFilter, excelCertFilter, excelTagFilter])
+  }, [isExcelModalOpen])
 
   // Dismiss active action tag tooltip on global click
   useEffect(() => {
@@ -2826,7 +2828,7 @@ export function StudentDashboardClient() {
                   Select Students to Export
                 </span>
                 <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-500 text-white shadow-sm">
-                  {checkedFilteredCount}/{sortedExcelStudents.length} SELECTED
+                  {selectedExcelIds.length} SELECTED
                 </span>
               </div>
 
