@@ -30,38 +30,38 @@ export const ROW_COLOR_MAP: Record<string, { bg: string; ball: string; name: str
 }
 
 export const CUSTOM_TAG_ICONS: { id: string; emoji: string; label: string }[] = [
-  { id: 'new',                  emoji: '🆕',  label: 'New' },
-  { id: 'contacted',            emoji: '📞',  label: 'Contacted' },
-  { id: 'interested',           emoji: '💬',  label: 'Interested' },
-  { id: 'documents_pending',    emoji: '📄',  label: 'Documents Pending' },
-  { id: 'missing_documents',    emoji: '⚠️',  label: 'Missing Documents' },
-  { id: 'started',              emoji: '📝',  label: 'Started' },
-  { id: 'submitted',            emoji: '📤',  label: 'Submitted' },
-  { id: 'processing',           emoji: '🔄',  label: 'Processing' },
-  { id: 'waiting',              emoji: '⏳',  label: 'Waiting' },
-  { id: 'interview',            emoji: '🎤',  label: 'Interview' },
-  { id: 'accepted',             emoji: '✅',  label: 'Accepted' },
-  { id: 'enrolled',             emoji: '🎓',  label: 'Enrolled' },
-  { id: 'paid',                 emoji: '💳',  label: 'Paid' },
-  { id: 'visa_processing',      emoji: '🎫',  label: 'Visa Processing' },
-  { id: 'visa_approved',        emoji: '🛂',  label: 'Visa Approved' },
-  { id: 'departure',            emoji: '✈️',  label: 'Departure' },
-  { id: 'arrived',              emoji: '📍',  label: 'Arrived' },
-  { id: 'graduated',            emoji: '🏆',  label: 'Graduated' },
-  { id: 'rejected',             emoji: '❌',  label: 'Rejected' },
-  { id: 'on_hold',              emoji: '⏸️',  label: 'On Hold' },
-  { id: 'urgent',               emoji: '🚩',  label: 'Urgent' },
-  { id: 'vip',                  emoji: '⭐️', label: 'VIP' },
-  { id: 'email_sent',           emoji: '📧',  label: 'Email Sent' },
-  { id: 'response_received',    emoji: '📨',  label: 'Response Received' },
-  { id: 'appointment',          emoji: '📅',  label: 'Appointment Scheduled' },
-  { id: 'follow_up',            emoji: '🔔',  label: 'Follow-Up Required' },
-  { id: 'under_review',         emoji: '📋',  label: 'Under Review' },
-  { id: 'docs_verified',        emoji: '🔒',  label: 'Documents Verified' },
-  { id: 'scholarship',          emoji: '💎',  label: 'Scholarship Awarded' },
-  { id: 'dormitory',            emoji: '🏠',  label: 'Dormitory Arranged' },
-  { id: 'expiring_soon',        emoji: '⌛️', label: 'Expiring Soon' },
-  { id: 're_application',       emoji: '🔁',  label: 'Re-Application' },
+  { id: 'new', emoji: '🆕', label: 'New' },
+  { id: 'contacted', emoji: '📞', label: 'Contacted' },
+  { id: 'interested', emoji: '💬', label: 'Interested' },
+  { id: 'documents_pending', emoji: '📄', label: 'Documents Pending' },
+  { id: 'missing_documents', emoji: '⚠️', label: 'Missing Documents' },
+  { id: 'started', emoji: '📝', label: 'Started' },
+  { id: 'submitted', emoji: '📤', label: 'Submitted' },
+  { id: 'processing', emoji: '🔄', label: 'Processing' },
+  { id: 'waiting', emoji: '⏳', label: 'Waiting' },
+  { id: 'interview', emoji: '🎤', label: 'Interview' },
+  { id: 'accepted', emoji: '✅', label: 'Accepted' },
+  { id: 'enrolled', emoji: '🎓', label: 'Enrolled' },
+  { id: 'paid', emoji: '💳', label: 'Paid' },
+  { id: 'visa_processing', emoji: '🎫', label: 'Visa Processing' },
+  { id: 'visa_approved', emoji: '🛂', label: 'Visa Approved' },
+  { id: 'departure', emoji: '✈️', label: 'Departure' },
+  { id: 'arrived', emoji: '📍', label: 'Arrived' },
+  { id: 'graduated', emoji: '🏆', label: 'Graduated' },
+  { id: 'rejected', emoji: '❌', label: 'Rejected' },
+  { id: 'on_hold', emoji: '⏸️', label: 'On Hold' },
+  { id: 'urgent', emoji: '🚩', label: 'Urgent' },
+  { id: 'vip', emoji: '⭐️', label: 'VIP' },
+  { id: 'email_sent', emoji: '📧', label: 'Email Sent' },
+  { id: 'response_received', emoji: '📨', label: 'Response Received' },
+  { id: 'appointment', emoji: '📅', label: 'Appointment Scheduled' },
+  { id: 'follow_up', emoji: '🔔', label: 'Follow-Up Required' },
+  { id: 'under_review', emoji: '📋', label: 'Under Review' },
+  { id: 'docs_verified', emoji: '🔒', label: 'Documents Verified' },
+  { id: 'scholarship', emoji: '💎', label: 'Scholarship Awarded' },
+  { id: 'dormitory', emoji: '🏠', label: 'Dormitory Arranged' },
+  { id: 'expiring_soon', emoji: '⌛️', label: 'Expiring Soon' },
+  { id: 're_application', emoji: '🔁', label: 'Re-Application' },
 ]
 // Legacy flat list for backward compat (stored values are still emoji strings)
 export const CUSTOM_TAG_EMOJIS = CUSTOM_TAG_ICONS.map(i => i.emoji)
@@ -114,9 +114,9 @@ export function StudentDashboardClient() {
   const [activeTooltip, setActiveTooltip] = useState<{ studentId: string; tagKey: string } | null>(null)
 
   // Context shared state
-  const { 
-    searchQuery, 
-    isAddStudentModalOpen: isModalOpen, 
+  const {
+    searchQuery,
+    isAddStudentModalOpen: isModalOpen,
     setIsAddStudentModalOpen: setIsModalOpen,
     students,
     setStudents,
@@ -365,8 +365,8 @@ export function StudentDashboardClient() {
       matchesCert = !student.language_certificate || student.language_certificate === 'NO CERTIFICATE'
     } else {
       matchesCert = student.language_certificate === excelCertFilter ||
-                    student.language_certificate_2 === excelCertFilter ||
-                    student.language_certificate_3 === excelCertFilter
+        student.language_certificate_2 === excelCertFilter ||
+        student.language_certificate_3 === excelCertFilter
     }
     if (!matchesCert) return false
 
@@ -394,17 +394,17 @@ export function StudentDashboardClient() {
     // Get range of sheet
     const ref = ws['!ref']
     if (!ref) return
-    
+
     // Parse range manually or use decode_range helper safely
     const decodeRange = (rangeStr: string) => {
       const parts = rangeStr.split(':')
       const start = parts[0]
       const end = parts[1] || parts[0]
-      
+
       const parseCell = (cellStr: string) => {
         const match = cellStr.match(/^([A-Z]+)([0-9]+)$/)
         if (!match) return { c: 0, r: 0 }
-        
+
         let c = 0
         const colStr = match[1]
         for (let i = 0; i < colStr.length; i++) {
@@ -412,7 +412,7 @@ export function StudentDashboardClient() {
         }
         return { c: c - 1, r: parseInt(match[2], 10) - 1 }
       }
-      
+
       return { s: parseCell(start), e: parseCell(end) }
     }
 
@@ -792,7 +792,7 @@ export function StudentDashboardClient() {
   const handleToggleSelectAllExcel = () => {
     const allFilteredIds = sortedExcelStudents.map(s => s.id)
     const allSelected = allFilteredIds.every(id => selectedExcelIds.includes(id))
-    
+
     if (allSelected) {
       setSelectedExcelIds(prev => prev.filter(id => !allFilteredIds.includes(id)))
     } else {
@@ -1083,12 +1083,12 @@ export function StudentDashboardClient() {
     }
 
     // 2. Search query matching
-    const matchesSearch = 
+    const matchesSearch =
       student.id.toLowerCase().includes(searchQuery.toLowerCase()) ||
       student.full_name.toLowerCase().includes(searchQuery.toLowerCase()) ||
       (student.phone1 && student.phone1.includes(searchQuery)) ||
       (student.phone2 && student.phone2.includes(searchQuery))
-    
+
     // 3. Tariff filter (handling NO_TARIFF)
     let matchesTariff = false
     if (selectedTariffs.length === 0) {
@@ -1131,7 +1131,7 @@ export function StudentDashboardClient() {
         matchesGroup = true
       }
     }
-    
+
     // 6. Language Certificate filter (handling NO CERTIFICATE / nulls & multi-select)
     let matchesCertificate = false
     if (selectedCerts.length === 0) {
@@ -1143,8 +1143,8 @@ export function StudentDashboardClient() {
       }
       if (selectedCerts.includes("EXPECTED")) {
         const hasExpected = (student.certificate_score && student.certificate_score.toUpperCase() === "EXPECTED") ||
-                            (student.certificate_score_2 && student.certificate_score_2.toUpperCase() === "EXPECTED") ||
-                            (student.certificate_score_3 && student.certificate_score_3.toUpperCase() === "EXPECTED")
+          (student.certificate_score_2 && student.certificate_score_2.toUpperCase() === "EXPECTED") ||
+          (student.certificate_score_3 && student.certificate_score_3.toUpperCase() === "EXPECTED")
         if (hasExpected) matchesCertificate = true
       }
       const hasAnySelected = [student.language_certificate, student.language_certificate_2, student.language_certificate_3]
@@ -1156,7 +1156,7 @@ export function StudentDashboardClient() {
     if (matchesCertificate && selectedScores.length > 0 && selectedCerts.length === 1) {
       const cert = selectedCerts[0] || ""
       const scores = [student.certificate_score, student.certificate_score_2, student.certificate_score_3]
-      const certs  = [student.language_certificate, student.language_certificate_2, student.language_certificate_3]
+      const certs = [student.language_certificate, student.language_certificate_2, student.language_certificate_3]
       matchesCertificate = certs.some((c, i) => {
         if (!c || c === "NO CERTIFICATE") return false
         if (c.toUpperCase() !== cert.toUpperCase()) return false
@@ -1215,8 +1215,8 @@ export function StudentDashboardClient() {
   // Export to CSV function
   const handleExportCSV = () => {
     const headers = [
-      'Student ID', 'Full Name', 'Passport', 'Gender', 'Birthday', 
-      'Phone 1', 'Phone 2', 'Email', 'Address', 'Level', 'Level 2', 
+      'Student ID', 'Full Name', 'Passport', 'Gender', 'Birthday',
+      'Phone 1', 'Phone 2', 'Email', 'Address', 'Level', 'Level 2',
       'Educational Background', 'Tariff', 'Certificate 1', 'Score 1',
       'Certificate 2', 'Score 2', 'Certificate 3', 'Score 3',
       'University 1', 'Status 1', 'University 2', 'Status 2', 'University 3', 'Status 3',
@@ -1256,9 +1256,9 @@ export function StudentDashboardClient() {
   // Row background color selector matching visual row highlights
   const getRowBgStyleAndClass = (student: Student) => {
     if (!student.row_color) {
-      return { 
-        className: 'bg-[var(--surface)] hover:bg-[var(--border-subtle)]', 
-        style: {} 
+      return {
+        className: 'bg-[var(--surface)] hover:bg-[var(--border-subtle)]',
+        style: {}
       }
     }
 
@@ -1271,24 +1271,24 @@ export function StudentDashboardClient() {
           className: (colorKey === 'EMERALD'
             ? 'bg-[#8fcc77] hover:bg-[#7ec264] dark:bg-emerald-900/65 dark:hover:bg-emerald-900/80'
             : colorKey === 'BLUE'
-            ? 'bg-[#82b9e3] hover:bg-[#6aa9da] dark:bg-blue-900/65 dark:hover:bg-blue-900/80'
-            : 'bg-[#ffd24d] hover:bg-[#ffc61a] dark:bg-amber-900/65 dark:hover:bg-amber-900/80'),
+              ? 'bg-[#82b9e3] hover:bg-[#6aa9da] dark:bg-blue-900/65 dark:hover:bg-blue-900/80'
+              : 'bg-[#ffd24d] hover:bg-[#ffc61a] dark:bg-amber-900/65 dark:hover:bg-amber-900/80'),
           style: { borderLeft: `4px solid ${mapping.ball}` }
         }
       }
-      
-      return { 
-        className: 'hover:brightness-95 dark:hover:brightness-110', 
-        style: { 
+
+      return {
+        className: 'hover:brightness-95 dark:hover:brightness-110',
+        style: {
           backgroundColor: mapping.bg,
           borderLeft: `4px solid ${mapping.ball}`
-        } 
+        }
       }
     }
 
-    return { 
-      className: 'bg-[var(--surface)] hover:bg-[var(--border-subtle)]', 
-      style: {} 
+    return {
+      className: 'bg-[var(--surface)] hover:bg-[var(--border-subtle)]',
+      style: {}
     }
   }
 
@@ -1353,11 +1353,10 @@ export function StudentDashboardClient() {
   const renderActionCircle = (student: Student) => {
     const isCompleted = student.university_1_status === 'Accepted' || student.university_1_status === 'Finished'
     return (
-      <div className={`h-4.5 w-4.5 rounded-full border-2 flex items-center justify-center cursor-pointer transition-all ${
-        isCompleted 
-          ? 'border-emerald-600 bg-emerald-600 text-white shadow-sm' 
+      <div className={`h-4.5 w-4.5 rounded-full border-2 flex items-center justify-center cursor-pointer transition-all ${isCompleted
+          ? 'border-emerald-600 bg-emerald-600 text-white shadow-sm'
           : 'border-gray-300 dark:border-gray-600 bg-transparent hover:border-gray-400'
-      }`}>
+        }`}>
         {isCompleted && <div className="h-1.5 w-1.5 rounded-full bg-white" />}
       </div>
     )
@@ -1391,8 +1390,8 @@ export function StudentDashboardClient() {
     <PageShell>
       {/* Filters Popover Overlay Backdrop */}
       {(isCertDropdownOpen || isScoreDropdownOpen || isTariffDropdownOpen || isLevelDropdownOpen || isGroupDropdownOpen || isTagDropdownOpen || isLeadDropdownOpen) && (
-        <div 
-          className="fixed inset-0 z-30 bg-transparent cursor-default" 
+        <div
+          className="fixed inset-0 z-30 bg-transparent cursor-default"
           onClick={() => {
             setIsCertDropdownOpen(false)
             setIsScoreDropdownOpen(false)
@@ -1428,16 +1427,16 @@ export function StudentDashboardClient() {
                 {selectedTariffs.length === 0
                   ? 'All Tariffs'
                   : selectedTariffs.length === (tariffOptions.length + 1)
-                  ? 'All Tariffs'
-                  : selectedTariffs.map(t => t === 'NO_TARIFF' ? 'No Tariff' : t).join(', ')}
+                    ? 'All Tariffs'
+                    : selectedTariffs.map(t => t === 'NO_TARIFF' ? 'No Tariff' : t).join(', ')}
               </span>
               <ChevronDown className="absolute right-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-[var(--foreground-subtle)] pointer-events-none" />
             </button>
 
             {isTariffDropdownOpen && (
               <div className="absolute left-0 mt-1 w-56 rounded-[var(--radius-md)] border border-[var(--border)] bg-[var(--surface-elevated)]/95 backdrop-blur-md shadow-lg py-1.5 z-40 max-h-72 overflow-y-auto">
-                <div 
-                  className="px-3 py-1.5 flex items-center gap-2 cursor-pointer hover:bg-[var(--border-subtle)] transition-colors select-none text-[11px] font-bold text-[var(--foreground)]" 
+                <div
+                  className="px-3 py-1.5 flex items-center gap-2 cursor-pointer hover:bg-[var(--border-subtle)] transition-colors select-none text-[11px] font-bold text-[var(--foreground)]"
                   onClick={() => handleToggleAllTariffs(['NO_TARIFF', ...tariffOptions])}
                 >
                   <input
@@ -1503,16 +1502,16 @@ export function StudentDashboardClient() {
                 {selectedLevels.length === 0
                   ? 'All Levels'
                   : selectedLevels.length === (levelOptions.length + 2)
-                  ? 'All Levels'
-                  : selectedLevels.length + ' Selected'}
+                    ? 'All Levels'
+                    : selectedLevels.length + ' Selected'}
               </span>
               <ChevronDown className="absolute right-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-[var(--foreground-subtle)] pointer-events-none" />
             </button>
 
             {isLevelDropdownOpen && (
               <div className="absolute left-0 mt-1 w-56 rounded-[var(--radius-md)] border border-[var(--border)] bg-[var(--surface-elevated)]/95 backdrop-blur-md shadow-lg py-1.5 z-40 max-h-72 overflow-y-auto">
-                <div 
-                  className="px-3 py-1.5 flex items-center gap-2 cursor-pointer hover:bg-[var(--border-subtle)] transition-colors select-none text-[11px] font-bold text-[var(--foreground)]" 
+                <div
+                  className="px-3 py-1.5 flex items-center gap-2 cursor-pointer hover:bg-[var(--border-subtle)] transition-colors select-none text-[11px] font-bold text-[var(--foreground)]"
                   onClick={() => handleToggleAllLevels(['NO_LEVEL', 'DELETED', ...levelOptions])}
                 >
                   <input
@@ -1591,16 +1590,16 @@ export function StudentDashboardClient() {
                 {selectedGroups.length === 0
                   ? 'All Groups'
                   : selectedGroups.length === (uniqueGroups.length + 1)
-                  ? 'All Groups'
-                  : selectedGroups.map(g => g === 'NO_GROUP' ? 'No Group' : g).join(', ')}
+                    ? 'All Groups'
+                    : selectedGroups.map(g => g === 'NO_GROUP' ? 'No Group' : g).join(', ')}
               </span>
               <ChevronDown className="absolute right-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-[var(--foreground-subtle)] pointer-events-none" />
             </button>
 
             {isGroupDropdownOpen && (
               <div className="absolute left-0 mt-1 w-56 rounded-[var(--radius-md)] border border-[var(--border)] bg-[var(--surface-elevated)]/95 backdrop-blur-md shadow-lg py-1.5 z-40 max-h-72 overflow-y-auto">
-                <div 
-                  className="px-3 py-1.5 flex items-center gap-2 cursor-pointer hover:bg-[var(--border-subtle)] transition-colors select-none text-[11px] font-bold text-[var(--foreground)]" 
+                <div
+                  className="px-3 py-1.5 flex items-center gap-2 cursor-pointer hover:bg-[var(--border-subtle)] transition-colors select-none text-[11px] font-bold text-[var(--foreground)]"
                   onClick={() => handleToggleAllGroups(['NO_GROUP', ...uniqueGroups])}
                 >
                   <input
@@ -1666,16 +1665,16 @@ export function StudentDashboardClient() {
                 {selectedCerts.length === 0
                   ? 'All Certificates'
                   : selectedCerts.length === certOptions.length
-                  ? 'All Certificates'
-                  : selectedCerts.join(', ')}
+                    ? 'All Certificates'
+                    : selectedCerts.join(', ')}
               </span>
               <ChevronDown className="absolute right-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-[var(--foreground-subtle)] pointer-events-none" />
             </button>
 
             {isCertDropdownOpen && (
               <div className="absolute left-0 mt-1 w-56 rounded-[var(--radius-md)] border border-[var(--border)] bg-[var(--surface-elevated)]/95 backdrop-blur-md shadow-lg py-1.5 z-40 max-h-72 overflow-y-auto">
-                <div 
-                  className="px-3 py-1.5 flex items-center gap-2 cursor-pointer hover:bg-[var(--border-subtle)] transition-colors select-none text-[11px] font-bold text-[var(--foreground)]" 
+                <div
+                  className="px-3 py-1.5 flex items-center gap-2 cursor-pointer hover:bg-[var(--border-subtle)] transition-colors select-none text-[11px] font-bold text-[var(--foreground)]"
                   onClick={handleToggleAllCerts}
                 >
                   <input
@@ -1725,16 +1724,16 @@ export function StudentDashboardClient() {
                   {selectedScores.length === 0
                     ? 'All Scores'
                     : selectedScores.length === scoreOptions.length
-                    ? 'All Scores'
-                    : selectedScores.map(getScoreLabel).join(', ')}
+                      ? 'All Scores'
+                      : selectedScores.map(getScoreLabel).join(', ')}
                 </span>
                 <ChevronDown className="absolute right-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-[var(--foreground-subtle)] pointer-events-none" />
               </button>
 
               {isScoreDropdownOpen && (
                 <div className="absolute left-0 mt-1 w-56 rounded-[var(--radius-md)] border border-[var(--border)] bg-[var(--surface-elevated)]/95 backdrop-blur-md shadow-lg py-1.5 z-40 max-h-72 overflow-y-auto">
-                  <div 
-                    className="px-3 py-1.5 flex items-center gap-2 cursor-pointer hover:bg-[var(--border-subtle)] transition-colors select-none text-[11px] font-bold text-[var(--foreground)]" 
+                  <div
+                    className="px-3 py-1.5 flex items-center gap-2 cursor-pointer hover:bg-[var(--border-subtle)] transition-colors select-none text-[11px] font-bold text-[var(--foreground)]"
                     onClick={handleToggleAllScores}
                   >
                     <input
@@ -1789,16 +1788,16 @@ export function StudentDashboardClient() {
                 {selectedTags.length === 0
                   ? 'All Tasks/Tags'
                   : selectedTags.length === (['Call', 'Apply', 'Documents', 'Payment', 'Custom', ...uniqueTags.filter(t => !['Call', 'Apply', 'Documents', 'Payment'].includes(t))].length)
-                  ? 'All Tasks/Tags'
-                  : selectedTags.join(', ')}
+                    ? 'All Tasks/Tags'
+                    : selectedTags.join(', ')}
               </span>
               <ChevronDown className="absolute right-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-[var(--foreground-subtle)] pointer-events-none" />
             </button>
 
             {isTagDropdownOpen && (
               <div className="absolute left-0 mt-1 w-56 rounded-[var(--radius-md)] border border-[var(--border)] bg-[var(--surface-elevated)]/95 backdrop-blur-md shadow-lg py-1.5 z-40 max-h-72 overflow-y-auto">
-                <div 
-                  className="px-3 py-1.5 flex items-center gap-2 cursor-pointer hover:bg-[var(--border-subtle)] transition-colors select-none text-[11px] font-bold text-[var(--foreground)]" 
+                <div
+                  className="px-3 py-1.5 flex items-center gap-2 cursor-pointer hover:bg-[var(--border-subtle)] transition-colors select-none text-[11px] font-bold text-[var(--foreground)]"
                   onClick={() => handleToggleAllTags(['Call', 'Apply', 'Documents', 'Payment', 'Custom', ...uniqueTags.filter(t => !['Call', 'Apply', 'Documents', 'Payment'].includes(t))])}
                 >
                   <input
@@ -1852,16 +1851,16 @@ export function StudentDashboardClient() {
                 {selectedLeads.length === 0
                   ? 'All Lead By'
                   : selectedLeads.length === (uniqueLeadBys.length + 1)
-                  ? 'All Lead By'
-                  : selectedLeads.map(l => l === 'NO_LEADBY' ? 'No Lead by' : l).join(', ')}
+                    ? 'All Lead By'
+                    : selectedLeads.map(l => l === 'NO_LEADBY' ? 'No Lead by' : l).join(', ')}
               </span>
               <ChevronDown className="absolute right-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-[var(--foreground-subtle)] pointer-events-none" />
             </button>
 
             {isLeadDropdownOpen && (
               <div className="absolute left-0 mt-1 w-56 rounded-[var(--radius-md)] border border-[var(--border)] bg-[var(--surface-elevated)]/95 backdrop-blur-md shadow-lg py-1.5 z-40 max-h-72 overflow-y-auto">
-                <div 
-                  className="px-3 py-1.5 flex items-center gap-2 cursor-pointer hover:bg-[var(--border-subtle)] transition-colors select-none text-[11px] font-bold text-[var(--foreground)]" 
+                <div
+                  className="px-3 py-1.5 flex items-center gap-2 cursor-pointer hover:bg-[var(--border-subtle)] transition-colors select-none text-[11px] font-bold text-[var(--foreground)]"
                   onClick={() => handleToggleAllLeads(['NO_LEADBY', ...uniqueLeadBys])}
                 >
                   <input
@@ -2023,7 +2022,7 @@ export function StudentDashboardClient() {
               </colgroup>
               <thead>
                 <tr className="border-b border-[var(--border)] bg-[var(--surface-elevated)] text-[11px] font-bold uppercase tracking-wider text-[var(--foreground-muted)] dark:text-[var(--foreground)] select-none">
-                  <th 
+                  <th
                     className="px-1 py-3.5 cursor-pointer select-none hover:bg-[var(--surface-elevated)] transition-colors rounded-tl-[var(--radius-lg)]"
                     onClick={() => setSortOrder(prev => prev === 'asc' ? 'desc' : 'asc')}
                   >
@@ -2049,7 +2048,7 @@ export function StudentDashboardClient() {
                   return (
                     <tr
                       key={student.id}
-                      onClick={() => router.push(`/students/${student.id}`)}
+                      onClick={() => window.open(`/students/${student.id}`, '_blank')}
                       className={`cursor-pointer transition-colors text-sm text-[var(--foreground)] ${bgObj.className}`}
                       style={bgObj.style}
                     >
@@ -2134,7 +2133,7 @@ export function StudentDashboardClient() {
                       <td className="px-6 py-3.5" onClick={(e) => e.stopPropagation()}>
                         <div className="flex items-center justify-start gap-3 select-none whitespace-nowrap flex-nowrap">
                           {/* Color Ball Wrapper */}
-                          <div 
+                          <div
                             className="flex items-center justify-center w-6.5 h-6.5 rounded-full border cursor-pointer hover:scale-105 active:scale-95 transition-all shadow-sm relative bg-[var(--surface-elevated)]"
                             style={{
                               borderColor: student.row_color ? ROW_COLOR_MAP[student.row_color.toUpperCase()]?.ball : 'var(--border)',
@@ -2144,7 +2143,7 @@ export function StudentDashboardClient() {
                               setPopoverAnchor({ studentId: student.id, rect })
                             }}
                           >
-                            <div 
+                            <div
                               className="w-3.5 h-3.5 rounded-full transition-all"
                               style={{
                                 backgroundColor: student.row_color ? ROW_COLOR_MAP[student.row_color.toUpperCase()]?.ball : 'transparent',
@@ -2158,8 +2157,8 @@ export function StudentDashboardClient() {
                             {(student.task_tags || []).map((tag, tagIdx) => {
                               const icon = getCustomTagIcon(tag)
                               return (
-                                <span 
-                                  key={tagIdx} 
+                                <span
+                                  key={tagIdx}
                                   className="inline-flex items-center justify-center w-6.5 h-6.5 text-[13px] bg-[var(--surface-elevated)] border border-[var(--border)] rounded-[6px] shadow-sm relative cursor-pointer select-none"
                                   title={tag}
                                   onClick={(e) => {
@@ -2201,7 +2200,7 @@ export function StudentDashboardClient() {
               </tbody>
             </table>
           </div>
-          
+
           {/* Pagination Controls */}
           {totalPages > 1 && (
             <div className="flex items-center justify-between border-t border-[var(--border)] bg-[var(--background)] px-6 py-4 select-none">
@@ -2221,11 +2220,10 @@ export function StudentDashboardClient() {
                   <button
                     key={pageNum}
                     onClick={() => setCurrentPage(pageNum)}
-                    className={`inline-flex h-8 w-8 items-center justify-center rounded-[var(--radius-md)] text-xs font-semibold border transition-all cursor-pointer ${
-                      currentPage === pageNum
+                    className={`inline-flex h-8 w-8 items-center justify-center rounded-[var(--radius-md)] text-xs font-semibold border transition-all cursor-pointer ${currentPage === pageNum
                         ? 'bg-[var(--accent)] border-[var(--accent)] text-white shadow-sm'
                         : 'border-[var(--border)] bg-[var(--surface)] text-[var(--foreground-muted)] hover:text-[var(--foreground)] hover:bg-[var(--surface-elevated)]'
-                    }`}
+                      }`}
                   >
                     {pageNum}
                   </button>
@@ -2448,9 +2446,8 @@ export function StudentDashboardClient() {
                           <button
                             key={name}
                             onClick={() => handleUpdateColor(student.id, name)}
-                            className={`relative w-8 h-8 rounded-full cursor-pointer transition-all duration-150 flex items-center justify-center ${
-                              isActive ? 'scale-105' : 'hover:scale-110'
-                            }`}
+                            className={`relative w-8 h-8 rounded-full cursor-pointer transition-all duration-150 flex items-center justify-center ${isActive ? 'scale-105' : 'hover:scale-110'
+                              }`}
                             style={{
                               backgroundColor: data.ball,
                               boxShadow: isActive ? `0 0 0 2px var(--surface-elevated), 0 0 0 4px ${data.ball}` : undefined
@@ -2492,11 +2489,10 @@ export function StudentDashboardClient() {
                           <button
                             key={task.name}
                             onClick={() => handleToggleTag(student.id, task.name)}
-                            className={`flex flex-col items-center justify-center gap-1.5 py-3 rounded-[var(--radius-md)] border text-[11px] font-semibold cursor-pointer transition-all hover:-translate-y-0.5 hover:shadow-[var(--shadow-sm)] ${
-                              isActive
+                            className={`flex flex-col items-center justify-center gap-1.5 py-3 rounded-[var(--radius-md)] border text-[11px] font-semibold cursor-pointer transition-all hover:-translate-y-0.5 hover:shadow-[var(--shadow-sm)] ${isActive
                                 ? 'border-[var(--accent)] bg-[var(--accent-subtle)] text-[var(--accent)]'
                                 : 'border-[var(--border)] bg-[var(--surface)] text-[var(--foreground)] hover:bg-[var(--border-subtle)]'
-                            }`}
+                              }`}
                           >
                             <Icon className="h-4.5 w-4.5" />
                             <span>{task.name}</span>
@@ -2528,11 +2524,10 @@ export function StudentDashboardClient() {
                             <button
                               key={tag.name}
                               onClick={() => handleToggleTag(student.id, tag.name)}
-                              className={`flex items-center gap-2 pl-3 pr-3 py-2 rounded-[var(--radius-md)] border text-[12.5px] font-semibold transition-all text-left w-full cursor-pointer ${
-                                isActive
+                              className={`flex items-center gap-2 pl-3 pr-3 py-2 rounded-[var(--radius-md)] border text-[12.5px] font-semibold transition-all text-left w-full cursor-pointer ${isActive
                                   ? 'border-[var(--accent)] bg-[var(--accent-subtle)] text-[var(--accent)]'
                                   : 'border-[var(--border)] bg-[var(--surface)] text-[var(--foreground)] hover:bg-[var(--border-subtle)]'
-                              }`}
+                                }`}
                               title={isActive ? 'Click to remove from this student' : 'Click to apply to this student'}
                             >
                               <span className="leading-none text-base shrink-0">{tag.icon}</span>
@@ -2831,8 +2826,8 @@ export function StudentDashboardClient() {
                                 {(student.task_tags || []).map((tag, tagIdx) => {
                                   const icon = getCustomTagIcon(tag)
                                   return (
-                                    <span 
-                                      key={tagIdx} 
+                                    <span
+                                      key={tagIdx}
                                       className="inline-flex items-center justify-center w-5.5 h-5.5 text-[11px] bg-[var(--surface-elevated)] border border-[var(--border)] rounded shadow-sm"
                                       title={tag}
                                     >
@@ -2862,22 +2857,20 @@ export function StudentDashboardClient() {
                     <button
                       type="button"
                       onClick={() => setExcelExportMode('full')}
-                      className={`px-4 py-1.5 rounded-[calc(var(--radius-md)-2px)] text-[11px] font-bold uppercase tracking-wider transition-all cursor-pointer select-none ${
-                        excelExportMode === 'full'
+                      className={`px-4 py-1.5 rounded-[calc(var(--radius-md)-2px)] text-[11px] font-bold uppercase tracking-wider transition-all cursor-pointer select-none ${excelExportMode === 'full'
                           ? 'bg-emerald-600 text-white shadow-sm'
                           : 'text-[var(--foreground-muted)] hover:text-[var(--foreground)] hover:bg-[var(--border-subtle)]'
-                      }`}
+                        }`}
                     >
                       Full
                     </button>
                     <button
                       type="button"
                       onClick={() => setExcelExportMode('partial')}
-                      className={`px-4 py-1.5 rounded-[calc(var(--radius-md)-2px)] text-[11px] font-bold uppercase tracking-wider transition-all cursor-pointer select-none ${
-                        excelExportMode === 'partial'
+                      className={`px-4 py-1.5 rounded-[calc(var(--radius-md)-2px)] text-[11px] font-bold uppercase tracking-wider transition-all cursor-pointer select-none ${excelExportMode === 'partial'
                           ? 'bg-emerald-600 text-white shadow-sm'
                           : 'text-[var(--foreground-muted)] hover:text-[var(--foreground)] hover:bg-[var(--border-subtle)]'
-                      }`}
+                        }`}
                     >
                       Partial
                     </button>
