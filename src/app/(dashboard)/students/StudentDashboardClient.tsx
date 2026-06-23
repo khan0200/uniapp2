@@ -2516,7 +2516,7 @@ export function StudentDashboardClient() {
                       </div>
                     </div>
 
-                    <div className="flex flex-col gap-1.5 mb-2 max-h-56 overflow-y-auto pr-1">
+                    <div className="grid grid-cols-2 gap-2 mb-2 max-h-56 overflow-y-auto pr-1">
                       {customTagsRegistry.length === 0 ? (
                         <div className="text-[11px] text-[var(--foreground-subtle)] italic py-1">
                           No custom tags yet.
