@@ -286,18 +286,65 @@ export function StudentDashboardClient() {
   const [isExcelModalOpen, setIsExcelModalOpen] = useState(false)
   const [excelSearchQuery, setExcelSearchQuery] = useState('')
   const [excelSearchType, setExcelSearchType] = useState<'all' | 'id' | 'name' | 'phone' | 'university'>('all')
-  const [excelTariffFilter, setExcelTariffFilter] = useState<string>('ALL')
-  const [excelLevelFilter, setExcelLevelFilter] = useState<string>('ALL')
-  const [excelGroupFilter, setExcelGroupFilter] = useState<string>('ALL')
-  const [excelCertFilter, setExcelCertFilter] = useState<string>('ALL')
-  const [excelTagFilter, setExcelTagFilter] = useState<string>('ALL')
+  const [excelSelectedTariffs, setExcelSelectedTariffs] = useState<string[]>([])
+  const [excelSelectedLevels, setExcelSelectedLevels] = useState<string[]>([])
+  const [excelSelectedGroups, setExcelSelectedGroups] = useState<string[]>([])
+  const [excelSelectedCerts, setExcelSelectedCerts] = useState<string[]>([])
+  const [excelSelectedScores, setExcelSelectedScores] = useState<string[]>([])
+  const [excelSelectedTags, setExcelSelectedTags] = useState<string[]>([])
+  const [excelSelectedLeads, setExcelSelectedLeads] = useState<string[]>([])
+
+  // Toggle states for excel filter dropdowns
+  const [isExcelTariffDropdownOpen, setIsExcelTariffDropdownOpen] = useState(false)
+  const [isExcelLevelDropdownOpen, setIsExcelLevelDropdownOpen] = useState(false)
+  const [isExcelGroupDropdownOpen, setIsExcelGroupDropdownOpen] = useState(false)
+  const [isExcelCertDropdownOpen, setIsExcelCertDropdownOpen] = useState(false)
+  const [isExcelScoreDropdownOpen, setIsExcelScoreDropdownOpen] = useState(false)
+  const [isExcelTagDropdownOpen, setIsExcelTagDropdownOpen] = useState(false)
+  const [isExcelLeadDropdownOpen, setIsExcelLeadDropdownOpen] = useState(false)
+
   const [selectedExcelIds, setSelectedExcelIds] = useState<string[]>([])
   const [excelExportMode, setExcelExportMode] = useState<'full' | 'partial'>('full')
 
-  const excelFilteredStudents = students.filter(student => {
-    if (student.is_deleted) return false
+  const showExcelScoreFilter = excelSelectedCerts.length === 1 && (excelSelectedCerts[0] === 'TOPIK' || excelSelectedCerts[0] === 'IELTS')
+  const excelActiveCertForScore = showExcelScoreFilter ? excelSelectedCerts[0] : null
+  const getExcelScoreOptions = () => {
+    if (excelActiveCertForScore === 'TOPIK') {
+      return ['EXPECTED', '1', '2', '3', '4', '5', '6']
+    }
+    if (excelActiveCertForScore === 'IELTS') {
+      return ['EXPECTED', '5.0', '5.5', '6.0', '6.5', '7.0', '7.5', '8.0', '8.5', '9.0']
+    }
+    return []
+  }
+  const excelScoreOptions = getExcelScoreOptions()
+  const getExcelScoreLabel = (score: string) => {
+    if (score === 'EXPECTED') return 'Expected'
+    if (excelActiveCertForScore === 'TOPIK') return `TOPIK ${score}`
+    if (excelActiveCertForScore === 'IELTS') return `IELTS ${score}`
+    return score
+  }
 
-    // Search query matching
+  const prevExcelActiveCertRef = useRef<string | null>(undefined as any)
+  useEffect(() => {
+    const prev = prevExcelActiveCertRef.current
+    prevExcelActiveCertRef.current = excelActiveCertForScore
+    if (prev === undefined) return
+    if (prev !== excelActiveCertForScore) {
+      setExcelSelectedScores([])
+    }
+  }, [excelActiveCertForScore])
+
+  const excelFilteredStudents = students.filter(student => {
+    // 1. Deleted Students handling
+    const showDeleted = excelSelectedLevels.includes('DELETED')
+    if (showDeleted) {
+      if (student.is_deleted !== true) return false
+    } else {
+      if (student.is_deleted === true) return false
+    }
+
+    // 2. Search query matching
     let matchesSearch = false
     if (!excelSearchQuery.trim()) {
       matchesSearch = true
@@ -324,63 +371,115 @@ export function StudentDashboardClient() {
     }
     if (!matchesSearch) return false
 
-    // Tariff filter
+    // 3. Tariff filter
     let matchesTariff = false
-    if (excelTariffFilter === 'ALL') {
+    if (excelSelectedTariffs.length === 0) {
       matchesTariff = true
-    } else if (excelTariffFilter === 'NO_TARIFF') {
-      matchesTariff = !student.tariff
     } else {
-      matchesTariff = student.tariff === excelTariffFilter as any
+      if (excelSelectedTariffs.includes('NO_TARIFF') && !student.tariff) {
+        matchesTariff = true
+      }
+      if (student.tariff && excelSelectedTariffs.includes(student.tariff)) {
+        matchesTariff = true
+      }
     }
     if (!matchesTariff) return false
 
-    // Level filter
+    // 4. Level filter (handling NO_LEVEL and DELETED)
+    const activeLevels = excelSelectedLevels.filter(l => l !== 'DELETED')
     let matchesLevel = false
-    if (excelLevelFilter === 'ALL') {
+    if (activeLevels.length === 0) {
       matchesLevel = true
-    } else if (excelLevelFilter === 'NO_LEVEL') {
-      matchesLevel = !student.level && !student.level2
     } else {
-      matchesLevel = student.level === excelLevelFilter as any || student.level2 === excelLevelFilter as any
+      if (activeLevels.includes('NO_LEVEL') && !student.level && !student.level2) {
+        matchesLevel = true
+      }
+      if (student.level && activeLevels.includes(student.level)) {
+        matchesLevel = true
+      }
+      if (student.level2 && activeLevels.includes(student.level2)) {
+        matchesLevel = true
+      }
     }
     if (!matchesLevel) return false
 
-    // Group filter
+    // 5. Group filter
     let matchesGroup = false
-    if (excelGroupFilter === 'ALL') {
+    if (excelSelectedGroups.length === 0) {
       matchesGroup = true
-    } else if (excelGroupFilter === 'NO_GROUP') {
-      matchesGroup = !student.student_group || student.student_group === ''
     } else {
-      matchesGroup = student.student_group === excelGroupFilter
+      if (excelSelectedGroups.includes('NO_GROUP') && !student.student_group) {
+        matchesGroup = true
+      }
+      if (student.student_group && excelSelectedGroups.includes(student.student_group)) {
+        matchesGroup = true
+      }
     }
     if (!matchesGroup) return false
 
-    // Certificate filter
-    let matchesCert = false
-    if (excelCertFilter === 'ALL') {
-      matchesCert = true
-    } else if (excelCertFilter === 'NO CERTIFICATE') {
-      matchesCert = !student.language_certificate || student.language_certificate === 'NO CERTIFICATE'
+    // 6. Language Certificate filter
+    let matchesCertificate = false
+    if (excelSelectedCerts.length === 0) {
+      matchesCertificate = true
     } else {
-      matchesCert = student.language_certificate === excelCertFilter ||
-        student.language_certificate_2 === excelCertFilter ||
-        student.language_certificate_3 === excelCertFilter
+      if (excelSelectedCerts.includes("NO CERTIFICATE")) {
+        const hasNoCert = !student.language_certificate || student.language_certificate === "NO CERTIFICATE"
+        if (hasNoCert) matchesCertificate = true
+      }
+      if (excelSelectedCerts.includes("EXPECTED")) {
+        const hasExpected = (student.certificate_score && student.certificate_score.toUpperCase() === "EXPECTED") ||
+          (student.certificate_score_2 && student.certificate_score_2.toUpperCase() === "EXPECTED") ||
+          (student.certificate_score_3 && student.certificate_score_3.toUpperCase() === "EXPECTED")
+        if (hasExpected) matchesCertificate = true
+      }
+      const hasAnySelected = [student.language_certificate, student.language_certificate_2, student.language_certificate_3]
+        .some(cert => cert && cert !== "NO CERTIFICATE" && excelSelectedCerts.includes(cert))
+      if (hasAnySelected) matchesCertificate = true
     }
-    if (!matchesCert) return false
 
-    // Tags filter
-    let matchesTag = false
-    if (excelTagFilter === 'ALL') {
-      matchesTag = true
-    } else if (excelTagFilter === 'Custom') {
-      const predefined = ['Call', 'Apply', 'Documents', 'Payment']
-      matchesTag = student.task_tags && student.task_tags.some(t => !predefined.includes(t))
-    } else {
-      matchesTag = student.task_tags && student.task_tags.includes(excelTagFilter)
+    // 6b. Score filter
+    if (matchesCertificate && excelSelectedScores.length > 0 && excelSelectedCerts.length === 1) {
+      const cert = excelSelectedCerts[0] || ""
+      const scores = [student.certificate_score, student.certificate_score_2, student.certificate_score_3]
+      const certs = [student.language_certificate, student.language_certificate_2, student.language_certificate_3]
+      matchesCertificate = certs.some((c, i) => {
+        if (!c || c === "NO CERTIFICATE") return false
+        if (c.toUpperCase() !== cert.toUpperCase()) return false
+        const score = (scores[i] || "").trim().toUpperCase()
+        return excelSelectedScores.some(f => f.toUpperCase() === score)
+      })
     }
-    return matchesTag
+    if (!matchesCertificate) return false
+
+    // 7. Tags filter
+    let matchesTag = false
+    if (excelSelectedTags.length === 0) {
+      matchesTag = true
+    } else {
+      matchesTag = excelSelectedTags.some(tag => {
+        if (tag === 'Custom') {
+          const predefined = ['Call', 'Apply', 'Documents', 'Payment']
+          return student.task_tags && student.task_tags.some(t => !predefined.includes(t))
+        } else {
+          return student.task_tags && student.task_tags.includes(tag)
+        }
+      })
+    }
+    if (!matchesTag) return false
+
+    // 8. Lead By filter
+    let matchesLeadBy = false
+    if (excelSelectedLeads.length === 0) {
+      matchesLeadBy = true
+    } else {
+      if (excelSelectedLeads.includes('NO_LEADBY') && !student.lead_by) {
+        matchesLeadBy = true
+      }
+      if (student.lead_by && excelSelectedLeads.includes(student.lead_by)) {
+        matchesLeadBy = true
+      }
+    }
+    return matchesLeadBy
   })
 
   const sortedExcelStudents = useMemo(() => {
@@ -769,6 +868,14 @@ export function StudentDashboardClient() {
   // Reset select checklist to empty ONLY when the modal transitions from closed to open (unchecked by default)
   useEffect(() => {
     if (isExcelModalOpen) {
+      setExcelSelectedTariffs(selectedTariffs)
+      setExcelSelectedLevels(selectedLevels)
+      setExcelSelectedGroups(selectedGroups)
+      setExcelSelectedCerts(selectedCerts)
+      setExcelSelectedScores(selectedScores)
+      setExcelSelectedTags(selectedTags)
+      setExcelSelectedLeads(selectedLeads)
+      setExcelSearchQuery(searchQuery)
       setSelectedExcelIds([])
     }
   }, [isExcelModalOpen])
@@ -1823,7 +1930,7 @@ export function StudentDashboardClient() {
                         readOnly
                         className="h-3.5 w-3.5 rounded border-[var(--border)] text-blue-600 focus:ring-blue-500 cursor-pointer"
                       />
-                      <span>{tag === 'Call' ? '📞 Call' : tag === 'Apply' ? '🎓 Apply' : tag === 'Documents' ? '📄 Documents' : tag === 'Payment' ? '💰 Payment' : tag}</span>
+                      <span>{getCustomTagIcon(tag)} {tag}</span>
                     </div>
                   )
                 })}
@@ -2603,16 +2710,33 @@ export function StudentDashboardClient() {
 
               {/* ── Search and Filter Controls Row ────────────────── */}
               <div className="mb-4 space-y-3 bg-[var(--surface)] border border-[var(--border)] rounded-[var(--radius-md)] p-4 shadow-inner">
-                {/* Search Bar Group */}
-                <div className="flex flex-col md:flex-row gap-3">
-                  <div className="w-full md:w-1/3">
+                {/* Click Away Overlay to dismiss open filter dropdowns inside modal */}
+                {(isExcelTariffDropdownOpen || isExcelLevelDropdownOpen || isExcelGroupDropdownOpen || isExcelCertDropdownOpen || isExcelScoreDropdownOpen || isExcelTagDropdownOpen || isExcelLeadDropdownOpen) && (
+                  <div
+                    className="fixed inset-0 z-30 bg-transparent cursor-default"
+                    onClick={() => {
+                      setIsExcelTariffDropdownOpen(false)
+                      setIsExcelLevelDropdownOpen(false)
+                      setIsExcelGroupDropdownOpen(false)
+                      setIsExcelCertDropdownOpen(false)
+                      setIsExcelScoreDropdownOpen(false)
+                      setIsExcelTagDropdownOpen(false)
+                      setIsExcelLeadDropdownOpen(false)
+                    }}
+                  />
+                )}
+
+                {/* First Row: Search Type, Search Query, Tariff */}
+                <div className="flex flex-col md:flex-row gap-3 items-end relative z-50">
+                  {/* Search Type (Small place) */}
+                  <div className="w-full md:w-36">
                     <label className="block text-[10px] font-bold uppercase tracking-wider text-[var(--foreground-muted)] mb-1">
                       Search Type
                     </label>
                     <select
                       value={excelSearchType}
                       onChange={(e) => setExcelSearchType(e.target.value as any)}
-                      className="w-full px-3 py-1.5 border border-[var(--border)] rounded-[var(--radius-sm)] bg-[var(--surface-elevated)] text-[var(--foreground)] focus:outline-none text-xs font-semibold"
+                      className="w-full h-[34px] px-3 py-1.5 border border-[var(--border)] rounded-[var(--radius-sm)] bg-[var(--surface-elevated)] text-[var(--foreground)] focus:outline-none text-xs font-semibold cursor-pointer"
                     >
                       <option value="all">All Fields</option>
                       <option value="id">ID</option>
@@ -2621,6 +2745,8 @@ export function StudentDashboardClient() {
                       <option value="university">University</option>
                     </select>
                   </div>
+
+                  {/* Search Query */}
                   <div className="flex-1">
                     <label className="block text-[10px] font-bold uppercase tracking-wider text-[var(--foreground-muted)] mb-1">
                       Search Query
@@ -2632,103 +2758,535 @@ export function StudentDashboardClient() {
                         placeholder="Search students..."
                         value={excelSearchQuery}
                         onChange={(e) => setExcelSearchQuery(e.target.value)}
-                        className="w-full pl-8 pr-3 py-1.5 border border-[var(--border)] rounded-[var(--radius-sm)] bg-[var(--surface-elevated)] text-[var(--foreground)] placeholder-[var(--foreground-subtle)] focus:outline-none text-xs font-medium"
+                        className="w-full h-[34px] pl-8 pr-3 py-1.5 border border-[var(--border)] rounded-[var(--radius-sm)] bg-[var(--surface-elevated)] text-[var(--foreground)] placeholder-[var(--foreground-subtle)] focus:outline-none text-xs font-medium"
                       />
                     </div>
                   </div>
-                </div>
 
-                {/* Filters Group */}
-                <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
                   {/* Tariff */}
-                  <div>
+                  <div className="w-full md:w-56 relative">
                     <label className="block text-[10px] font-bold uppercase tracking-wider text-[var(--foreground-muted)] mb-1">
                       Tariff
                     </label>
-                    <select
-                      value={excelTariffFilter}
-                      onChange={(e) => setExcelTariffFilter(e.target.value)}
-                      className="w-full px-2.5 py-1.5 border border-[var(--border)] rounded-[var(--radius-sm)] bg-[var(--surface-elevated)] text-[var(--foreground)] focus:outline-none text-xs font-semibold"
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setIsExcelTariffDropdownOpen(prev => !prev)
+                        setIsExcelLevelDropdownOpen(false)
+                        setIsExcelGroupDropdownOpen(false)
+                        setIsExcelCertDropdownOpen(false)
+                        setIsExcelScoreDropdownOpen(false)
+                        setIsExcelTagDropdownOpen(false)
+                        setIsExcelLeadDropdownOpen(false)
+                      }}
+                      className="w-full pl-9 pr-7 py-2 border border-[var(--border)] rounded-[var(--radius-sm)] bg-[var(--surface-elevated)] text-[var(--foreground)] focus:outline-none hover:border-blue-400 transition-all text-xs font-semibold cursor-pointer flex items-center justify-between text-left h-[34px] relative"
                     >
-                      <option value="ALL">All Tariffs</option>
-                      <option value="NO_TARIFF">No Tariff</option>
-                      {tariffOptions.map(opt => (
-                        <option key={opt} value={opt}>{opt}</option>
-                      ))}
-                    </select>
-                  </div>
+                      <Tag className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[var(--foreground-muted)] pointer-events-none" />
+                      <span className="truncate select-none pr-1">
+                        {excelSelectedTariffs.length === 0
+                          ? 'All Tariffs'
+                          : excelSelectedTariffs.length === (tariffOptions.length + 1)
+                            ? 'All Tariffs'
+                            : excelSelectedTariffs.map(t => t === 'NO_TARIFF' ? 'No Tariff' : t).join(', ')}
+                      </span>
+                      <ChevronDown className="absolute right-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-[var(--foreground-subtle)] pointer-events-none" />
+                    </button>
 
-                  {/* Level */}
-                  <div>
+                    {isExcelTariffDropdownOpen && (
+                      <div className="absolute left-0 mt-1 w-56 rounded-[var(--radius-md)] border border-[var(--border)] bg-[var(--surface-elevated)]/95 backdrop-blur-md shadow-lg py-1.5 z-40 max-h-72 overflow-y-auto">
+                        <div
+                          className="px-3 py-1.5 flex items-center gap-2 cursor-pointer hover:bg-[var(--border-subtle)] transition-colors select-none text-[11px] font-bold text-[var(--foreground)]"
+                          onClick={() => setExcelSelectedTariffs(prev => prev.length === (tariffOptions.length + 1) ? [] : ['NO_TARIFF', ...tariffOptions])}
+                        >
+                          <input
+                            type="checkbox"
+                            checked={excelSelectedTariffs.length === (tariffOptions.length + 1)}
+                            readOnly
+                            className="h-3.5 w-3.5 rounded border-[var(--border)] text-blue-600 focus:ring-blue-500 cursor-pointer"
+                          />
+                          <span>Select All</span>
+                        </div>
+                        <div className="h-px bg-[var(--border)] my-1" />
+                        <div
+                          onClick={() => setExcelSelectedTariffs(prev => prev.includes('NO_TARIFF') ? prev.filter(t => t !== 'NO_TARIFF') : [...prev, 'NO_TARIFF'])}
+                          className="px-3 py-1.5 flex items-center gap-2 cursor-pointer hover:bg-[var(--border-subtle)] transition-colors select-none text-[11px] font-medium text-[var(--foreground)]"
+                        >
+                          <input
+                            type="checkbox"
+                            checked={excelSelectedTariffs.includes('NO_TARIFF')}
+                            readOnly
+                            className="h-3.5 w-3.5 rounded border-[var(--border)] text-blue-600 focus:ring-blue-500 cursor-pointer"
+                          />
+                          <span>No Tariff</span>
+                        </div>
+                        {tariffOptions.map(opt => {
+                          const isChecked = excelSelectedTariffs.includes(opt)
+                          return (
+                            <div
+                              key={opt}
+                              onClick={() => setExcelSelectedTariffs(prev => prev.includes(opt) ? prev.filter(t => t !== opt) : [...prev, opt])}
+                              className="px-3 py-1.5 flex items-center gap-2 cursor-pointer hover:bg-[var(--border-subtle)] transition-colors select-none text-[11px] font-medium text-[var(--foreground)]"
+                            >
+                              <input
+                                type="checkbox"
+                                checked={isChecked}
+                                readOnly
+                                className="h-3.5 w-3.5 rounded border-[var(--border)] text-blue-600 focus:ring-blue-500 cursor-pointer"
+                              />
+                              <span>{opt}</span>
+                            </div>
+                          )
+                        })}
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                {/* Second Row: Level, Group, Certificate, (Score), Tags, Lead By */}
+                <div className={`grid grid-cols-2 sm:grid-cols-3 ${showExcelScoreFilter ? 'lg:grid-cols-6' : 'lg:grid-cols-5'} gap-3 w-full relative z-40`}>
+                  {/* Levels Filter */}
+                  <div className="relative">
                     <label className="block text-[10px] font-bold uppercase tracking-wider text-[var(--foreground-muted)] mb-1">
                       Level
                     </label>
-                    <select
-                      value={excelLevelFilter}
-                      onChange={(e) => setExcelLevelFilter(e.target.value)}
-                      className="w-full px-2.5 py-1.5 border border-[var(--border)] rounded-[var(--radius-sm)] bg-[var(--surface-elevated)] text-[var(--foreground)] focus:outline-none text-xs font-semibold"
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setIsExcelLevelDropdownOpen(prev => !prev)
+                        setIsExcelTariffDropdownOpen(false)
+                        setIsExcelGroupDropdownOpen(false)
+                        setIsExcelCertDropdownOpen(false)
+                        setIsExcelScoreDropdownOpen(false)
+                        setIsExcelTagDropdownOpen(false)
+                        setIsExcelLeadDropdownOpen(false)
+                      }}
+                      className="w-full pl-9 pr-7 py-2 border border-[var(--border)] rounded-[var(--radius-sm)] bg-[var(--surface-elevated)] text-[var(--foreground)] focus:outline-none hover:border-blue-400 transition-all text-xs font-semibold cursor-pointer flex items-center justify-between text-left h-[34px] relative"
                     >
-                      <option value="ALL">All Levels</option>
-                      <option value="NO_LEVEL">No Level</option>
-                      {levelOptions.map(opt => (
-                        <option key={opt} value={opt}>{opt}</option>
-                      ))}
-                    </select>
+                      <Layers className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[var(--foreground-muted)] pointer-events-none" />
+                      <span className="truncate select-none pr-1">
+                        {excelSelectedLevels.length === 0
+                          ? 'All Levels'
+                          : excelSelectedLevels.length === (levelOptions.length + 2)
+                            ? 'All Levels'
+                            : excelSelectedLevels.length + ' Selected'}
+                      </span>
+                      <ChevronDown className="absolute right-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-[var(--foreground-subtle)] pointer-events-none" />
+                    </button>
+
+                    {isExcelLevelDropdownOpen && (
+                      <div className="absolute left-0 mt-1 w-56 rounded-[var(--radius-md)] border border-[var(--border)] bg-[var(--surface-elevated)]/95 backdrop-blur-md shadow-lg py-1.5 z-40 max-h-72 overflow-y-auto">
+                        <div
+                          className="px-3 py-1.5 flex items-center gap-2 cursor-pointer hover:bg-[var(--border-subtle)] transition-colors select-none text-[11px] font-bold text-[var(--foreground)]"
+                          onClick={() => setExcelSelectedLevels(prev => prev.length === (levelOptions.length + 2) ? [] : ['NO_LEVEL', 'DELETED', ...levelOptions])}
+                        >
+                          <input
+                            type="checkbox"
+                            checked={excelSelectedLevels.length === (levelOptions.length + 2)}
+                            readOnly
+                            className="h-3.5 w-3.5 rounded border-[var(--border)] text-blue-600 focus:ring-blue-500 cursor-pointer"
+                          />
+                          <span>Select All</span>
+                        </div>
+                        <div className="h-px bg-[var(--border)] my-1" />
+                        <div
+                          onClick={() => setExcelSelectedLevels(prev => prev.includes('NO_LEVEL') ? prev.filter(l => l !== 'NO_LEVEL') : [...prev, 'NO_LEVEL'])}
+                          className="px-3 py-1.5 flex items-center gap-2 cursor-pointer hover:bg-[var(--border-subtle)] transition-colors select-none text-[11px] font-medium text-[var(--foreground)]"
+                        >
+                          <input
+                            type="checkbox"
+                            checked={excelSelectedLevels.includes('NO_LEVEL')}
+                            readOnly
+                            className="h-3.5 w-3.5 rounded border-[var(--border)] text-blue-600 focus:ring-blue-500 cursor-pointer"
+                          />
+                          <span>No Level</span>
+                        </div>
+                        {levelOptions.map(opt => {
+                          const isChecked = excelSelectedLevels.includes(opt)
+                          return (
+                            <div
+                              key={opt}
+                              onClick={() => setExcelSelectedLevels(prev => prev.includes(opt) ? prev.filter(l => l !== opt) : [...prev, opt])}
+                              className="px-3 py-1.5 flex items-center gap-2 cursor-pointer hover:bg-[var(--border-subtle)] transition-colors select-none text-[11px] font-medium text-[var(--foreground)]"
+                            >
+                              <input
+                                type="checkbox"
+                                checked={isChecked}
+                                readOnly
+                                className="h-3.5 w-3.5 rounded border-[var(--border)] text-blue-600 focus:ring-blue-500 cursor-pointer"
+                              />
+                              <span>{opt}</span>
+                            </div>
+                          )
+                        })}
+                        <div className="h-px bg-[var(--border)] my-1" />
+                        <div
+                          onClick={() => setExcelSelectedLevels(prev => prev.includes('DELETED') ? prev.filter(l => l !== 'DELETED') : [...prev, 'DELETED'])}
+                          className="px-3 py-1.5 flex items-center gap-2 cursor-pointer hover:bg-rose-500/10 dark:hover:bg-rose-950/20 transition-colors select-none text-[11px] font-bold text-rose-600 dark:text-rose-400"
+                        >
+                          <input
+                            type="checkbox"
+                            checked={excelSelectedLevels.includes('DELETED')}
+                            readOnly
+                            className="h-3.5 w-3.5 rounded border-rose-300 dark:border-rose-900 text-rose-600 focus:ring-rose-500 cursor-pointer"
+                          />
+                          <span>Deleted students</span>
+                        </div>
+                      </div>
+                    )}
                   </div>
 
-                  {/* Group */}
-                  <div>
+                  {/* Groups Filter */}
+                  <div className="relative">
                     <label className="block text-[10px] font-bold uppercase tracking-wider text-[var(--foreground-muted)] mb-1">
                       Group
                     </label>
-                    <select
-                      value={excelGroupFilter}
-                      onChange={(e) => setExcelGroupFilter(e.target.value)}
-                      className="w-full px-2.5 py-1.5 border border-[var(--border)] rounded-[var(--radius-sm)] bg-[var(--surface-elevated)] text-[var(--foreground)] focus:outline-none text-xs font-semibold"
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setIsExcelGroupDropdownOpen(prev => !prev)
+                        setIsExcelTariffDropdownOpen(false)
+                        setIsExcelLevelDropdownOpen(false)
+                        setIsExcelCertDropdownOpen(false)
+                        setIsExcelScoreDropdownOpen(false)
+                        setIsExcelTagDropdownOpen(false)
+                        setIsExcelLeadDropdownOpen(false)
+                      }}
+                      className="w-full pl-9 pr-7 py-2 border border-[var(--border)] rounded-[var(--radius-sm)] bg-[var(--surface-elevated)] text-[var(--foreground)] focus:outline-none hover:border-blue-400 transition-all text-xs font-semibold cursor-pointer flex items-center justify-between text-left h-[34px] relative"
                     >
-                      <option value="ALL">All Groups</option>
-                      <option value="NO_GROUP">No Group</option>
-                      {groupOptions.map(opt => (
-                        <option key={opt} value={opt}>{opt}</option>
-                      ))}
-                    </select>
+                      <Users className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[var(--foreground-muted)] pointer-events-none" />
+                      <span className="truncate select-none pr-1">
+                        {excelSelectedGroups.length === 0
+                          ? 'All Groups'
+                          : excelSelectedGroups.length === (uniqueGroups.length + 1)
+                            ? 'All Groups'
+                            : excelSelectedGroups.map(g => g === 'NO_GROUP' ? 'No Group' : g).join(', ')}
+                      </span>
+                      <ChevronDown className="absolute right-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-[var(--foreground-subtle)] pointer-events-none" />
+                    </button>
+
+                    {isExcelGroupDropdownOpen && (
+                      <div className="absolute left-0 mt-1 w-56 rounded-[var(--radius-md)] border border-[var(--border)] bg-[var(--surface-elevated)]/95 backdrop-blur-md shadow-lg py-1.5 z-40 max-h-72 overflow-y-auto">
+                        <div
+                          className="px-3 py-1.5 flex items-center gap-2 cursor-pointer hover:bg-[var(--border-subtle)] transition-colors select-none text-[11px] font-bold text-[var(--foreground)]"
+                          onClick={() => setExcelSelectedGroups(prev => prev.length === (uniqueGroups.length + 1) ? [] : ['NO_GROUP', ...uniqueGroups])}
+                        >
+                          <input
+                            type="checkbox"
+                            checked={excelSelectedGroups.length === (uniqueGroups.length + 1)}
+                            readOnly
+                            className="h-3.5 w-3.5 rounded border-[var(--border)] text-blue-600 focus:ring-blue-500 cursor-pointer"
+                          />
+                          <span>Select All</span>
+                        </div>
+                        <div className="h-px bg-[var(--border)] my-1" />
+                        <div
+                          onClick={() => setExcelSelectedGroups(prev => prev.includes('NO_GROUP') ? prev.filter(g => g !== 'NO_GROUP') : [...prev, 'NO_GROUP'])}
+                          className="px-3 py-1.5 flex items-center gap-2 cursor-pointer hover:bg-[var(--border-subtle)] transition-colors select-none text-[11px] font-medium text-[var(--foreground)]"
+                        >
+                          <input
+                            type="checkbox"
+                            checked={excelSelectedGroups.includes('NO_GROUP')}
+                            readOnly
+                            className="h-3.5 w-3.5 rounded border-[var(--border)] text-blue-600 focus:ring-blue-500 cursor-pointer"
+                          />
+                          <span>No Group</span>
+                        </div>
+                        {uniqueGroups.map(grp => {
+                          const isChecked = excelSelectedGroups.includes(grp)
+                          return (
+                            <div
+                              key={grp}
+                              onClick={() => setExcelSelectedGroups(prev => prev.includes(grp) ? prev.filter(g => g !== grp) : [...prev, grp])}
+                              className="px-3 py-1.5 flex items-center gap-2 cursor-pointer hover:bg-[var(--border-subtle)] transition-colors select-none text-[11px] font-medium text-[var(--foreground)]"
+                            >
+                              <input
+                                type="checkbox"
+                                checked={isChecked}
+                                readOnly
+                                className="h-3.5 w-3.5 rounded border-[var(--border)] text-blue-600 focus:ring-blue-500 cursor-pointer"
+                              />
+                              <span>{grp}</span>
+                            </div>
+                          )
+                        })}
+                      </div>
+                    )}
                   </div>
 
-                  {/* Certificate */}
-                  <div>
+                  {/* Certificates Filter */}
+                  <div className="relative">
                     <label className="block text-[10px] font-bold uppercase tracking-wider text-[var(--foreground-muted)] mb-1">
                       Certificate
                     </label>
-                    <select
-                      value={excelCertFilter}
-                      onChange={(e) => setExcelCertFilter(e.target.value)}
-                      className="w-full px-2.5 py-1.5 border border-[var(--border)] rounded-[var(--radius-sm)] bg-[var(--surface-elevated)] text-[var(--foreground)] focus:outline-none text-xs font-semibold"
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setIsExcelCertDropdownOpen(prev => !prev)
+                        setIsExcelScoreDropdownOpen(false)
+                        setIsExcelTariffDropdownOpen(false)
+                        setIsExcelLevelDropdownOpen(false)
+                        setIsExcelGroupDropdownOpen(false)
+                        setIsExcelTagDropdownOpen(false)
+                        setIsExcelLeadDropdownOpen(false)
+                      }}
+                      className="w-full pl-9 pr-7 py-2 border border-[var(--border)] rounded-[var(--radius-sm)] bg-[var(--surface-elevated)] text-[var(--foreground)] focus:outline-none hover:border-blue-400 transition-all text-xs font-semibold cursor-pointer flex items-center justify-between text-left h-[34px] relative"
                     >
-                      <option value="ALL">All Certificates</option>
-                      <option value="NO CERTIFICATE">NO CERTIFICATE</option>
-                      {certOptions.map(opt => (
-                        <option key={opt} value={opt}>{opt}</option>
-                      ))}
-                    </select>
+                      <Award className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[var(--foreground-muted)] pointer-events-none" />
+                      <span className="truncate select-none pr-1">
+                        {excelSelectedCerts.length === 0
+                          ? 'All Certificates'
+                          : excelSelectedCerts.length === certOptions.length
+                            ? 'All Certificates'
+                            : excelSelectedCerts.join(', ')}
+                      </span>
+                      <ChevronDown className="absolute right-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-[var(--foreground-subtle)] pointer-events-none" />
+                    </button>
+
+                    {isExcelCertDropdownOpen && (
+                      <div className="absolute left-0 mt-1 w-56 rounded-[var(--radius-md)] border border-[var(--border)] bg-[var(--surface-elevated)]/95 backdrop-blur-md shadow-lg py-1.5 z-40 max-h-72 overflow-y-auto">
+                        <div
+                          className="px-3 py-1.5 flex items-center gap-2 cursor-pointer hover:bg-[var(--border-subtle)] transition-colors select-none text-[11px] font-bold text-[var(--foreground)]"
+                          onClick={() => setExcelSelectedCerts(prev => prev.length === certOptions.length ? [] : [...certOptions])}
+                        >
+                          <input
+                            type="checkbox"
+                            checked={excelSelectedCerts.length === certOptions.length}
+                            readOnly
+                            className="h-3.5 w-3.5 rounded border-[var(--border)] text-blue-600 focus:ring-blue-500 cursor-pointer"
+                          />
+                          <span>Select All</span>
+                        </div>
+                        <div className="h-px bg-[var(--border)] my-1" />
+                        {certOptions.map(cert => {
+                          const isChecked = excelSelectedCerts.includes(cert)
+                          return (
+                            <div
+                              key={cert}
+                              onClick={() => setExcelSelectedCerts(prev => prev.includes(cert) ? prev.filter(c => c !== cert) : [...prev, cert])}
+                              className="px-3 py-1.5 flex items-center gap-2 cursor-pointer hover:bg-[var(--border-subtle)] transition-colors select-none text-[11px] font-medium text-[var(--foreground)]"
+                            >
+                              <input
+                                type="checkbox"
+                                checked={isChecked}
+                                readOnly
+                                className="h-3.5 w-3.5 rounded border-[var(--border)] text-blue-600 focus:ring-blue-500 cursor-pointer"
+                              />
+                              <span>{cert}</span>
+                            </div>
+                          )
+                        })}
+                      </div>
+                    )}
                   </div>
 
-                  {/* Tags */}
-                  <div>
+                  {/* Dynamic Score Filter */}
+                  {showExcelScoreFilter && (
+                    <div className="relative animate-in fade-in zoom-in-95 duration-100">
+                      <label className="block text-[10px] font-bold uppercase tracking-wider text-[var(--foreground-muted)] mb-1">
+                        Score
+                      </label>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setIsExcelScoreDropdownOpen(prev => !prev)
+                          setIsExcelCertDropdownOpen(false)
+                        }}
+                        className="w-full pl-9 pr-7 py-2 border border-[var(--border)] rounded-[var(--radius-sm)] bg-[var(--surface-elevated)] text-[var(--foreground)] focus:outline-none hover:border-blue-400 transition-all text-xs font-semibold cursor-pointer flex items-center justify-between text-left h-[34px] relative"
+                      >
+                        <Hash className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[var(--foreground-muted)] pointer-events-none" />
+                        <span className="truncate select-none pr-1">
+                          {excelSelectedScores.length === 0
+                            ? 'All Scores'
+                            : excelSelectedScores.length === excelScoreOptions.length
+                              ? 'All Scores'
+                              : excelSelectedScores.map(getExcelScoreLabel).join(', ')}
+                        </span>
+                        <ChevronDown className="absolute right-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-[var(--foreground-subtle)] pointer-events-none" />
+                      </button>
+
+                      {isExcelScoreDropdownOpen && (
+                        <div className="absolute left-0 mt-1 w-56 rounded-[var(--radius-md)] border border-[var(--border)] bg-[var(--surface-elevated)]/95 backdrop-blur-md shadow-lg py-1.5 z-40 max-h-72 overflow-y-auto">
+                          <div
+                            className="px-3 py-1.5 flex items-center gap-2 cursor-pointer hover:bg-[var(--border-subtle)] transition-colors select-none text-[11px] font-bold text-[var(--foreground)]"
+                            onClick={() => setExcelSelectedScores(prev => prev.length === excelScoreOptions.length ? [] : [...excelScoreOptions])}
+                          >
+                            <input
+                              type="checkbox"
+                              checked={excelSelectedScores.length === excelScoreOptions.length}
+                              readOnly
+                              className="h-3.5 w-3.5 rounded border-[var(--border)] text-blue-600 focus:ring-blue-500 cursor-pointer"
+                            />
+                            <span>Select All</span>
+                          </div>
+                          <div className="h-px bg-[var(--border)] my-1" />
+                          {excelScoreOptions.map(score => {
+                            const isChecked = excelSelectedScores.includes(score)
+                            return (
+                              <div
+                                key={score}
+                                onClick={() => setExcelSelectedScores(prev => prev.includes(score) ? prev.filter(s => s !== score) : [...prev, score])}
+                                className="px-3 py-1.5 flex items-center gap-2 cursor-pointer hover:bg-[var(--border-subtle)] transition-colors select-none text-[11px] font-medium text-[var(--foreground)]"
+                              >
+                                <input
+                                  type="checkbox"
+                                  checked={isChecked}
+                                  readOnly
+                                  className="h-3.5 w-3.5 rounded border-[var(--border)] text-blue-600 focus:ring-blue-500 cursor-pointer"
+                                />
+                                <span>{getExcelScoreLabel(score)}</span>
+                              </div>
+                            )
+                          })}
+                        </div>
+                      )}
+                    </div>
+                  )}
+
+                  {/* Tags Filter */}
+                  <div className="relative">
                     <label className="block text-[10px] font-bold uppercase tracking-wider text-[var(--foreground-muted)] mb-1">
                       Tasks/Tags
                     </label>
-                    <select
-                      value={excelTagFilter}
-                      onChange={(e) => setExcelTagFilter(e.target.value)}
-                      className="w-full px-2.5 py-1.5 border border-[var(--border)] rounded-[var(--radius-sm)] bg-[var(--surface-elevated)] text-[var(--foreground)] focus:outline-none text-xs font-semibold"
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setIsExcelTagDropdownOpen(prev => !prev)
+                        setIsExcelTariffDropdownOpen(false)
+                        setIsExcelLevelDropdownOpen(false)
+                        setIsExcelGroupDropdownOpen(false)
+                        setIsExcelCertDropdownOpen(false)
+                        setIsExcelScoreDropdownOpen(false)
+                        setIsExcelLeadDropdownOpen(false)
+                      }}
+                      className="w-full pl-9 pr-7 py-2 border border-[var(--border)] rounded-[var(--radius-sm)] bg-[var(--surface-elevated)] text-[var(--foreground)] focus:outline-none hover:border-blue-400 transition-all text-xs font-semibold cursor-pointer flex items-center justify-between text-left h-[34px] relative"
                     >
-                      <option value="ALL">All Tasks/Tags</option>
-                      <option value="Call">📞 Call</option>
-                      <option value="Apply">🎓 Apply</option>
-                      <option value="Documents">📄 Documents</option>
-                      <option value="Payment">💰 Payment</option>
-                      <option value="Custom">Custom Tags</option>
-                    </select>
+                      <Bookmark className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[var(--foreground-muted)] pointer-events-none" />
+                      <span className="truncate select-none pr-1">
+                        {excelSelectedTags.length === 0
+                          ? 'All Tasks/Tags'
+                          : excelSelectedTags.length === (['Call', 'Apply', 'Documents', 'Payment', 'Custom', ...uniqueTags.filter(t => !['Call', 'Apply', 'Documents', 'Payment'].includes(t))].length)
+                            ? 'All Tasks/Tags'
+                            : excelSelectedTags.join(', ')}
+                      </span>
+                      <ChevronDown className="absolute right-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-[var(--foreground-subtle)] pointer-events-none" />
+                    </button>
+
+                    {isExcelTagDropdownOpen && (
+                      <div className="absolute left-0 mt-1 w-56 rounded-[var(--radius-md)] border border-[var(--border)] bg-[var(--surface-elevated)]/95 backdrop-blur-md shadow-lg py-1.5 z-40 max-h-72 overflow-y-auto">
+                        <div
+                          className="px-3 py-1.5 flex items-center gap-2 cursor-pointer hover:bg-[var(--border-subtle)] transition-colors select-none text-[11px] font-bold text-[var(--foreground)]"
+                          onClick={() => setExcelSelectedTags(prev => {
+                            const allOpts = ['Call', 'Apply', 'Documents', 'Payment', 'Custom', ...uniqueTags.filter(t => !['Call', 'Apply', 'Documents', 'Payment'].includes(t))]
+                            return prev.length === allOpts.length ? [] : [...allOpts]
+                          })}
+                        >
+                          <input
+                            type="checkbox"
+                            checked={excelSelectedTags.length === (['Call', 'Apply', 'Documents', 'Payment', 'Custom', ...uniqueTags.filter(t => !['Call', 'Apply', 'Documents', 'Payment'].includes(t))].length)}
+                            readOnly
+                            className="h-3.5 w-3.5 rounded border-[var(--border)] text-blue-600 focus:ring-blue-500 cursor-pointer"
+                          />
+                          <span>Select All</span>
+                        </div>
+                        <div className="h-px bg-[var(--border)] my-1" />
+                        {['Call', 'Apply', 'Documents', 'Payment', 'Custom', ...uniqueTags.filter(t => !['Call', 'Apply', 'Documents', 'Payment'].includes(t))].map(tag => {
+                          const isChecked = excelSelectedTags.includes(tag)
+                          return (
+                            <div
+                              key={tag}
+                              onClick={() => setExcelSelectedTags(prev => prev.includes(tag) ? prev.filter(t => t !== tag) : [...prev, tag])}
+                              className="px-3 py-1.5 flex items-center gap-2 cursor-pointer hover:bg-[var(--border-subtle)] transition-colors select-none text-[11px] font-medium text-[var(--foreground)]"
+                            >
+                              <input
+                                type="checkbox"
+                                checked={isChecked}
+                                readOnly
+                                className="h-3.5 w-3.5 rounded border-[var(--border)] text-blue-600 focus:ring-blue-500 cursor-pointer"
+                              />
+                              <span>{getCustomTagIcon(tag)} {tag}</span>
+                            </div>
+                          )
+                        })}
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Lead By Filter */}
+                  <div className="relative">
+                    <label className="block text-[10px] font-bold uppercase tracking-wider text-[var(--foreground-muted)] mb-1">
+                      Lead By
+                    </label>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setIsExcelLeadDropdownOpen(prev => !prev)
+                        setIsExcelTariffDropdownOpen(false)
+                        setIsExcelLevelDropdownOpen(false)
+                        setIsExcelGroupDropdownOpen(false)
+                        setIsExcelCertDropdownOpen(false)
+                        setIsExcelScoreDropdownOpen(false)
+                        setIsExcelTagDropdownOpen(false)
+                      }}
+                      className="w-full pl-9 pr-7 py-2 border border-[var(--border)] rounded-[var(--radius-sm)] bg-[var(--surface-elevated)] text-[var(--foreground)] focus:outline-none hover:border-blue-400 transition-all text-xs font-semibold cursor-pointer flex items-center justify-between text-left h-[34px] relative"
+                    >
+                      <UserCheck className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[var(--foreground-muted)] pointer-events-none" />
+                      <span className="truncate select-none pr-1">
+                        {excelSelectedLeads.length === 0
+                          ? 'All Lead By'
+                          : excelSelectedLeads.length === (uniqueLeadBys.length + 1)
+                            ? 'All Lead By'
+                            : excelSelectedLeads.map(l => l === 'NO_LEADBY' ? 'No Lead by' : l).join(', ')}
+                      </span>
+                      <ChevronDown className="absolute right-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-[var(--foreground-subtle)] pointer-events-none" />
+                    </button>
+
+                    {isExcelLeadDropdownOpen && (
+                      <div className="absolute left-0 mt-1 w-56 rounded-[var(--radius-md)] border border-[var(--border)] bg-[var(--surface-elevated)]/95 backdrop-blur-md shadow-lg py-1.5 z-40 max-h-72 overflow-y-auto">
+                        <div
+                          className="px-3 py-1.5 flex items-center gap-2 cursor-pointer hover:bg-[var(--border-subtle)] transition-colors select-none text-[11px] font-bold text-[var(--foreground)]"
+                          onClick={() => setExcelSelectedLeads(prev => prev.length === (uniqueLeadBys.length + 1) ? [] : ['NO_LEADBY', ...uniqueLeadBys])}
+                        >
+                          <input
+                            type="checkbox"
+                            checked={excelSelectedLeads.length === (uniqueLeadBys.length + 1)}
+                            readOnly
+                            className="h-3.5 w-3.5 rounded border-[var(--border)] text-blue-600 focus:ring-blue-500 cursor-pointer"
+                          />
+                          <span>Select All</span>
+                        </div>
+                        <div className="h-px bg-[var(--border)] my-1" />
+                        <div
+                          onClick={() => setExcelSelectedLeads(prev => prev.includes('NO_LEADBY') ? prev.filter(l => l !== 'NO_LEADBY') : [...prev, 'NO_LEADBY'])}
+                          className="px-3 py-1.5 flex items-center gap-2 cursor-pointer hover:bg-[var(--border-subtle)] transition-colors select-none text-[11px] font-medium text-[var(--foreground)]"
+                        >
+                          <input
+                            type="checkbox"
+                            checked={excelSelectedLeads.includes('NO_LEADBY')}
+                            readOnly
+                            className="h-3.5 w-3.5 rounded border-[var(--border)] text-blue-600 focus:ring-blue-500 cursor-pointer"
+                          />
+                          <span>No Lead by</span>
+                        </div>
+                        {uniqueLeadBys.map(lead => {
+                          const isChecked = excelSelectedLeads.includes(lead)
+                          return (
+                            <div
+                              key={lead}
+                              onClick={() => setExcelSelectedLeads(prev => prev.includes(lead) ? prev.filter(l => l !== lead) : [...prev, lead])}
+                              className="px-3 py-1.5 flex items-center gap-2 cursor-pointer hover:bg-[var(--border-subtle)] transition-colors select-none text-[11px] font-medium text-[var(--foreground)]"
+                            >
+                              <input
+                                type="checkbox"
+                                checked={isChecked}
+                                readOnly
+                                className="h-3.5 w-3.5 rounded border-[var(--border)] text-blue-600 focus:ring-blue-500 cursor-pointer"
+                              />
+                              <span>{lead}</span>
+                            </div>
+                          )
+                        })}
+                      </div>
+                    )}
                   </div>
                 </div>
               </div>
