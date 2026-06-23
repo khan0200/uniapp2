@@ -1421,7 +1421,7 @@ export function StudentDashboardClient() {
     if (unis.length === 0) return <span className="text-gray-400 dark:text-gray-600">—</span>
 
     return (
-      <ul className="space-y-1 text-xs text-[var(--foreground)] leading-relaxed list-none pl-0 font-medium">
+      <ul className="space-y-1 text-[10px] text-[var(--foreground)] leading-relaxed list-none pl-0 font-medium">
         {unis.map((uni, idx) => (
           <li key={idx} className="flex items-start gap-1 min-w-0">
             <span className="text-[var(--foreground-muted)] select-none shrink-0">•</span>

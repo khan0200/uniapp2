@@ -1300,7 +1300,7 @@ export function StudentDetailClient({ studentId }: StudentDetailClientProps) {
           {/* Column 1: Personal Info & Contact Info */}
           <div className="flex flex-col gap-3">
             {/* Personal & Passport Block */}
-            <div className="bg-[var(--surface)] border border-[var(--border)] rounded-[var(--radius-md)] p-3 shadow-[var(--shadow-sm)] flex flex-col gap-2.5">
+            <div className="bg-white/10 dark:bg-white/5 backdrop-blur-md border border-white/20 dark:border-white/10 rounded-[var(--radius-md)] p-3 shadow-[var(--shadow-sm)] flex flex-col gap-2.5">
               <div className="flex items-center justify-between gap-1.5 pb-1.5 border-b border-[var(--border)]">
                 <div className="flex items-center gap-1.5">
                   <User className="h-3.5 w-3.5 text-[var(--accent)]" />
@@ -1418,7 +1418,7 @@ export function StudentDetailClient({ studentId }: StudentDetailClientProps) {
           {/* Column 2: Academic & Universities */}
           <div className="flex flex-col gap-3">
             {/* Academic & Languages Block */}
-            <div className="bg-[var(--surface)] border border-[var(--border)] rounded-[var(--radius-md)] p-3 shadow-[var(--shadow-sm)] flex flex-col gap-2.5">
+            <div className="bg-white/10 dark:bg-white/5 backdrop-blur-md border border-white/20 dark:border-white/10 rounded-[var(--radius-md)] p-3 shadow-[var(--shadow-sm)] flex flex-col gap-2.5">
               <div className="flex items-center gap-1.5 pb-1.5 border-b border-[var(--border)]">
                 <Layers className="h-3.5 w-3.5 text-[var(--accent)]" />
                 <h3 className="text-[13px] font-semibold uppercase tracking-wide text-[#64748B]">
@@ -1460,7 +1460,7 @@ export function StudentDetailClient({ studentId }: StudentDetailClientProps) {
             </div>
 
             {/* Universities & Docs Block */}
-            <div className="bg-[var(--surface)] border border-[var(--border)] rounded-[var(--radius-md)] p-3 shadow-[var(--shadow-sm)] flex flex-col gap-2.5">
+            <div className="bg-white/10 dark:bg-white/5 backdrop-blur-md border border-white/20 dark:border-white/10 rounded-[var(--radius-md)] p-3 shadow-[var(--shadow-sm)] flex flex-col gap-2.5">
               <div className="flex items-center gap-1.5 pb-1.5 border-b border-[var(--border)]">
                 <GraduationCap className="h-3.5 w-3.5 text-[var(--accent)]" />
                 <h3 className="text-[13px] font-semibold uppercase tracking-wide text-[#64748B]">
@@ -1486,7 +1486,7 @@ export function StudentDetailClient({ studentId }: StudentDetailClientProps) {
           {/* Column 3: System & Finance */}
           <div className="flex flex-col gap-3">
             {/* System & Finance Block */}
-            <div className="bg-[var(--surface)] border border-[var(--border)] rounded-[var(--radius-md)] p-3 shadow-[var(--shadow-sm)] flex flex-col gap-2.5">
+            <div className="bg-white/10 dark:bg-white/5 backdrop-blur-md border border-white/20 dark:border-white/10 rounded-[var(--radius-md)] p-3 shadow-[var(--shadow-sm)] flex flex-col gap-2.5">
               <div className="flex items-center gap-1.5 pb-1.5 border-b border-[var(--border)]">
                 <Landmark className="h-3.5 w-3.5 text-[var(--accent)]" />
                 <h3 className="text-[13px] font-semibold uppercase tracking-wide text-[#64748B]">
