@@ -121,10 +121,19 @@ export function ExtractClient({ studentId }: ExtractClientProps) {
   const [showOpenaiKey, setShowOpenaiKey] = useState(false)
   const [isValidatingKey, setIsValidatingKey] = useState(false)
 
+  // Whether server-side env keys are configured
+  const [serverKeys, setServerKeys] = useState({ gemini: false, openai: false })
+
   const fileInputRef = useRef<HTMLInputElement>(null)
 
   // Load settings and student details
   useEffect(() => {
+    // Check which providers have server-side keys
+    fetch('/api/ai-config')
+      .then(r => r.json())
+      .then(data => setServerKeys({ gemini: !!data.gemini, openai: !!data.openai }))
+      .catch(() => {})
+
     // Load local storage AI settings
     try {
       const stored = localStorage.getItem('ai_settings')
@@ -759,13 +768,25 @@ export function ExtractClient({ studentId }: ExtractClientProps) {
             {/* API Key Override (Gemini) */}
             {tempSettings.provider === 'gemini' && (
               <div className="flex flex-col gap-2 md:col-span-2">
-                <label className="text-[11px] uppercase font-bold tracking-wider text-[var(--foreground-muted)]">Gemini API Key Override</label>
+                <div className="flex items-center justify-between">
+                  <label className="text-[11px] uppercase font-bold tracking-wider text-[var(--foreground-muted)]">Gemini API Key Override</label>
+                  {serverKeys.gemini && (
+                    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20 text-[10px] font-bold">
+                      <CheckCircle2 className="h-3 w-3" /> Server Key Active
+                    </span>
+                  )}
+                </div>
+                {serverKeys.gemini && (
+                  <p className="text-[11px] text-[var(--foreground-muted)] leading-relaxed">
+                    A Gemini API key is already configured on the server — no key needed. You can enter one below to override it.
+                  </p>
+                )}
                 <div className="relative">
                   <input
                     type={showGeminiKey ? "text" : "password"}
                     value={tempSettings.apiKey}
                     onChange={(e) => setTempSettings(prev => ({ ...prev, apiKey: e.target.value }))}
-                    placeholder="Enter custom Gemini Key (if not using server environment variable)"
+                    placeholder={serverKeys.gemini ? "(Using server key — leave blank to keep using it)" : "Enter custom Gemini Key"}
                     className="bg-[var(--surface-elevated)] border border-[var(--border)] text-xs text-[var(--foreground)] py-2.5 pl-4 pr-11 rounded-xl focus:outline-none focus:border-[var(--accent)] w-full shadow-sm"
                   />
                   <button
@@ -781,13 +802,25 @@ export function ExtractClient({ studentId }: ExtractClientProps) {
             {/* API Key Override (OpenAI) */}
             {tempSettings.provider === 'openai' && (
               <div className="flex flex-col gap-2 md:col-span-2">
-                <label className="text-[11px] uppercase font-bold tracking-wider text-[var(--foreground-muted)]">OpenAI API Key</label>
+                <div className="flex items-center justify-between">
+                  <label className="text-[11px] uppercase font-bold tracking-wider text-[var(--foreground-muted)]">OpenAI API Key</label>
+                  {serverKeys.openai && (
+                    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20 text-[10px] font-bold">
+                      <CheckCircle2 className="h-3 w-3" /> Server Key Active
+                    </span>
+                  )}
+                </div>
+                {serverKeys.openai && (
+                  <p className="text-[11px] text-[var(--foreground-muted)] leading-relaxed">
+                    An OpenAI API key is already configured on the server — no key needed. You can enter one below to override it.
+                  </p>
+                )}
                 <div className="relative">
                   <input
                     type={showOpenaiKey ? "text" : "password"}
                     value={tempSettings.openaiApiKey}
                     onChange={(e) => setTempSettings(prev => ({ ...prev, openaiApiKey: e.target.value }))}
-                    placeholder="sk-proj-..."
+                    placeholder={serverKeys.openai ? "(Using server key — leave blank to keep using it)" : "sk-proj-..."}
                     className="bg-[var(--surface-elevated)] border border-[var(--border)] text-xs text-[var(--foreground)] py-2.5 pl-4 pr-11 rounded-xl focus:outline-none focus:border-[var(--accent)] w-full shadow-sm"
                   />
                   <button
