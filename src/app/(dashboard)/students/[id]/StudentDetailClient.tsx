@@ -94,7 +94,7 @@ export function StudentDetailClient({ studentId }: StudentDetailClientProps) {
   }
 
   const getTariffPrice = (tariff: string | null, languageCertificate: string | null) => {
-    if (!tariff) return 0
+    if (!tariff || tariff === 'Select') return 0
     if (tariff === 'E-VISA') {
       const hasCert = languageCertificate && languageCertificate !== 'NO CERTIFICATE'
       const key = hasCert ? 'E-VISA (TIL SERTIFIKATLI)' : 'E-VISA (TIL SERTIFIKATISIZ)'
@@ -406,8 +406,8 @@ export function StudentDetailClient({ studentId }: StudentDetailClientProps) {
         }
       }
 
-      // If the field is an empty string, set it to null to prevent DB check constraint violations
-      if (valToSave === '') {
+      // If the field is an empty string or 'Select', set it to null to prevent DB check constraint violations
+      if (valToSave === '' || (['tariff', 'level', 'level2'].includes(String(field)) && valToSave === 'Select')) {
         valToSave = null
       }
 
@@ -1429,13 +1429,13 @@ export function StudentDetailClient({ studentId }: StudentDetailClientProps) {
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-1.5">
                   {renderDetailCard('Tariff', 'tariff', selectedStudent.tariff, {
                     type: 'select',
-                    selectOptions: tariffOptions,
+                    selectOptions: ['Select', ...tariffOptions],
                     badgeColor: 'bg-[#00875a] text-white',
                     titleColor: 'text-[var(--accent)]'
                   })}
                   {renderDetailCard('Education Level', 'level', selectedStudent.level, {
                     type: 'select',
-                    selectOptions: levelOptions,
+                    selectOptions: ['Select', ...levelOptions],
                     badgeColor: 'bg-[#0052cc] text-white',
                     titleColor: 'text-[var(--accent)]'
                   })}
@@ -1449,7 +1449,7 @@ export function StudentDetailClient({ studentId }: StudentDetailClientProps) {
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-1.5">
                   {renderDetailCard('Education Level 2', 'level2', selectedStudent.level2, {
                     type: 'select',
-                    selectOptions: levelOptions,
+                    selectOptions: ['Select', ...levelOptions],
                     badgeColor: 'bg-[#ff9900] text-white',
                     titleColor: 'text-[var(--accent)]',
                     compact: true
