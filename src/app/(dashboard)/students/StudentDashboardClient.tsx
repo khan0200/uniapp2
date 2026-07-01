@@ -112,6 +112,8 @@ export function StudentDashboardClient() {
   const supabase = createClient()
 
   const [activeTooltip, setActiveTooltip] = useState<{ studentId: string; tagKey: string } | null>(null)
+  const [copiedId, setCopiedId] = useState<string | null>(null)
+  const [copiedPhoneId, setCopiedPhoneId] = useState<string | null>(null)
 
   // Context shared state
   const {
@@ -2156,7 +2158,7 @@ export function StudentDashboardClient() {
                     <tr
                       key={student.id}
                       onClick={() => window.open(`/students/${student.id}`, '_blank')}
-                      className={`cursor-pointer transition-colors text-sm text-[var(--foreground)] ${bgObj.className}`}
+                      className={`group cursor-pointer transition-colors text-sm text-[var(--foreground)] ${bgObj.className}`}
                       style={bgObj.style}
                     >
                       {/* ID Badge Column */}
@@ -2200,6 +2202,22 @@ export function StudentDashboardClient() {
                             }
                             return null
                           })()}
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation()
+                              navigator.clipboard.writeText(student.full_name)
+                              setCopiedId(student.id)
+                              setTimeout(() => setCopiedId(null), 2000)
+                            }}
+                            className="inline-flex items-center justify-center p-1 rounded hover:bg-black/10 dark:hover:bg-white/10 text-[var(--foreground-muted)] hover:text-[var(--foreground)] transition-all opacity-0 group-hover:opacity-100 cursor-pointer"
+                            title="Copy full name"
+                          >
+                            {copiedId === student.id ? (
+                              <Check className="h-3.5 w-3.5 text-emerald-500" />
+                            ) : (
+                              <Copy className="h-3.5 w-3.5" />
+                            )}
+                          </button>
                         </div>
                         <div className="text-[10px] text-[var(--foreground-muted)] font-semibold tracking-wider uppercase mt-1">
                           {student.tariff || 'NO TARIFF'}
@@ -2208,8 +2226,33 @@ export function StudentDashboardClient() {
 
                       {/* Phone Numbers Column */}
                       <td className="px-6 py-3.5 font-mono text-xs text-[var(--foreground-muted)] whitespace-nowrap">
-                        <div>{student.phone1 || '—'}</div>
-                        {student.phone2 && <div className="mt-0.5">{student.phone2}</div>}
+                        <div className="flex items-center justify-start gap-3">
+                          <div>
+                            <div>{student.phone1 || '—'}</div>
+                            {student.phone2 && <div className="mt-0.5">{student.phone2}</div>}
+                          </div>
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation()
+                              const lines = [
+                                `${student.id}  ${student.full_name}`,
+                                student.phone1,
+                                student.phone2
+                              ].filter(Boolean)
+                              navigator.clipboard.writeText(lines.join('\n'))
+                              setCopiedPhoneId(student.id)
+                              setTimeout(() => setCopiedPhoneId(null), 2000)
+                            }}
+                            className="inline-flex items-center justify-center p-1 rounded hover:bg-black/10 dark:hover:bg-white/10 text-[var(--foreground-muted)] hover:text-[var(--foreground)] transition-all opacity-0 group-hover:opacity-100 cursor-pointer"
+                            title="Copy ID, name, and phone numbers"
+                          >
+                            {copiedPhoneId === student.id ? (
+                              <Check className="h-3.5 w-3.5 text-emerald-500" />
+                            ) : (
+                              <Copy className="h-3.5 w-3.5" />
+                            )}
+                          </button>
+                        </div>
                       </td>
 
                       {/* Levels & Languages Column */}
