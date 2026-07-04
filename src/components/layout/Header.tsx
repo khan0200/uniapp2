@@ -1,7 +1,7 @@
 'use client'
 
 import { usePathname } from 'next/navigation'
-import { Bell, Search, Plus, FileSpreadsheet, FileText, RefreshCw, Trash2, Loader2 } from 'lucide-react'
+import { Bell, Search, Plus, FileText, RefreshCw, Trash2, Loader2 } from 'lucide-react'
 import Link from 'next/link'
 import { useUser } from '@/contexts/UserContext'
 import { cn } from '@/lib/utils'
@@ -129,14 +129,6 @@ export function Header() {
         {/* Right Side Actions */}
         {pathname === '/students' ? (
           <div className="flex items-center gap-2 md:gap-3 justify-end md:ml-auto z-10 w-full md:w-auto mt-1 md:mt-0">
-            <Link
-              id="students-import-btn"
-              href="/students/import"
-              className="flex-1 md:flex-initial flex items-center justify-center gap-2 rounded-[var(--radius-md)] border border-[var(--border)] bg-[var(--background)] hover:bg-[var(--surface-elevated)] px-3 py-2 text-sm font-semibold text-[var(--foreground)] transition-all cursor-pointer select-none h-9 md:h-10 shrink-0"
-            >
-              <FileSpreadsheet className="h-4 w-4 text-[var(--foreground-muted)]" />
-              <span>Import</span>
-            </Link>
             <button
               id="students-add-btn"
               onClick={() => setIsAddStudentModalOpen(true)}
