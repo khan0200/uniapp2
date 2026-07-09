@@ -209,13 +209,8 @@ export function StudentDetailClient({ studentId }: StudentDetailClientProps) {
     }
 
     const provider = aiSettings?.provider || 'gemini'
-    const apiKey = provider === 'openai' ? aiSettings?.openaiApiKey : aiSettings?.apiKey
+    const apiKey = (provider === 'openai' ? aiSettings?.openaiApiKey : aiSettings?.apiKey) || ''
     const model = provider === 'openai' ? aiSettings?.openaiModel : aiSettings?.model
-
-    if (!apiKey) {
-      setTranslateError('No AI API key configured. Please add one in Settings to enable Korean name translation.')
-      return
-    }
 
     setIsTranslatingNames(true)
     setTranslateError(null)

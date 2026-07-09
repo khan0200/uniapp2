@@ -60,7 +60,7 @@ ${extraInstructions}
 - If the document is of another type:
   - Automatically detect and generate ONLY the key fields (maximum 5-6 core identifiers or dates) necessary to describe that document. Do not perform a general OCR of every text block.
 - Ignore watermarks, decorative branding, or irrelevant numbers.
-- Provide a full raw OCR text in the "ocr_text" property.
+- Provide a full raw OCR text in the "ocr_text" property. Ensure that all double quotes, backslashes, and newlines inside the raw OCR text are properly escaped so the response is valid JSON.
 
 Return JSON only. Do not explain anything. Output must be exactly in this JSON format:
 {
@@ -117,7 +117,14 @@ Return JSON only. Do not explain anything. Output must be exactly in this JSON f
       }
 
       const resultText = candidates[0].content.parts[0].text
-      resultJson = JSON.parse(resultText)
+      try {
+        resultJson = JSON.parse(resultText)
+      } catch (jsonErr: any) {
+        console.error('Failed to parse Gemini JSON output:', resultText)
+        return NextResponse.json({ 
+          error: `Gemini JSON parsing failed: ${jsonErr.message}. Raw output: ${resultText}` 
+        }, { status: 422 })
+      }
     } else {
       // OpenAI
       const response = await fetch("https://api.openai.com/v1/chat/completions", {
@@ -156,7 +163,14 @@ Return JSON only. Do not explain anything. Output must be exactly in this JSON f
       }
 
       const resultText = data.choices?.[0]?.message?.content || "{}"
-      resultJson = JSON.parse(resultText)
+      try {
+        resultJson = JSON.parse(resultText)
+      } catch (jsonErr: any) {
+        console.error('Failed to parse OpenAI JSON output:', resultText)
+        return NextResponse.json({ 
+          error: `OpenAI JSON parsing failed: ${jsonErr.message}. Raw output: ${resultText}` 
+        }, { status: 422 })
+      }
     }
 
     return NextResponse.json(resultJson)

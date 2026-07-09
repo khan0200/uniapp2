@@ -375,6 +375,8 @@ export function ExtractClient({ studentId }: ExtractClientProps) {
     }
 
     setUploading(true)
+    setExtractedData(null)
+    setExtractedFieldsList([])
     setSavedFields({}) // Clear checkpoints as we start new extraction
     try {
       const base64Image = uploadedImage.split(',')[1]
@@ -766,72 +768,80 @@ export function ExtractClient({ studentId }: ExtractClientProps) {
             </div>
 
             {/* API Key Override (Gemini) */}
-            {tempSettings.provider === 'gemini' && (
-              <div className="flex flex-col gap-2 md:col-span-2">
-                <div className="flex items-center justify-between">
-                  <label className="text-[11px] uppercase font-bold tracking-wider text-[var(--foreground-muted)]">Gemini API Key Override</label>
-                  {serverKeys.gemini && (
-                    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20 text-[10px] font-bold">
-                      <CheckCircle2 className="h-3 w-3" /> Server Key Active
-                    </span>
-                  )}
-                </div>
+            <div className="flex flex-col gap-2">
+              <div className="flex items-center justify-between">
+                <label className="text-[11px] uppercase font-bold tracking-wider text-[var(--foreground-muted)]">Gemini API Key Override</label>
                 {serverKeys.gemini && (
-                  <p className="text-[11px] text-[var(--foreground-muted)] leading-relaxed">
-                    A Gemini API key is already configured on the server — no key needed. You can enter one below to override it.
-                  </p>
+                  <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20 text-[10px] font-bold">
+                    <CheckCircle2 className="h-3 w-3" /> Server Key Active
+                  </span>
                 )}
-                <div className="relative">
-                  <input
-                    type={showGeminiKey ? "text" : "password"}
-                    value={tempSettings.apiKey}
-                    onChange={(e) => setTempSettings(prev => ({ ...prev, apiKey: e.target.value }))}
-                    placeholder={serverKeys.gemini ? "(Using server key — leave blank to keep using it)" : "Enter custom Gemini Key"}
-                    className="bg-[var(--surface-elevated)] border border-[var(--border)] text-xs text-[var(--foreground)] py-2.5 pl-4 pr-11 rounded-xl focus:outline-none focus:border-[var(--accent)] w-full shadow-sm"
-                  />
-                  <button
-                    onClick={() => setShowGeminiKey(p => !p)}
-                    className="absolute right-3.5 top-1/2 -translate-y-1/2 text-[var(--foreground-muted)] hover:text-[var(--foreground)] transition-colors"
-                  >
-                    {showGeminiKey ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-                  </button>
-                </div>
               </div>
-            )}
+              {serverKeys.gemini ? (
+                <p className="text-[11px] text-[var(--foreground-muted)] leading-relaxed md:h-8">
+                  A Gemini API key is already configured on the server — no key needed. You can enter one below to override it.
+                </p>
+              ) : (
+                <p className="text-[11px] text-[var(--foreground-muted)] leading-relaxed md:h-8">
+                  No server key set. Enter a Gemini API key override below to enable this provider.
+                </p>
+              )}
+              <div className="relative">
+                <input
+                  type={showGeminiKey ? "text" : "password"}
+                  value={tempSettings.apiKey}
+                  onChange={(e) => setTempSettings(prev => ({ ...prev, apiKey: e.target.value }))}
+                  placeholder={serverKeys.gemini ? "(Using server key — leave blank to keep using it)" : "Enter custom Gemini Key"}
+                  autoComplete="new-password"
+                  className="bg-[var(--surface-elevated)] border border-[var(--border)] text-xs text-[var(--foreground)] py-2.5 pl-4 pr-11 rounded-xl focus:outline-none focus:border-[var(--accent)] w-full shadow-sm"
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowGeminiKey(p => !p)}
+                  className="absolute right-3.5 top-1/2 -translate-y-1/2 text-[var(--foreground-muted)] hover:text-[var(--foreground)] transition-colors"
+                >
+                  {showGeminiKey ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                </button>
+              </div>
+            </div>
 
             {/* API Key Override (OpenAI) */}
-            {tempSettings.provider === 'openai' && (
-              <div className="flex flex-col gap-2 md:col-span-2">
-                <div className="flex items-center justify-between">
-                  <label className="text-[11px] uppercase font-bold tracking-wider text-[var(--foreground-muted)]">OpenAI API Key</label>
-                  {serverKeys.openai && (
-                    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20 text-[10px] font-bold">
-                      <CheckCircle2 className="h-3 w-3" /> Server Key Active
-                    </span>
-                  )}
-                </div>
+            <div className="flex flex-col gap-2">
+              <div className="flex items-center justify-between">
+                <label className="text-[11px] uppercase font-bold tracking-wider text-[var(--foreground-muted)]">OpenAI API Key Override</label>
                 {serverKeys.openai && (
-                  <p className="text-[11px] text-[var(--foreground-muted)] leading-relaxed">
-                    An OpenAI API key is already configured on the server — no key needed. You can enter one below to override it.
-                  </p>
+                  <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20 text-[10px] font-bold">
+                    <CheckCircle2 className="h-3 w-3" /> Server Key Active
+                  </span>
                 )}
-                <div className="relative">
-                  <input
-                    type={showOpenaiKey ? "text" : "password"}
-                    value={tempSettings.openaiApiKey}
-                    onChange={(e) => setTempSettings(prev => ({ ...prev, openaiApiKey: e.target.value }))}
-                    placeholder={serverKeys.openai ? "(Using server key — leave blank to keep using it)" : "sk-proj-..."}
-                    className="bg-[var(--surface-elevated)] border border-[var(--border)] text-xs text-[var(--foreground)] py-2.5 pl-4 pr-11 rounded-xl focus:outline-none focus:border-[var(--accent)] w-full shadow-sm"
-                  />
-                  <button
-                    onClick={() => setShowOpenaiKey(p => !p)}
-                    className="absolute right-3.5 top-1/2 -translate-y-1/2 text-[var(--foreground-muted)] hover:text-[var(--foreground)] transition-colors"
-                  >
-                    {showOpenaiKey ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-                  </button>
-                </div>
               </div>
-            )}
+              {serverKeys.openai ? (
+                <p className="text-[11px] text-[var(--foreground-muted)] leading-relaxed md:h-8">
+                  An OpenAI API key is already configured on the server — no key needed. You can enter one below to override it.
+                </p>
+              ) : (
+                <p className="text-[11px] text-[var(--foreground-muted)] leading-relaxed md:h-8">
+                  No server key set. Enter an OpenAI API key override below to enable this provider.
+                </p>
+              )}
+              <div className="relative">
+                <input
+                  type={showOpenaiKey ? "text" : "password"}
+                  value={tempSettings.openaiApiKey}
+                  onChange={(e) => setTempSettings(prev => ({ ...prev, openaiApiKey: e.target.value }))}
+                  placeholder={serverKeys.openai ? "(Using server key — leave blank to keep using it)" : "sk-proj-..."}
+                  autoComplete="new-password"
+                  className="bg-[var(--surface-elevated)] border border-[var(--border)] text-xs text-[var(--foreground)] py-2.5 pl-4 pr-11 rounded-xl focus:outline-none focus:border-[var(--accent)] w-full shadow-sm"
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowOpenaiKey(p => !p)}
+                  className="absolute right-3.5 top-1/2 -translate-y-1/2 text-[var(--foreground-muted)] hover:text-[var(--foreground)] transition-colors"
+                >
+                  {showOpenaiKey ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                </button>
+              </div>
+            </div>
 
             {/* Config Checkboxes - Styled as native iOS switches */}
             <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3.5 md:col-span-2 mt-2">
@@ -909,7 +919,7 @@ export function ExtractClient({ studentId }: ExtractClientProps) {
                 ) : (
                   <CheckSquare className="h-4.5 w-4.5 text-[var(--accent)]" />
                 )}
-                Validate Key
+                Validate {tempSettings.provider === 'openai' ? 'OpenAI' : 'Gemini'} Key
               </button>
             </div>
           </div>
@@ -1074,21 +1084,9 @@ export function ExtractClient({ studentId }: ExtractClientProps) {
           )}
 
           {/* Extracted Fields List */}
-          {extractedData && extractedFieldsList.length > 0 && (
+          {extractedData && extractedFieldsList.length > 0 && !uploading && (
             <div className="flex flex-col gap-3">
-              {/* If we are uploading (so we have old data on screen while extracting new), show a separator and title */}
-              {uploading && (
-                <div className="flex items-center justify-between border-t border-[var(--border)] pt-4 mt-2">
-                  <span className="text-[10px] font-extrabold uppercase tracking-wider text-amber-500 dark:text-amber-400">
-                    Previous Extracted Data (Will be replaced)
-                  </span>
-                  <span className="inline-flex px-2 py-0.5 rounded-full bg-amber-500/10 text-amber-500 border border-amber-500/20 text-[9px] uppercase font-bold tracking-wider">
-                    Old
-                  </span>
-                </div>
-              )}
-
-              <div className={`flex flex-col gap-3 transition-all duration-300 ${uploading ? 'opacity-50 pointer-events-none filter saturate-50' : 'animate-in fade-in'}`}>
+              <div className="flex flex-col gap-3 transition-all duration-300 animate-in fade-in">
                 {extractedFieldsList.map((field, idx) => {
                   const cleanKey = field.key.replace(/_/g, ' ').toUpperCase().trim()
                   const dbField = FIELD_MAPPING[cleanKey]
