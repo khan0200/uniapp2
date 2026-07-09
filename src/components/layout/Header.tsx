@@ -78,7 +78,7 @@ export function Header() {
         className={cn(
           'flex flex-col md:flex-row flex-shrink-0 justify-between items-stretch md:items-center gap-3 md:gap-4 px-4 md:px-6 relative',
           'h-auto py-4 md:h-20 md:py-0',
-          'border-b border-[var(--border)] bg-[var(--surface)]',
+          'border-b border-[var(--border)] bg-[var(--surface)]/80 backdrop-blur-md',
           'sticky top-0 z-20'
         )}
         style={{ boxShadow: 'var(--shadow-sm)' }}
@@ -160,7 +160,7 @@ export function Header() {
     <header
       className={cn(
         'flex h-16 flex-shrink-0 items-center gap-4 px-6',
-        'border-b border-[var(--border)] bg-[var(--surface)]',
+        'border-b border-[var(--border)] bg-[var(--surface)]/80 backdrop-blur-md',
         'sticky top-0 z-20'
       )}
       style={{ boxShadow: 'var(--shadow-sm)' }}

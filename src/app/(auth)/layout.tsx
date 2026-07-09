@@ -7,7 +7,7 @@ export const metadata: Metadata = {
 
 export default function AuthLayout({ children }: { children: ReactNode }) {
   return (
-    <div className="min-h-screen flex items-center justify-center bg-[var(--background)] px-4">
+    <div className="min-h-screen flex items-center justify-center bg-transparent px-4">
       {/* Subtle radial gradient backdrop */}
       <div
         className="pointer-events-none fixed inset-0 -z-10"

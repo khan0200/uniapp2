@@ -29,7 +29,7 @@ export default async function DashboardLayout({
 
   return (
     <StudentDashboardProvider>
-      <div className="flex h-screen overflow-hidden bg-[var(--background)]">
+      <div className="flex h-screen overflow-hidden bg-transparent">
         {/* Persistent Sidebar */}
         <Sidebar />
 
