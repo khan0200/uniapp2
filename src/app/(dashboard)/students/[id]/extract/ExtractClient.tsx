@@ -6,7 +6,7 @@ import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { 
   ArrowLeft, RefreshCw, Trash2, Loader2, Upload, FileText, CheckCircle2,
-  AlertCircle, Edit, Copy, ChevronDown, ChevronUp, Cpu, Sliders, CheckSquare, Eye, EyeOff
+  AlertCircle, Edit, Copy, ChevronDown, ChevronUp, Cpu, Sliders
 } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import { type Student, type StudentLanguageCertificate, type StudentLevel, type StudentTariff } from '@/types/database'
@@ -116,10 +116,7 @@ export function ExtractClient({ studentId }: ExtractClientProps) {
   
   const [geminiModelSelect, setGeminiModelSelect] = useState('gemini-3.5-flash')
   const [customModelId, setCustomModelId] = useState('')
-  
-  const [showGeminiKey, setShowGeminiKey] = useState(false)
-  const [showOpenaiKey, setShowOpenaiKey] = useState(false)
-  const [isValidatingKey, setIsValidatingKey] = useState(false)
+
 
   // Whether server-side env keys are configured
   const [serverKeys, setServerKeys] = useState({ gemini: false, openai: false })
@@ -204,38 +201,6 @@ export function ExtractClient({ studentId }: ExtractClientProps) {
     }
   }
 
-  // Validate API Key helper
-  const handleValidateKey = async () => {
-    const key = tempSettings.provider === 'openai' ? tempSettings.openaiApiKey : tempSettings.apiKey
-    if (!key) {
-      showToast('Please enter an API key first!', 'danger')
-      return
-    }
-
-    setIsValidatingKey(true)
-    showToast('Validating API key...', 'info')
-    try {
-      const response = await fetch('/api/validate-key', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          provider: tempSettings.provider,
-          apiKey: key
-        })
-      })
-      const data = await response.json()
-      if (response.ok && data.success) {
-        showToast(`${tempSettings.provider === 'openai' ? 'OpenAI' : 'Gemini'} API Key is valid! ✓`, 'success')
-      } else {
-        showToast(`Validation failed: ${data.error || 'Invalid key'}`, 'danger')
-      }
-    } catch (error: any) {
-      console.error('Validation error:', error)
-      showToast('Network error validating API key.', 'danger')
-    } finally {
-      setIsValidatingKey(false)
-    }
-  }
 
   // Toast notification helper
   const showToast = (text: string, type: 'success' | 'danger' | 'info' = 'success') => {
@@ -767,81 +732,6 @@ export function ExtractClient({ studentId }: ExtractClientProps) {
               )}
             </div>
 
-            {/* API Key Override (Gemini) */}
-            <div className="flex flex-col gap-2">
-              <div className="flex items-center justify-between">
-                <label className="text-[11px] uppercase font-bold tracking-wider text-[var(--foreground-muted)]">Gemini API Key Override</label>
-                {serverKeys.gemini && (
-                  <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20 text-[10px] font-bold">
-                    <CheckCircle2 className="h-3 w-3" /> Server Key Active
-                  </span>
-                )}
-              </div>
-              {serverKeys.gemini ? (
-                <p className="text-[11px] text-[var(--foreground-muted)] leading-relaxed md:h-8">
-                  A Gemini API key is already configured on the server — no key needed. You can enter one below to override it.
-                </p>
-              ) : (
-                <p className="text-[11px] text-[var(--foreground-muted)] leading-relaxed md:h-8">
-                  No server key set. Enter a Gemini API key override below to enable this provider.
-                </p>
-              )}
-              <div className="relative">
-                <input
-                  type={showGeminiKey ? "text" : "password"}
-                  value={tempSettings.apiKey}
-                  onChange={(e) => setTempSettings(prev => ({ ...prev, apiKey: e.target.value }))}
-                  placeholder={serverKeys.gemini ? "(Using server key — leave blank to keep using it)" : "Enter custom Gemini Key"}
-                  autoComplete="new-password"
-                  className="bg-[var(--surface-elevated)] border border-[var(--border)] text-xs text-[var(--foreground)] py-2.5 pl-4 pr-11 rounded-xl focus:outline-none focus:border-[var(--accent)] w-full shadow-sm"
-                />
-                <button
-                  type="button"
-                  onClick={() => setShowGeminiKey(p => !p)}
-                  className="absolute right-3.5 top-1/2 -translate-y-1/2 text-[var(--foreground-muted)] hover:text-[var(--foreground)] transition-colors"
-                >
-                  {showGeminiKey ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-                </button>
-              </div>
-            </div>
-
-            {/* API Key Override (OpenAI) */}
-            <div className="flex flex-col gap-2">
-              <div className="flex items-center justify-between">
-                <label className="text-[11px] uppercase font-bold tracking-wider text-[var(--foreground-muted)]">OpenAI API Key Override</label>
-                {serverKeys.openai && (
-                  <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20 text-[10px] font-bold">
-                    <CheckCircle2 className="h-3 w-3" /> Server Key Active
-                  </span>
-                )}
-              </div>
-              {serverKeys.openai ? (
-                <p className="text-[11px] text-[var(--foreground-muted)] leading-relaxed md:h-8">
-                  An OpenAI API key is already configured on the server — no key needed. You can enter one below to override it.
-                </p>
-              ) : (
-                <p className="text-[11px] text-[var(--foreground-muted)] leading-relaxed md:h-8">
-                  No server key set. Enter an OpenAI API key override below to enable this provider.
-                </p>
-              )}
-              <div className="relative">
-                <input
-                  type={showOpenaiKey ? "text" : "password"}
-                  value={tempSettings.openaiApiKey}
-                  onChange={(e) => setTempSettings(prev => ({ ...prev, openaiApiKey: e.target.value }))}
-                  placeholder={serverKeys.openai ? "(Using server key — leave blank to keep using it)" : "sk-proj-..."}
-                  autoComplete="new-password"
-                  className="bg-[var(--surface-elevated)] border border-[var(--border)] text-xs text-[var(--foreground)] py-2.5 pl-4 pr-11 rounded-xl focus:outline-none focus:border-[var(--accent)] w-full shadow-sm"
-                />
-                <button
-                  type="button"
-                  onClick={() => setShowOpenaiKey(p => !p)}
-                  className="absolute right-3.5 top-1/2 -translate-y-1/2 text-[var(--foreground-muted)] hover:text-[var(--foreground)] transition-colors"
-                >
-                  {showOpenaiKey ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-                </button>
-              </div>
-            </div>
 
             {/* Config Checkboxes - Styled as native iOS switches */}
             <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3.5 md:col-span-2 mt-2">
@@ -908,18 +798,6 @@ export function ExtractClient({ studentId }: ExtractClientProps) {
               >
                 <CheckCircle2 className="h-4.5 w-4.5" />
                 Save Settings
-              </button>
-              <button
-                disabled={isValidatingKey}
-                onClick={handleValidateKey}
-                className="px-5 py-2.5 bg-[var(--surface-elevated)] hover:bg-[var(--border-subtle)] border border-[var(--border)] text-[var(--foreground)] text-xs font-bold rounded-xl transition-all flex items-center gap-2 cursor-pointer disabled:opacity-50 hover:scale-[1.02] active:scale-[0.98]"
-              >
-                {isValidatingKey ? (
-                  <Loader2 className="h-4.5 w-4.5 animate-spin" />
-                ) : (
-                  <CheckSquare className="h-4.5 w-4.5 text-[var(--accent)]" />
-                )}
-                Validate {tempSettings.provider === 'openai' ? 'OpenAI' : 'Gemini'} Key
               </button>
             </div>
           </div>
