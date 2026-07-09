@@ -10,6 +10,7 @@ import {
   Phone, FileText, Wallet
 } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
+import { cn } from '@/lib/utils'
 import { type Student, type StudentLevel, type StudentTariff, type StudentLanguageCertificate } from '@/types/database'
 import { PageShell } from '@/components/ui/PageShell'
 import * as XLSX from 'xlsx-js-style'
@@ -145,93 +146,21 @@ export function StudentDashboardClient() {
     setCurrentPage,
     setScrollPosition,
     getScrollPosition,
-    resetAllFilters
+    resetAllFilters,
+    isExcelModalOpen,
+    setIsExcelModalOpen,
+    tariffOptions,
+    levelOptions,
+    groupOptions,
+    leadByOptions,
+    customTagsRegistry,
+    setCustomTagsRegistry,
+    foldersOptions,
+    activeFolder,
+    setActiveFolder
   } = useStudentDashboard()
 
-  // Toggle states for filter dropdowns
-  const [isTariffDropdownOpen, setIsTariffDropdownOpen] = useState(false)
-  const [isLevelDropdownOpen, setIsLevelDropdownOpen] = useState(false)
-  const [isGroupDropdownOpen, setIsGroupDropdownOpen] = useState(false)
-  const [isCertDropdownOpen, setIsCertDropdownOpen] = useState(false)
-  const [isScoreDropdownOpen, setIsScoreDropdownOpen] = useState(false)
-  const [isTagDropdownOpen, setIsTagDropdownOpen] = useState(false)
-  const [isLeadDropdownOpen, setIsLeadDropdownOpen] = useState(false)
-
   const certOptions = ['NO CERTIFICATE', 'EXPECTED', 'TOPIK', 'SKA', 'IELTS', 'TOEFL', 'SAT', 'CEFR']
-
-  // Tariff Filter Helpers
-  const handleToggleTariff = (tariff: string) => {
-    setSelectedTariffs(prev =>
-      prev.includes(tariff) ? prev.filter(t => t !== tariff) : [...prev, tariff]
-    )
-  }
-  const handleToggleAllTariffs = (optionsList: string[]) => {
-    setSelectedTariffs(prev =>
-      prev.length === optionsList.length ? [] : [...optionsList]
-    )
-  }
-
-  // Level Filter Helpers
-  const handleToggleLevel = (level: string) => {
-    setSelectedLevels(prev =>
-      prev.includes(level) ? prev.filter(l => l !== level) : [...prev, level]
-    )
-  }
-  const handleToggleAllLevels = (optionsList: string[]) => {
-    setSelectedLevels(prev =>
-      prev.length === optionsList.length ? [] : [...optionsList]
-    )
-  }
-
-  // Group Filter Helpers
-  const handleToggleGroup = (group: string) => {
-    setSelectedGroups(prev =>
-      prev.includes(group) ? prev.filter(g => g !== group) : [...prev, group]
-    )
-  }
-  const handleToggleAllGroups = (optionsList: string[]) => {
-    setSelectedGroups(prev =>
-      prev.length === optionsList.length ? [] : [...optionsList]
-    )
-  }
-
-  // Tag Filter Helpers
-  const handleToggleTagFilter = (tag: string) => {
-    setSelectedTags(prev =>
-      prev.includes(tag) ? prev.filter(t => t !== tag) : [...prev, tag]
-    )
-  }
-  const handleToggleAllTags = (optionsList: string[]) => {
-    setSelectedTags(prev =>
-      prev.length === optionsList.length ? [] : [...optionsList]
-    )
-  }
-
-  // Lead By Filter Helpers
-  const handleToggleLead = (lead: string) => {
-    setSelectedLeads(prev =>
-      prev.includes(lead) ? prev.filter(l => l !== lead) : [...prev, lead]
-    )
-  }
-  const handleToggleAllLeads = (optionsList: string[]) => {
-    setSelectedLeads(prev =>
-      prev.length === optionsList.length ? [] : [...optionsList]
-    )
-  }
-
-  const handleToggleCert = (cert: string) => {
-    setSelectedCerts(prev =>
-      prev.includes(cert)
-        ? prev.filter(c => c !== cert)
-        : [...prev, cert]
-    )
-  }
-
-  const handleToggleAllCerts = () => {
-    setSelectedCerts(prev =>
-      prev.length === certOptions.length ? [] : [...certOptions]
-    )
-  }
 
   const showScoreFilter = selectedCerts.length === 1 && (selectedCerts[0] === 'TOPIK' || selectedCerts[0] === 'IELTS')
   const activeCertForScore = showScoreFilter ? selectedCerts[0] : null
@@ -285,7 +214,7 @@ export function StudentDashboardClient() {
   }, [activeCertForScore])
 
   // Excel Export Modal States
-  const [isExcelModalOpen, setIsExcelModalOpen] = useState(false)
+
   const [excelSearchQuery, setExcelSearchQuery] = useState('')
   const [excelSearchType, setExcelSearchType] = useState<'all' | 'id' | 'name' | 'phone' | 'university'>('all')
   const [excelSelectedTariffs, setExcelSelectedTariffs] = useState<string[]>([])
@@ -926,39 +855,10 @@ export function StudentDashboardClient() {
   const [studentId, setStudentId] = useState('')
   const [fullName, setFullName] = useState('')
   const [office, setOffice] = useState<'ANDIJON OFFIS' | 'TOSHKENT OFFIS'>('ANDIJON OFFIS')
-
-  // Actions Popover State
   const [popoverAnchor, setPopoverAnchor] = useState<{ studentId: string; rect: DOMRect } | null>(null)
-  const [customTagsRegistry, setCustomTagsRegistry] = useState<CustomTag[]>([])
-
-
-  // Dynamic Option States from Settings
-  const [tariffOptions, setTariffOptions] = useState<string[]>(['STANDART', 'PREMIUM', 'VISA PLUS', 'E-VISA', 'REGIONAL VISA'])
-  const [levelOptions, setLevelOptions] = useState<string[]>(['COLLEGE', 'BACHELOR', 'MASTERS', 'MASTER NO CERTIFICATE', 'LANGUAGE COURSE'])
-  const [groupOptions, setGroupOptions] = useState<string[]>([])
-  const [leadByOptions, setLeadByOptions] = useState<string[]>([])
-
-  const fetchFilterOptions = async () => {
-    try {
-      const [tariffsRes, levelsRes, groupsRes, leadsRes] = await Promise.all([
-        supabase.from('tariff_options').select('name'),
-        supabase.from('education_levels').select('name'),
-        supabase.from('student_groups').select('name'),
-        supabase.from('lead_sources').select('name')
-      ])
-
-      if (tariffsRes.data && tariffsRes.data.length > 0) setTariffOptions((tariffsRes.data as any[]).map(t => t.name))
-      if (levelsRes.data && levelsRes.data.length > 0) setLevelOptions((levelsRes.data as any[]).map(l => l.name))
-      if (groupsRes.data && groupsRes.data.length > 0) setGroupOptions((groupsRes.data as any[]).map(g => g.name))
-      if (leadsRes.data && leadsRes.data.length > 0) setLeadByOptions((leadsRes.data as any[]).map(l => l.name))
-    } catch (err) {
-      console.error('Error fetching filter options in dashboard:', err)
-    }
-  }
 
   useEffect(() => {
     fetchStudents()
-    fetchFilterOptions()
   }, [])
 
   // Listen to scroll events on main-content container and save to context
@@ -1080,6 +980,32 @@ export function StudentDashboardClient() {
     }
   }
 
+  const handleDeleteStudent = async (studentId: string, studentName: string) => {
+    if (!confirm(`Are you sure you want to delete student profile "${studentName}"?`)) return
+    setPopoverAnchor(null)
+    setStudents(prev => prev.map(s => s.id === studentId ? { ...s, is_deleted: true } : s))
+    const { error: deleteError } = await (supabase
+      .from('students') as any)
+      .update({ is_deleted: true })
+      .eq('id', studentId)
+    if (deleteError) {
+      console.error('Error soft-deleting student:', deleteError)
+      fetchStudents(true)
+    }
+  }
+
+  const handleChangeStudentFolder = async (studentId: string, folderId: string | null) => {
+    setStudents(prev => prev.map(s => s.id === studentId ? { ...s, folder_id: folderId } : s))
+    const { error: updateError } = await (supabase
+      .from('students') as any)
+      .update({ folder_id: folderId })
+      .eq('id', studentId)
+    if (updateError) {
+      console.error('Error updating student folder:', updateError)
+      fetchStudents(true)
+    }
+  }
+
   // Handle student creation
   const handleCreateStudent = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -1183,12 +1109,15 @@ export function StudentDashboardClient() {
 
   // Filter students based on all filter parameters
   const filteredStudents = students.filter(student => {
-    // 1. Deleted Students handling
-    const showDeleted = selectedLevels.includes('DELETED')
-    if (showDeleted) {
+    // 1. Folder filtering
+    if (activeFolder === 'deleted') {
       if (student.is_deleted !== true) return false
-    } else {
+    } else if (activeFolder === 'all') {
       if (student.is_deleted === true) return false
+    } else {
+      // Custom folder selection
+      if (student.is_deleted === true) return false
+      if (student.folder_id !== activeFolder) return false
     }
 
     // 2. Search query matching
@@ -1495,560 +1424,183 @@ export function StudentDashboardClient() {
 
 
 
+  const hasActiveFilters = 
+    selectedTariffs.length > 0 ||
+    selectedLevels.length > 0 ||
+    selectedGroups.length > 0 ||
+    selectedCerts.length > 0 ||
+    selectedScores.length > 0 ||
+    selectedTags.length > 0 ||
+    selectedLeads.length > 0
+
+  const renderActiveFilterChips = () => {
+    if (!hasActiveFilters) return null
+
+    return (
+      <div className="mb-4 flex flex-wrap items-center gap-2 px-1 select-none animate-in fade-in slide-in-from-top-1 duration-200">
+        <span className="text-[11px] font-bold text-[var(--foreground-muted)] mr-1">Active Filters:</span>
+        
+        {selectedTariffs.map(t => (
+          <div key={`tariff-${t}`} className="inline-flex items-center gap-1.5 px-3 py-1 bg-[var(--surface-elevated)] border border-[var(--border)] text-xs text-[var(--foreground)] font-semibold rounded-full shadow-xs">
+            <span>Tariff: {t === 'NO_TARIFF' ? 'No Tariff' : t}</span>
+            <button 
+              type="button" 
+              onClick={() => setSelectedTariffs(prev => prev.filter(x => x !== t))}
+              className="text-[var(--foreground-muted)] hover:text-red-500 rounded-full hover:bg-red-500/10 h-4 w-4 flex items-center justify-center cursor-pointer transition-colors"
+            >
+              <X className="h-3 w-3" />
+            </button>
+          </div>
+        ))}
+
+        {selectedLevels.map(l => (
+          <div key={`level-${l}`} className="inline-flex items-center gap-1.5 px-3 py-1 bg-[var(--surface-elevated)] border border-[var(--border)] text-xs text-[var(--foreground)] font-semibold rounded-full shadow-xs">
+            <span>Level: {l === 'NO_LEVEL' ? 'No Level' : l === 'DELETED' ? 'Deleted students' : l}</span>
+            <button 
+              type="button" 
+              onClick={() => setSelectedLevels(prev => prev.filter(x => x !== l))}
+              className="text-[var(--foreground-muted)] hover:text-red-500 rounded-full hover:bg-red-500/10 h-4 w-4 flex items-center justify-center cursor-pointer transition-colors"
+            >
+              <X className="h-3 w-3" />
+            </button>
+          </div>
+        ))}
+
+        {selectedGroups.map(g => (
+          <div key={`group-${g}`} className="inline-flex items-center gap-1.5 px-3 py-1 bg-[var(--surface-elevated)] border border-[var(--border)] text-xs text-[var(--foreground)] font-semibold rounded-full shadow-xs">
+            <span>Group: {g === 'NO_GROUP' ? 'No Group' : g}</span>
+            <button 
+              type="button" 
+              onClick={() => setSelectedGroups(prev => prev.filter(x => x !== g))}
+              className="text-[var(--foreground-muted)] hover:text-red-500 rounded-full hover:bg-red-500/10 h-4 w-4 flex items-center justify-center cursor-pointer transition-colors"
+            >
+              <X className="h-3 w-3" />
+            </button>
+          </div>
+        ))}
+
+        {selectedCerts.map(c => (
+          <div key={`cert-${c}`} className="inline-flex items-center gap-1.5 px-3 py-1 bg-[var(--surface-elevated)] border border-[var(--border)] text-xs text-[var(--foreground)] font-semibold rounded-full shadow-xs">
+            <span>Cert: {c}</span>
+            <button 
+              type="button" 
+              onClick={() => setSelectedCerts(prev => prev.filter(x => x !== c))}
+              className="text-[var(--foreground-muted)] hover:text-red-500 rounded-full hover:bg-red-500/10 h-4 w-4 flex items-center justify-center cursor-pointer transition-colors"
+            >
+              <X className="h-3 w-3" />
+            </button>
+          </div>
+        ))}
+
+        {selectedScores.map(s => (
+          <div key={`score-${s}`} className="inline-flex items-center gap-1.5 px-3 py-1 bg-[var(--surface-elevated)] border border-[var(--border)] text-xs text-[var(--foreground)] font-semibold rounded-full shadow-xs">
+            <span>Score: {getScoreLabel(s)}</span>
+            <button 
+              type="button" 
+              onClick={() => setSelectedScores(prev => prev.filter(x => x !== s))}
+              className="text-[var(--foreground-muted)] hover:text-red-500 rounded-full hover:bg-red-500/10 h-4 w-4 flex items-center justify-center cursor-pointer transition-colors"
+            >
+              <X className="h-3 w-3" />
+            </button>
+          </div>
+        ))}
+
+        {selectedTags.map(t => (
+          <div key={`tag-${t}`} className="inline-flex items-center gap-1.5 px-3 py-1 bg-[var(--surface-elevated)] border border-[var(--border)] text-xs text-[var(--foreground)] font-semibold rounded-full shadow-xs">
+            <span>Tag: {getCustomTagIcon(t)} {t}</span>
+            <button 
+              type="button" 
+              onClick={() => setSelectedTags(prev => prev.filter(x => x !== t))}
+              className="text-[var(--foreground-muted)] hover:text-red-500 rounded-full hover:bg-red-500/10 h-4 w-4 flex items-center justify-center cursor-pointer transition-colors"
+            >
+              <X className="h-3 w-3" />
+            </button>
+          </div>
+        ))}
+
+        {selectedLeads.map(l => (
+          <div key={`lead-${l}`} className="inline-flex items-center gap-1.5 px-3 py-1 bg-[var(--surface-elevated)] border border-[var(--border)] text-xs text-[var(--foreground)] font-semibold rounded-full shadow-xs">
+            <span>Lead: {l === 'NO_LEADBY' ? 'No Lead by' : l}</span>
+            <button 
+              type="button" 
+              onClick={() => setSelectedLeads(prev => prev.filter(x => x !== l))}
+              className="text-[var(--foreground-muted)] hover:text-red-500 rounded-full hover:bg-red-500/10 h-4 w-4 flex items-center justify-center cursor-pointer transition-colors"
+            >
+              <X className="h-3 w-3" />
+            </button>
+          </div>
+        ))}
+
+        <button 
+          onClick={resetAllFilters}
+          className="text-xs font-bold text-blue-600 hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-300 transition-colors ml-1 cursor-pointer select-none"
+        >
+          Clear All
+        </button>
+      </div>
+    )
+  }
+ 
   return (
     <PageShell>
-      {/* Filters Popover Overlay Backdrop */}
-      {(isCertDropdownOpen || isScoreDropdownOpen || isTariffDropdownOpen || isLevelDropdownOpen || isGroupDropdownOpen || isTagDropdownOpen || isLeadDropdownOpen) && (
-        <div
-          className="fixed inset-0 z-30 bg-transparent cursor-default"
-          onClick={() => {
-            setIsCertDropdownOpen(false)
-            setIsScoreDropdownOpen(false)
-            setIsTariffDropdownOpen(false)
-            setIsLevelDropdownOpen(false)
-            setIsGroupDropdownOpen(false)
-            setIsTagDropdownOpen(false)
-            setIsLeadDropdownOpen(false)
-          }}
-        />
-      )}
-
-      {/* Redesigned Filters Card Section */}
-      <div className="mb-6 rounded-[var(--radius-lg)] border border-[var(--border)] bg-[var(--surface)] p-4 shadow-[var(--shadow-sm)] flex flex-wrap lg:flex-nowrap gap-3 items-center justify-between">
-        <div className={`grid grid-cols-2 md:grid-cols-3 ${showScoreFilter ? 'lg:grid-cols-7' : 'lg:grid-cols-6'} gap-3 w-full`}>
-          {/* Tariffs Filter */}
-          <div className="relative">
-            <button
-              type="button"
-              onClick={() => {
-                setIsTariffDropdownOpen(prev => !prev)
-                setIsLevelDropdownOpen(false)
-                setIsGroupDropdownOpen(false)
-                setIsCertDropdownOpen(false)
-                setIsScoreDropdownOpen(false)
-                setIsTagDropdownOpen(false)
-                setIsLeadDropdownOpen(false)
-              }}
-              className="w-full pl-9 pr-7 py-2 border border-[var(--border)] rounded-[var(--radius-md)] bg-[var(--surface-elevated)] text-[var(--foreground)] focus:outline-none hover:border-blue-400 transition-all text-xs font-medium cursor-pointer flex items-center justify-between text-left h-[34px] relative"
-            >
-              <Tag className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[var(--foreground-muted)] pointer-events-none" />
-              <span className="truncate select-none pr-1">
-                {selectedTariffs.length === 0
-                  ? 'All Tariffs'
-                  : selectedTariffs.length === (tariffOptions.length + 1)
-                    ? 'All Tariffs'
-                    : selectedTariffs.map(t => t === 'NO_TARIFF' ? 'No Tariff' : t).join(', ')}
-              </span>
-              <ChevronDown className="absolute right-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-[var(--foreground-subtle)] pointer-events-none" />
-            </button>
-
-            {isTariffDropdownOpen && (
-              <div className="absolute left-0 mt-1 w-56 rounded-[var(--radius-md)] border border-[var(--border)] bg-[var(--surface-elevated)]/95 backdrop-blur-md shadow-lg py-1.5 z-40 max-h-72 overflow-y-auto">
-                <div
-                  className="px-3 py-1.5 flex items-center gap-2 cursor-pointer hover:bg-[var(--border-subtle)] transition-colors select-none text-[11px] font-bold text-[var(--foreground)]"
-                  onClick={() => handleToggleAllTariffs(['NO_TARIFF', ...tariffOptions])}
-                >
-                  <input
-                    type="checkbox"
-                    checked={selectedTariffs.length === (tariffOptions.length + 1)}
-                    readOnly
-                    className="h-3.5 w-3.5 rounded border-[var(--border)] text-blue-600 focus:ring-blue-500 cursor-pointer"
-                  />
-                  <span>Select All</span>
-                </div>
-                <div className="h-px bg-[var(--border)] my-1" />
-                <div
-                  onClick={() => handleToggleTariff('NO_TARIFF')}
-                  className="px-3 py-1.5 flex items-center gap-2 cursor-pointer hover:bg-[var(--border-subtle)] transition-colors select-none text-[11px] font-medium text-[var(--foreground)]"
-                >
-                  <input
-                    type="checkbox"
-                    checked={selectedTariffs.includes('NO_TARIFF')}
-                    readOnly
-                    className="h-3.5 w-3.5 rounded border-[var(--border)] text-blue-600 focus:ring-blue-500 cursor-pointer"
-                  />
-                  <span>No Tariff</span>
-                </div>
-                {tariffOptions.map(opt => {
-                  const isChecked = selectedTariffs.includes(opt)
-                  return (
-                    <div
-                      key={opt}
-                      onClick={() => handleToggleTariff(opt)}
-                      className="px-3 py-1.5 flex items-center gap-2 cursor-pointer hover:bg-[var(--border-subtle)] transition-colors select-none text-[11px] font-medium text-[var(--foreground)]"
-                    >
-                      <input
-                        type="checkbox"
-                        checked={isChecked}
-                        readOnly
-                        className="h-3.5 w-3.5 rounded border-[var(--border)] text-blue-600 focus:ring-blue-500 cursor-pointer"
-                      />
-                      <span>{opt}</span>
-                    </div>
-                  )
-                })}
-              </div>
-            )}
-          </div>
-
-          {/* Levels Filter */}
-          <div className="relative">
-            <button
-              type="button"
-              onClick={() => {
-                setIsLevelDropdownOpen(prev => !prev)
-                setIsTariffDropdownOpen(false)
-                setIsGroupDropdownOpen(false)
-                setIsCertDropdownOpen(false)
-                setIsScoreDropdownOpen(false)
-                setIsTagDropdownOpen(false)
-                setIsLeadDropdownOpen(false)
-              }}
-              className="w-full pl-9 pr-7 py-2 border border-[var(--border)] rounded-[var(--radius-md)] bg-[var(--surface-elevated)] text-[var(--foreground)] focus:outline-none hover:border-blue-400 transition-all text-xs font-medium cursor-pointer flex items-center justify-between text-left h-[34px] relative"
-            >
-              <Layers className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[var(--foreground-muted)] pointer-events-none" />
-              <span className="truncate select-none pr-1">
-                {selectedLevels.length === 0
-                  ? 'All Levels'
-                  : selectedLevels.length === (levelOptions.length + 2)
-                    ? 'All Levels'
-                    : selectedLevels.length + ' Selected'}
-              </span>
-              <ChevronDown className="absolute right-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-[var(--foreground-subtle)] pointer-events-none" />
-            </button>
-
-            {isLevelDropdownOpen && (
-              <div className="absolute left-0 mt-1 w-56 rounded-[var(--radius-md)] border border-[var(--border)] bg-[var(--surface-elevated)]/95 backdrop-blur-md shadow-lg py-1.5 z-40 max-h-72 overflow-y-auto">
-                <div
-                  className="px-3 py-1.5 flex items-center gap-2 cursor-pointer hover:bg-[var(--border-subtle)] transition-colors select-none text-[11px] font-bold text-[var(--foreground)]"
-                  onClick={() => handleToggleAllLevels(['NO_LEVEL', 'DELETED', ...levelOptions])}
-                >
-                  <input
-                    type="checkbox"
-                    checked={selectedLevels.length === (levelOptions.length + 2)}
-                    readOnly
-                    className="h-3.5 w-3.5 rounded border-[var(--border)] text-blue-600 focus:ring-blue-500 cursor-pointer"
-                  />
-                  <span>Select All</span>
-                </div>
-                <div className="h-px bg-[var(--border)] my-1" />
-                <div
-                  onClick={() => handleToggleLevel('NO_LEVEL')}
-                  className="px-3 py-1.5 flex items-center gap-2 cursor-pointer hover:bg-[var(--border-subtle)] transition-colors select-none text-[11px] font-medium text-[var(--foreground)]"
-                >
-                  <input
-                    type="checkbox"
-                    checked={selectedLevels.includes('NO_LEVEL')}
-                    readOnly
-                    className="h-3.5 w-3.5 rounded border-[var(--border)] text-blue-600 focus:ring-blue-500 cursor-pointer"
-                  />
-                  <span>No Level</span>
-                </div>
-                {levelOptions.map(opt => {
-                  const isChecked = selectedLevels.includes(opt)
-                  return (
-                    <div
-                      key={opt}
-                      onClick={() => handleToggleLevel(opt)}
-                      className="px-3 py-1.5 flex items-center gap-2 cursor-pointer hover:bg-[var(--border-subtle)] transition-colors select-none text-[11px] font-medium text-[var(--foreground)]"
-                    >
-                      <input
-                        type="checkbox"
-                        checked={isChecked}
-                        readOnly
-                        className="h-3.5 w-3.5 rounded border-[var(--border)] text-blue-600 focus:ring-blue-500 cursor-pointer"
-                      />
-                      <span>{opt}</span>
-                    </div>
-                  )
-                })}
-                <div className="h-px bg-[var(--border)] my-1" />
-                <div
-                  onClick={() => handleToggleLevel('DELETED')}
-                  className="px-3 py-1.5 flex items-center gap-2 cursor-pointer hover:bg-rose-500/10 dark:hover:bg-rose-950/20 transition-colors select-none text-[11px] font-bold text-rose-600 dark:text-rose-400"
-                >
-                  <input
-                    type="checkbox"
-                    checked={selectedLevels.includes('DELETED')}
-                    readOnly
-                    className="h-3.5 w-3.5 rounded border-rose-300 dark:border-rose-900 text-rose-600 focus:ring-rose-500 cursor-pointer"
-                  />
-                  <span>Deleted students</span>
-                </div>
-              </div>
-            )}
-          </div>
-
-          {/* Groups Filter */}
-          <div className="relative">
-            <button
-              type="button"
-              onClick={() => {
-                setIsGroupDropdownOpen(prev => !prev)
-                setIsTariffDropdownOpen(false)
-                setIsLevelDropdownOpen(false)
-                setIsCertDropdownOpen(false)
-                setIsScoreDropdownOpen(false)
-                setIsTagDropdownOpen(false)
-                setIsLeadDropdownOpen(false)
-              }}
-              className="w-full pl-9 pr-7 py-2 border border-[var(--border)] rounded-[var(--radius-md)] bg-[var(--surface-elevated)] text-[var(--foreground)] focus:outline-none hover:border-blue-400 transition-all text-xs font-medium cursor-pointer flex items-center justify-between text-left h-[34px] relative"
-            >
-              <Users className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[var(--foreground-muted)] pointer-events-none" />
-              <span className="truncate select-none pr-1">
-                {selectedGroups.length === 0
-                  ? 'All Groups'
-                  : selectedGroups.length === (uniqueGroups.length + 1)
-                    ? 'All Groups'
-                    : selectedGroups.map(g => g === 'NO_GROUP' ? 'No Group' : g).join(', ')}
-              </span>
-              <ChevronDown className="absolute right-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-[var(--foreground-subtle)] pointer-events-none" />
-            </button>
-
-            {isGroupDropdownOpen && (
-              <div className="absolute left-0 mt-1 w-56 rounded-[var(--radius-md)] border border-[var(--border)] bg-[var(--surface-elevated)]/95 backdrop-blur-md shadow-lg py-1.5 z-40 max-h-72 overflow-y-auto">
-                <div
-                  className="px-3 py-1.5 flex items-center gap-2 cursor-pointer hover:bg-[var(--border-subtle)] transition-colors select-none text-[11px] font-bold text-[var(--foreground)]"
-                  onClick={() => handleToggleAllGroups(['NO_GROUP', ...uniqueGroups])}
-                >
-                  <input
-                    type="checkbox"
-                    checked={selectedGroups.length === (uniqueGroups.length + 1)}
-                    readOnly
-                    className="h-3.5 w-3.5 rounded border-[var(--border)] text-blue-600 focus:ring-blue-500 cursor-pointer"
-                  />
-                  <span>Select All</span>
-                </div>
-                <div className="h-px bg-[var(--border)] my-1" />
-                <div
-                  onClick={() => handleToggleGroup('NO_GROUP')}
-                  className="px-3 py-1.5 flex items-center gap-2 cursor-pointer hover:bg-[var(--border-subtle)] transition-colors select-none text-[11px] font-medium text-[var(--foreground)]"
-                >
-                  <input
-                    type="checkbox"
-                    checked={selectedGroups.includes('NO_GROUP')}
-                    readOnly
-                    className="h-3.5 w-3.5 rounded border-[var(--border)] text-blue-600 focus:ring-blue-500 cursor-pointer"
-                  />
-                  <span>No Group</span>
-                </div>
-                {uniqueGroups.map(grp => {
-                  const isChecked = selectedGroups.includes(grp)
-                  return (
-                    <div
-                      key={grp}
-                      onClick={() => handleToggleGroup(grp)}
-                      className="px-3 py-1.5 flex items-center gap-2 cursor-pointer hover:bg-[var(--border-subtle)] transition-colors select-none text-[11px] font-medium text-[var(--foreground)]"
-                    >
-                      <input
-                        type="checkbox"
-                        checked={isChecked}
-                        readOnly
-                        className="h-3.5 w-3.5 rounded border-[var(--border)] text-blue-600 focus:ring-blue-500 cursor-pointer"
-                      />
-                      <span>{grp}</span>
-                    </div>
-                  )
-                })}
-              </div>
-            )}
-          </div>
-
-          {/* Certificates Filter */}
-          <div className="relative">
-            <button
-              type="button"
-              onClick={() => {
-                setIsCertDropdownOpen(prev => !prev)
-                setIsScoreDropdownOpen(false)
-                setIsTariffDropdownOpen(false)
-                setIsLevelDropdownOpen(false)
-                setIsGroupDropdownOpen(false)
-                setIsTagDropdownOpen(false)
-                setIsLeadDropdownOpen(false)
-              }}
-              className="w-full pl-9 pr-7 py-2 border border-[var(--border)] rounded-[var(--radius-md)] bg-[var(--surface-elevated)] text-[var(--foreground)] focus:outline-none hover:border-blue-400 transition-all text-xs font-medium cursor-pointer flex items-center justify-between text-left h-[34px] relative animate-none"
-            >
-              <Award className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[var(--foreground-muted)] pointer-events-none" />
-              <span className="truncate select-none pr-1">
-                {selectedCerts.length === 0
-                  ? 'All Certificates'
-                  : selectedCerts.length === certOptions.length
-                    ? 'All Certificates'
-                    : selectedCerts.join(', ')}
-              </span>
-              <ChevronDown className="absolute right-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-[var(--foreground-subtle)] pointer-events-none" />
-            </button>
-
-            {isCertDropdownOpen && (
-              <div className="absolute left-0 mt-1 w-56 rounded-[var(--radius-md)] border border-[var(--border)] bg-[var(--surface-elevated)]/95 backdrop-blur-md shadow-lg py-1.5 z-40 max-h-72 overflow-y-auto">
-                <div
-                  className="px-3 py-1.5 flex items-center gap-2 cursor-pointer hover:bg-[var(--border-subtle)] transition-colors select-none text-[11px] font-bold text-[var(--foreground)]"
-                  onClick={handleToggleAllCerts}
-                >
-                  <input
-                    type="checkbox"
-                    checked={selectedCerts.length === certOptions.length}
-                    readOnly
-                    className="h-3.5 w-3.5 rounded border-[var(--border)] text-blue-600 focus:ring-blue-500 cursor-pointer"
-                  />
-                  <span>Select All</span>
-                </div>
-                <div className="h-px bg-[var(--border)] my-1" />
-                {certOptions.map(cert => {
-                  const isChecked = selectedCerts.includes(cert)
-                  return (
-                    <div
-                      key={cert}
-                      onClick={() => handleToggleCert(cert)}
-                      className="px-3 py-1.5 flex items-center gap-2 cursor-pointer hover:bg-[var(--border-subtle)] transition-colors select-none text-[11px] font-medium text-[var(--foreground)]"
-                    >
-                      <input
-                        type="checkbox"
-                        checked={isChecked}
-                        readOnly
-                        className="h-3.5 w-3.5 rounded border-[var(--border)] text-blue-600 focus:ring-blue-500 cursor-pointer"
-                      />
-                      <span>{cert}</span>
-                    </div>
-                  )
-                })}
-              </div>
-            )}
-          </div>
-
-          {/* Dynamic Score Filter (shown for TOPIK/IELTS) */}
-          {showScoreFilter && (
-            <div className="relative animate-in fade-in zoom-in-95 duration-100">
-              <button
-                type="button"
-                onClick={() => {
-                  setIsScoreDropdownOpen(prev => !prev)
-                  setIsCertDropdownOpen(false)
-                }}
-                className="w-full pl-9 pr-7 py-2 border border-[var(--border)] rounded-[var(--radius-md)] bg-[var(--surface-elevated)] text-[var(--foreground)] focus:outline-none hover:border-blue-400 transition-all text-xs font-medium cursor-pointer flex items-center justify-between text-left h-[34px] relative animate-none"
-              >
-                <Hash className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[var(--foreground-muted)] pointer-events-none" />
-                <span className="truncate select-none pr-1">
-                  {selectedScores.length === 0
-                    ? 'All Scores'
-                    : selectedScores.length === scoreOptions.length
-                      ? 'All Scores'
-                      : selectedScores.map(getScoreLabel).join(', ')}
-                </span>
-                <ChevronDown className="absolute right-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-[var(--foreground-subtle)] pointer-events-none" />
-              </button>
-
-              {isScoreDropdownOpen && (
-                <div className="absolute left-0 mt-1 w-56 rounded-[var(--radius-md)] border border-[var(--border)] bg-[var(--surface-elevated)]/95 backdrop-blur-md shadow-lg py-1.5 z-40 max-h-72 overflow-y-auto">
-                  <div
-                    className="px-3 py-1.5 flex items-center gap-2 cursor-pointer hover:bg-[var(--border-subtle)] transition-colors select-none text-[11px] font-bold text-[var(--foreground)]"
-                    onClick={handleToggleAllScores}
-                  >
-                    <input
-                      type="checkbox"
-                      checked={selectedScores.length === scoreOptions.length}
-                      readOnly
-                      className="h-3.5 w-3.5 rounded border-[var(--border)] text-blue-600 focus:ring-blue-500 cursor-pointer"
-                    />
-                    <span>Select All</span>
-                  </div>
-                  <div className="h-px bg-[var(--border)] my-1" />
-                  {scoreOptions.map(score => {
-                    const isChecked = selectedScores.includes(score)
-                    return (
-                      <div
-                        key={score}
-                        onClick={() => handleToggleScore(score)}
-                        className="px-3 py-1.5 flex items-center gap-2 cursor-pointer hover:bg-[var(--border-subtle)] transition-colors select-none text-[11px] font-medium text-[var(--foreground)]"
-                      >
-                        <input
-                          type="checkbox"
-                          checked={isChecked}
-                          readOnly
-                          className="h-3.5 w-3.5 rounded border-[var(--border)] text-blue-600 focus:ring-blue-500 cursor-pointer"
-                        />
-                        <span>{getScoreLabel(score)}</span>
-                      </div>
-                    )
-                  })}
-                </div>
-              )}
-            </div>
+      {/* Active Filter Chips */}
+      {renderActiveFilterChips()}
+ 
+      {/* Telegram-Style Folders Selector */}
+      <div className="mb-4 flex items-center overflow-x-auto scrollbar-none gap-6 select-none shrink-0 border-b border-[var(--border)] dark:border-border/60 pb-2 px-1">
+        {/* All Folder */}
+        <button
+          onClick={() => setActiveFolder('all')}
+          className={cn(
+            "relative text-sm font-semibold transition-all cursor-pointer whitespace-nowrap pb-2 -mb-2.5 border-b-2",
+            activeFolder === 'all'
+              ? "text-blue-600 dark:text-blue-400 border-blue-600 dark:border-blue-400 font-bold animate-none"
+              : "text-[var(--foreground-muted)] border-transparent hover:text-[var(--foreground)]"
           )}
-
-          {/* Tags Filter */}
-          <div className="relative">
+        >
+          All
+        </button>
+ 
+        {/* Custom Folders */}
+        {foldersOptions.map((folder) => {
+          const isActive = activeFolder === folder.id
+          return (
             <button
-              type="button"
-              onClick={() => {
-                setIsTagDropdownOpen(prev => !prev)
-                setIsTariffDropdownOpen(false)
-                setIsLevelDropdownOpen(false)
-                setIsGroupDropdownOpen(false)
-                setIsCertDropdownOpen(false)
-                setIsScoreDropdownOpen(false)
-                setIsLeadDropdownOpen(false)
-              }}
-              className="w-full pl-9 pr-7 py-2 border border-[var(--border)] rounded-[var(--radius-md)] bg-[var(--surface-elevated)] text-[var(--foreground)] focus:outline-none hover:border-blue-400 transition-all text-xs font-medium cursor-pointer flex items-center justify-between text-left h-[34px] relative"
+              key={folder.id}
+              onClick={() => setActiveFolder(folder.id)}
+              className={cn(
+                "relative text-sm font-semibold transition-all cursor-pointer whitespace-nowrap pb-2 -mb-2.5 border-b-2",
+                isActive
+                  ? "text-blue-600 dark:text-blue-400 border-blue-600 dark:border-blue-400 font-bold animate-none"
+                  : "text-[var(--foreground-muted)] border-transparent hover:text-[var(--foreground)]"
+              )}
             >
-              <Bookmark className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[var(--foreground-muted)] pointer-events-none" />
-              <span className="truncate select-none pr-1">
-                {selectedTags.length === 0
-                  ? 'All Tasks/Tags'
-                  : selectedTags.length === (['Call', 'Apply', 'Documents', 'Payment', 'Custom', ...uniqueTags.filter(t => !['Call', 'Apply', 'Documents', 'Payment'].includes(t))].length)
-                    ? 'All Tasks/Tags'
-                    : selectedTags.join(', ')}
-              </span>
-              <ChevronDown className="absolute right-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-[var(--foreground-subtle)] pointer-events-none" />
+              {folder.name}
             </button>
-
-            {isTagDropdownOpen && (
-              <div className="absolute left-0 mt-1 w-56 rounded-[var(--radius-md)] border border-[var(--border)] bg-[var(--surface-elevated)]/95 backdrop-blur-md shadow-lg py-1.5 z-40 max-h-72 overflow-y-auto">
-                <div
-                  className="px-3 py-1.5 flex items-center gap-2 cursor-pointer hover:bg-[var(--border-subtle)] transition-colors select-none text-[11px] font-bold text-[var(--foreground)]"
-                  onClick={() => handleToggleAllTags(['Call', 'Apply', 'Documents', 'Payment', 'Custom', ...uniqueTags.filter(t => !['Call', 'Apply', 'Documents', 'Payment'].includes(t))])}
-                >
-                  <input
-                    type="checkbox"
-                    checked={selectedTags.length === (['Call', 'Apply', 'Documents', 'Payment', 'Custom', ...uniqueTags.filter(t => !['Call', 'Apply', 'Documents', 'Payment'].includes(t))].length)}
-                    readOnly
-                    className="h-3.5 w-3.5 rounded border-[var(--border)] text-blue-600 focus:ring-blue-500 cursor-pointer"
-                  />
-                  <span>Select All</span>
-                </div>
-                <div className="h-px bg-[var(--border)] my-1" />
-                {['Call', 'Apply', 'Documents', 'Payment', 'Custom', ...uniqueTags.filter(t => !['Call', 'Apply', 'Documents', 'Payment'].includes(t))].map(tag => {
-                  const isChecked = selectedTags.includes(tag)
-                  return (
-                    <div
-                      key={tag}
-                      onClick={() => handleToggleTagFilter(tag)}
-                      className="px-3 py-1.5 flex items-center gap-2 cursor-pointer hover:bg-[var(--border-subtle)] transition-colors select-none text-[11px] font-medium text-[var(--foreground)]"
-                    >
-                      <input
-                        type="checkbox"
-                        checked={isChecked}
-                        readOnly
-                        className="h-3.5 w-3.5 rounded border-[var(--border)] text-blue-600 focus:ring-blue-500 cursor-pointer"
-                      />
-                      <span>{getCustomTagIcon(tag)} {tag}</span>
-                    </div>
-                  )
-                })}
-              </div>
-            )}
-          </div>
-
-          {/* Lead By Filter */}
-          <div className="relative">
-            <button
-              type="button"
-              onClick={() => {
-                setIsLeadDropdownOpen(prev => !prev)
-                setIsTariffDropdownOpen(false)
-                setIsLevelDropdownOpen(false)
-                setIsGroupDropdownOpen(false)
-                setIsCertDropdownOpen(false)
-                setIsScoreDropdownOpen(false)
-                setIsTagDropdownOpen(false)
-              }}
-              className="w-full pl-9 pr-7 py-2 border border-[var(--border)] rounded-[var(--radius-md)] bg-[var(--surface-elevated)] text-[var(--foreground)] focus:outline-none hover:border-blue-400 transition-all text-xs font-medium cursor-pointer flex items-center justify-between text-left h-[34px] relative"
-            >
-              <UserCheck className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[var(--foreground-muted)] pointer-events-none" />
-              <span className="truncate select-none pr-1">
-                {selectedLeads.length === 0
-                  ? 'All Lead By'
-                  : selectedLeads.length === (uniqueLeadBys.length + 1)
-                    ? 'All Lead By'
-                    : selectedLeads.map(l => l === 'NO_LEADBY' ? 'No Lead by' : l).join(', ')}
-              </span>
-              <ChevronDown className="absolute right-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-[var(--foreground-subtle)] pointer-events-none" />
-            </button>
-
-            {isLeadDropdownOpen && (
-              <div className="absolute left-0 mt-1 w-56 rounded-[var(--radius-md)] border border-[var(--border)] bg-[var(--surface-elevated)]/95 backdrop-blur-md shadow-lg py-1.5 z-40 max-h-72 overflow-y-auto">
-                <div
-                  className="px-3 py-1.5 flex items-center gap-2 cursor-pointer hover:bg-[var(--border-subtle)] transition-colors select-none text-[11px] font-bold text-[var(--foreground)]"
-                  onClick={() => handleToggleAllLeads(['NO_LEADBY', ...uniqueLeadBys])}
-                >
-                  <input
-                    type="checkbox"
-                    checked={selectedLeads.length === (uniqueLeadBys.length + 1)}
-                    readOnly
-                    className="h-3.5 w-3.5 rounded border-[var(--border)] text-blue-600 focus:ring-blue-500 cursor-pointer"
-                  />
-                  <span>Select All</span>
-                </div>
-                <div className="h-px bg-[var(--border)] my-1" />
-                <div
-                  onClick={() => handleToggleLead('NO_LEADBY')}
-                  className="px-3 py-1.5 flex items-center gap-2 cursor-pointer hover:bg-[var(--border-subtle)] transition-colors select-none text-[11px] font-medium text-[var(--foreground)]"
-                >
-                  <input
-                    type="checkbox"
-                    checked={selectedLeads.includes('NO_LEADBY')}
-                    readOnly
-                    className="h-3.5 w-3.5 rounded border-[var(--border)] text-blue-600 focus:ring-blue-500 cursor-pointer"
-                  />
-                  <span>No Lead by</span>
-                </div>
-                {uniqueLeadBys.map(lead => {
-                  const isChecked = selectedLeads.includes(lead)
-                  return (
-                    <div
-                      key={lead}
-                      onClick={() => handleToggleLead(lead)}
-                      className="px-3 py-1.5 flex items-center gap-2 cursor-pointer hover:bg-[var(--border-subtle)] transition-colors select-none text-[11px] font-medium text-[var(--foreground)]"
-                    >
-                      <input
-                        type="checkbox"
-                        checked={isChecked}
-                        readOnly
-                        className="h-3.5 w-3.5 rounded border-[var(--border)] text-blue-600 focus:ring-blue-500 cursor-pointer"
-                      />
-                      <span>{lead}</span>
-                    </div>
-                  )
-                })}
-              </div>
-            )}
-          </div>
-        </div>
-
-        {/* Action buttons wrapper */}
-        <div className="flex items-center gap-2 flex-shrink-0">
-          {/* Reset Filters Button */}
-          <button
-            onClick={resetAllFilters}
-            className="flex items-center gap-1.5 px-3 py-2 rounded-[var(--radius-md)] border border-[var(--border)] bg-[var(--surface-elevated)] hover:bg-[var(--border-subtle)] text-[var(--foreground)] text-xs font-semibold transition-all cursor-pointer shadow-sm select-none h-[34px]"
-            title="Reset all filters and search"
-          >
-            <X className="h-4 w-4 text-[var(--foreground-muted)]" />
-            <span className="hidden sm:inline">Reset Filters</span>
-          </button>
-
-          {/* Excel Export Button */}
-          <button
-            onClick={() => {
-              setIsExcelModalOpen(true)
-              setSelectedExcelIds(excelFilteredStudents.map(s => s.id))
-            }}
-            className="flex-shrink-0 flex items-center justify-center p-2 rounded-[var(--radius-md)] border border-emerald-600/30 bg-emerald-50 hover:bg-emerald-100/70 text-emerald-700 dark:bg-emerald-950/20 dark:border-emerald-800/40 dark:text-emerald-400 transition-all cursor-pointer shadow-sm select-none h-[34px] w-[34px]"
-            title="Export Roster to Excel"
-          >
-            <FileSpreadsheet className="h-4.5 w-4.5" />
-          </button>
-        </div>
+          )
+        })}
+ 
+        {/* Deleted Folder */}
+        <button
+          onClick={() => setActiveFolder('deleted')}
+          className={cn(
+            "relative text-sm font-semibold transition-all cursor-pointer whitespace-nowrap pb-2 -mb-2.5 border-b-2 ml-auto",
+            activeFolder === 'deleted'
+              ? "text-red-500 border-red-500 font-bold animate-none"
+              : "text-[var(--foreground-muted)] border-transparent hover:text-red-500"
+          )}
+        >
+          Deleted
+        </button>
       </div>
 
       {/* Roster Total Count */}
-      <div className="mb-2 flex justify-between items-center text-xs text-[var(--foreground-muted)] italic px-1 font-medium">
+      <div className="mb-2 flex justify-between items-center text-xs text-[var(--foreground-muted)] italic px-1 font-medium select-none">
         <div>
           {(searchQuery || selectedTariffs.length > 0 || selectedLevels.length > 0 || selectedGroups.length > 0 || selectedCerts.length > 0 || selectedScores.length > 0 || selectedTags.length > 0 || selectedLeads.length > 0) ? (
-            <span>Showing {filteredStudents.length} of {students.filter(s => selectedLevels.includes('DELETED') ? s.is_deleted : !s.is_deleted).length} students</span>
+            <span>Showing {filteredStudents.length} of {students.filter(s => activeFolder === 'deleted' ? s.is_deleted : activeFolder === 'all' ? !s.is_deleted : (!s.is_deleted && s.folder_id === activeFolder)).length} students</span>
           ) : (
-            <span>Showing all active students</span>
+            <span>Showing all students in {activeFolder === 'all' ? 'All' : activeFolder === 'deleted' ? 'Deleted' : (foldersOptions.find(f => f.id === activeFolder)?.name || 'Folder')}</span>
           )}
         </div>
         <div className="text-right">
@@ -2623,29 +2175,44 @@ export function StudentDashboardClient() {
 
                   {/* ── Quick Actions Section ───────────────────── */}
                   <div>
-                    <div className="font-bold text-[var(--foreground-muted)] uppercase tracking-wider text-[10.5px] mb-3">
-                      Quick Actions
+                    <div className="flex items-center justify-between mb-3 select-none">
+                      <div className="font-bold text-[var(--foreground-muted)] uppercase tracking-wider text-[10.5px]">
+                        Assign to Folder
+                      </div>
                     </div>
-                    <div className="grid grid-cols-4 gap-3">
-                      {[
-                        { name: 'Call', icon: Phone },
-                        { name: 'Apply', icon: GraduationCap },
-                        { name: 'Documents', icon: FileText },
-                        { name: 'Payment', icon: Wallet }
-                      ].map((task) => {
-                        const isActive = student.task_tags?.includes(task.name)
-                        const Icon = task.icon
+ 
+                    {/* Inline Folder Selector Grid */}
+                    <div className="flex flex-wrap gap-2">
+                      {/* No Folder (All) Button */}
+                      <button
+                        type="button"
+                        onClick={() => handleChangeStudentFolder(student.id, null)}
+                        className={cn(
+                          "inline-flex items-center gap-1.5 px-3 py-2 rounded-[var(--radius-md)] border text-xs font-semibold cursor-pointer transition-all hover:-translate-y-0.5 hover:shadow-[var(--shadow-sm)]",
+                          !student.folder_id
+                            ? "border-[var(--accent)] bg-[var(--accent-subtle)] text-[var(--accent)] font-bold shadow-xs"
+                            : "border-[var(--border)] bg-[var(--surface)] text-[var(--foreground-muted)] hover:bg-[var(--border-subtle)] hover:text-[var(--foreground)]"
+                        )}
+                      >
+                        <span>📁 All (No Folder)</span>
+                      </button>
+ 
+                      {/* Custom Folders */}
+                      {foldersOptions.map((folder) => {
+                        const isActive = student.folder_id === folder.id
                         return (
                           <button
-                            key={task.name}
-                            onClick={() => handleToggleTag(student.id, task.name)}
-                            className={`flex flex-col items-center justify-center gap-1.5 py-3 rounded-[var(--radius-md)] border text-[11px] font-semibold cursor-pointer transition-all hover:-translate-y-0.5 hover:shadow-[var(--shadow-sm)] ${isActive
-                                ? 'border-[var(--accent)] bg-[var(--accent-subtle)] text-[var(--accent)]'
-                                : 'border-[var(--border)] bg-[var(--surface)] text-[var(--foreground)] hover:bg-[var(--border-subtle)]'
-                              }`}
+                            key={folder.id}
+                            type="button"
+                            onClick={() => handleChangeStudentFolder(student.id, folder.id)}
+                            className={cn(
+                              "inline-flex items-center gap-1.5 px-3 py-2 rounded-[var(--radius-md)] border text-xs font-semibold cursor-pointer transition-all hover:-translate-y-0.5 hover:shadow-[var(--shadow-sm)] animate-none",
+                              isActive
+                                ? "border-[var(--accent)] bg-[var(--accent-subtle)] text-[var(--accent)] font-bold shadow-xs"
+                                : "border-[var(--border)] bg-[var(--surface)] text-[var(--foreground)] hover:bg-[var(--border-subtle)]"
+                            )}
                           >
-                            <Icon className="h-4.5 w-4.5" />
-                            <span>{task.name}</span>
+                            <span>📁 {folder.name}</span>
                           </button>
                         )
                       })}
@@ -2699,14 +2266,22 @@ export function StudentDashboardClient() {
                   </div>
                 </div>
 
-                {/* ── Clear All Flags Button ──────────────────── */}
-                <div className="px-6 pb-6 pt-2">
+                {/* ── Clear All Flags / Delete Student Buttons ──────────────────── */}
+                <div className="px-6 pb-6 pt-2 flex gap-3">
                   <motion.button
                     whileTap={{ scale: 0.97 }}
                     onClick={() => handleClearFlagsAndColor(student.id)}
-                    className="w-full py-2.5 rounded-[var(--radius-md)] border border-red-500/25 bg-red-500/5 text-red-500 hover:bg-red-500/10 hover:border-red-500/40 font-semibold transition-all text-[11.5px] cursor-pointer"
+                    className="flex-1 py-2.5 rounded-[var(--radius-md)] border border-red-500/25 bg-red-500/5 text-red-500 hover:bg-red-500/10 hover:border-red-500/40 font-semibold transition-all text-[11.5px] cursor-pointer"
                   >
                     Clear All Color & Tags
+                  </motion.button>
+                  <motion.button
+                    whileTap={{ scale: 0.97 }}
+                    onClick={() => handleDeleteStudent(student.id, student.full_name)}
+                    className="flex-1 py-2.5 rounded-[var(--radius-md)] border border-red-500/40 bg-red-500/10 hover:bg-red-500/20 text-red-600 font-bold transition-all text-[11.5px] cursor-pointer flex items-center justify-center gap-1.5 shadow-xs"
+                  >
+                    <Trash2 className="h-3.5 w-3.5 text-red-500" />
+                    <span>Delete Student</span>
                   </motion.button>
                 </div>
               </motion.div>

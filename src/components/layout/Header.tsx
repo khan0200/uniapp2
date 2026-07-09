@@ -1,11 +1,12 @@
 'use client'
 
 import { usePathname } from 'next/navigation'
-import { Bell, Search, Plus, FileText, RefreshCw, Trash2, Loader2 } from 'lucide-react'
+import { Bell, Search, Plus, FileText, RefreshCw, Trash2, Loader2, Filter, FileSpreadsheet } from 'lucide-react'
 import Link from 'next/link'
 import { useUser } from '@/contexts/UserContext'
 import { cn } from '@/lib/utils'
 import { useStudentDashboard } from '@/contexts/StudentDashboardContext'
+import { FilterPanel } from './FilterPanel'
 
 // Human-readable titles for routes
 const PAGE_TITLES: Record<string, string> = {
@@ -21,7 +22,32 @@ const PAGE_TITLES: Record<string, string> = {
 export function Header() {
   const pathname = usePathname()
   const { profile } = useUser()
-  const { searchQuery, setSearchQuery, setIsAddStudentModalOpen, detailPageActions } = useStudentDashboard()
+  const { 
+    searchQuery, 
+    setSearchQuery, 
+    setIsAddStudentModalOpen, 
+    detailPageActions,
+    isFilterPanelOpen,
+    setIsFilterPanelOpen,
+    isExcelModalOpen,
+    setIsExcelModalOpen,
+    selectedTariffs,
+    selectedLevels,
+    selectedGroups,
+    selectedCerts,
+    selectedScores,
+    selectedTags,
+    selectedLeads
+  } = useStudentDashboard()
+
+  const activeFiltersCount = 
+    (selectedTariffs?.length || 0) +
+    (selectedLevels?.length || 0) +
+    (selectedGroups?.length || 0) +
+    (selectedCerts?.length || 0) +
+    (selectedScores?.length || 0) +
+    (selectedTags?.length || 0) +
+    (selectedLeads?.length || 0)
 
   // Find the best matching title
   const pageTitle =
@@ -83,52 +109,86 @@ export function Header() {
         )}
         style={{ boxShadow: 'var(--shadow-sm)' }}
       >
-        {/* Left Side: Title */}
-        <div className="flex-shrink-0 flex items-center justify-between md:block">
-          <div>
-            <h1 className="text-lg font-bold text-[var(--foreground)]">{pageTitle}</h1>
-            <p className="text-xs text-[var(--foreground-muted)]">
-              {new Date().toLocaleDateString('en-US', {
-                weekday: 'long',
-                year: 'numeric',
-                month: 'long',
-                day: 'numeric',
-              })}
-            </p>
-          </div>
-          
-          {/* Mobile Notifications and Role Badge next to Title */}
-          <div className="flex md:hidden items-center gap-2">
-            {renderNotificationsButton()}
-            {renderRoleBadge()}
-          </div>
+        {/* Left Side: Left corner controls (Filter) */}
+        <div className="flex-shrink-0 flex items-center gap-2 flex-wrap">
+          {pathname === '/students' && (
+            <>
+              {/* Filter Button */}
+              <div className="relative shrink-0 select-none z-30">
+                <button
+                  type="button"
+                  onClick={() => setIsFilterPanelOpen(!isFilterPanelOpen)}
+                  className={cn(
+                    "flex items-center justify-center gap-1.5 px-4 h-[40px] md:h-[44px] rounded-full border text-xs md:text-sm font-semibold select-none cursor-pointer transition-all duration-300 shadow-[0_8px_30px_rgba(0,0,0,0.06)] hover:shadow-md outline-none",
+                    isFilterPanelOpen || activeFiltersCount > 0
+                      ? "border-blue-500 bg-blue-50/50 dark:bg-blue-950/20 text-blue-600 dark:text-blue-400" 
+                      : "border-[var(--border)] bg-[var(--surface-elevated)]/60 text-[var(--foreground)] hover:bg-[var(--surface-elevated)]"
+                  )}
+                >
+                  <Filter className="h-4.5 w-4.5" />
+                  <span>Filter{activeFiltersCount > 0 ? ` (${activeFiltersCount})` : ''}</span>
+                </button>
+
+                {/* Desktop Filter Panel Popover */}
+                <div className="hidden md:block">
+                  <FilterPanel />
+                </div>
+              </div>
+            </>
+          )}
         </div>
 
-        {/* Center: iOS Dynamic Island Inspired Search Bar (Fixed size) */}
+        {/* Center: iOS Dynamic Island Inspired Search Bar */}
         <div 
           className={cn(
-            "relative flex items-center rounded-full border border-[var(--border)] bg-[var(--surface-elevated)]/60 backdrop-blur-md shadow-[0_8px_30px_rgba(0,0,0,0.06)] hover:bg-[var(--surface-elevated)]/85 hover:shadow-[0_12px_40px_rgba(0,0,0,0.08)] transition-all duration-300 ease-out",
-            "w-full h-[48px] md:h-[54px] z-30",
+            "flex items-center gap-2.5 z-30",
+            "w-full h-auto",
             "md:absolute md:left-1/2 md:top-1/2 md:-translate-x-1/2 md:-translate-y-1/2",
-            "max-w-full md:max-w-[450px] lg:max-w-[600px]",
-            "focus-within:border-[var(--foreground-muted)] dark:focus-within:border-[var(--foreground-subtle)] focus-within:bg-[var(--surface-elevated)] focus-within:shadow-[0_16px_36px_rgba(0,0,0,0.08)] dark:focus-within:shadow-[0_16px_36px_rgba(0,0,0,0.4)]"
+            "max-w-full md:max-w-[350px] lg:max-w-[450px]"
           )}
         >
-          <div className="relative flex items-center w-full h-full rounded-full px-5 bg-transparent">
-            <Search className="h-5 w-5 text-[var(--foreground-muted)] flex-shrink-0 mr-3" />
-            <input
-              type="text"
-              placeholder={pathname === '/students' ? "Search students by name, ID, passport or phone..." : "Search by name, ID or phone..."}
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full bg-transparent text-[16px] md:text-sm text-[var(--foreground)] placeholder-[var(--foreground-subtle)] py-2 no-focus-outline border-none focus:border-none focus:ring-0 focus-visible:ring-0 shadow-none focus:shadow-none"
-            />
+          <div 
+            className={cn(
+              "relative flex-1 flex items-center rounded-full border border-[var(--border)] bg-[var(--surface-elevated)]/60 backdrop-blur-md shadow-[0_8px_30px_rgba(0,0,0,0.06)] hover:bg-[var(--surface-elevated)]/85 hover:shadow-[0_12px_40px_rgba(0,0,0,0.08)] transition-all duration-300 ease-out",
+              "h-[48px] md:h-[54px]",
+              "focus-within:border-[var(--foreground-muted)] dark:focus-within:border-[var(--foreground-subtle)] focus-within:bg-[var(--surface-elevated)] focus-within:shadow-[0_16px_36px_rgba(0,0,0,0.08)] dark:focus-within:shadow-[0_16px_36px_rgba(0,0,0,0.4)]"
+            )}
+          >
+            <div className="relative flex items-center w-full h-full rounded-full px-5 bg-transparent">
+              <Search className="h-5 w-5 text-[var(--foreground-muted)] flex-shrink-0 mr-3" />
+              <input
+                type="text"
+                placeholder={pathname === '/students' ? "Search students by name, ID, passport or phone..." : "Search by name, ID or phone..."}
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="w-full bg-transparent text-[16px] md:text-sm text-[var(--foreground)] placeholder-[var(--foreground-subtle)] py-2 no-focus-outline border-none focus:border-none focus:ring-0 focus-visible:ring-0 shadow-none focus:shadow-none"
+              />
+            </div>
           </div>
         </div>
 
+        {/* Mobile Filter Panel Bottom Sheet */}
+        {pathname === '/students' && (
+          <div className="md:hidden">
+            <FilterPanel />
+          </div>
+        )}
+
         {/* Right Side Actions */}
-        {pathname === '/students' ? (
+        {pathname === '/students' && (
           <div className="flex items-center gap-2 md:gap-3 justify-end md:ml-auto z-10 w-full md:w-auto mt-1 md:mt-0">
+            {/* Excel Download Button */}
+            <button
+              type="button"
+              onClick={() => setIsExcelModalOpen(true)}
+              className="flex items-center justify-center gap-1.5 px-4 h-[40px] rounded-full border border-emerald-600/30 bg-emerald-50 hover:bg-emerald-100/70 text-emerald-700 dark:bg-emerald-950/20 dark:border-emerald-800/40 dark:text-emerald-400 text-xs md:text-sm font-semibold select-none cursor-pointer transition-all duration-300 shadow-[0_8px_30px_rgba(0,0,0,0.06)] hover:shadow-md outline-none"
+              title="Export Roster to Excel"
+            >
+              <FileSpreadsheet className="h-4.5 w-4.5" />
+              <span className="hidden sm:inline">Export Excel</span>
+            </button>
+
+            {/* Add Student Button */}
             <button
               id="students-add-btn"
               onClick={() => setIsAddStudentModalOpen(true)}
@@ -138,17 +198,6 @@ export function Header() {
               <Plus className="h-4 w-4" />
               <span>Add Student</span>
             </button>
-
-            {/* Desktop Notifications and Role Badge */}
-            <div className="hidden md:flex items-center gap-2 md:gap-3">
-              {renderNotificationsButton()}
-              {renderRoleBadge()}
-            </div>
-          </div>
-        ) : (
-          <div className="hidden md:flex items-center gap-2 md:gap-3 justify-end md:ml-auto z-10 w-auto">
-            {renderNotificationsButton()}
-            {renderRoleBadge()}
           </div>
         )}
       </header>

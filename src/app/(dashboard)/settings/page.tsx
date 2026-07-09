@@ -5,9 +5,10 @@ import { motion, AnimatePresence } from 'framer-motion'
 import { PageShell } from '@/components/ui/PageShell'
 import { createClient } from '@/lib/supabase/client'
 import { 
-  Tag, GraduationCap, Users, Contact, PlusCircle, Pencil, Trash2, X, Loader2, AlertCircle, School, Bookmark, Search
+  Tag, GraduationCap, Users, Contact, PlusCircle, Pencil, Trash2, X, Loader2, AlertCircle, School, Bookmark, Search, Folder
 } from 'lucide-react'
 import { CUSTOM_TAG_ICONS, type CustomTag } from '@/app/(dashboard)/students/StudentDashboardClient'
+import { useStudentDashboard } from '@/contexts/StudentDashboardContext'
 
 interface TariffOption {
   id: number
@@ -16,7 +17,7 @@ interface TariffOption {
 }
 
 interface GeneralOption {
-  id: number
+  id: number | string
   name: string
 }
 
@@ -105,6 +106,18 @@ const TABS_CONFIG = {
     btnBgClass: 'bg-sky-600 hover:bg-sky-700 dark:bg-sky-500 dark:hover:bg-sky-600 focus:ring-sky-500/20',
     addText: 'Add University',
     placeholder: 'Register partner universities and global study academies.'
+  },
+  folder: {
+    id: 'folder',
+    label: 'Student Folders',
+    subLabel: 'Workflow Folders',
+    description: 'Create custom folders to organize students. Students can be reassigned between folders under quick actions.',
+    icon: Folder,
+    colorClass: 'text-rose-500 bg-rose-50 dark:bg-rose-950/20 border-rose-100 dark:border-rose-900/30',
+    activeColorClass: 'bg-rose-500/10 text-rose-500 dark:bg-rose-500/20',
+    btnBgClass: 'bg-rose-600 hover:bg-rose-700 dark:bg-rose-500 dark:hover:bg-rose-600 focus:ring-rose-500/20',
+    addText: 'Add Folder',
+    placeholder: 'Define custom folders (e.g. Korea Spring) to group students.'
   }
 }
 
@@ -112,6 +125,7 @@ type TabType = keyof typeof TABS_CONFIG
 
 export default function SettingsPage() {
   const supabase = createClient()
+  const { fetchFilterOptions } = useStudentDashboard()
 
   // State for active view and filter search
   const [activeTab, setActiveTab] = useState<TabType>('tariff')
@@ -124,6 +138,7 @@ export default function SettingsPage() {
   const [leads, setLeads] = useState<GeneralOption[]>([])
   const [universities, setUniversities] = useState<GeneralOption[]>([])
   const [coordinators, setCoordinators] = useState<GeneralOption[]>([])
+  const [folders, setFolders] = useState<GeneralOption[]>([])
   const [isExpanded, setIsExpanded] = useState(false)
 
   // Loading & Error States
@@ -132,9 +147,9 @@ export default function SettingsPage() {
 
   // Modal State
   const [isModalOpen, setIsModalOpen] = useState(false)
-  const [modalType, setModalType] = useState<'tariff' | 'level' | 'group' | 'lead' | 'university' | 'coordinator'>('tariff')
+  const [modalType, setModalType] = useState<'tariff' | 'level' | 'group' | 'lead' | 'university' | 'coordinator' | 'folder'>('tariff')
   const [modalMode, setModalMode] = useState<'add' | 'edit'>('add')
-  const [editingId, setEditingId] = useState<number | null>(null)
+  const [editingId, setEditingId] = useState<number | string | null>(null)
   
   // Form values
   const [formName, setFormName] = useState('')
@@ -258,22 +273,24 @@ export default function SettingsPage() {
       setLoading(true)
       setError(null)
 
-      const [tariffsRes, levelsRes, groupsRes, leadsRes, universitiesRes, coordinatorsRes] = await Promise.all([
+      const [tariffsRes, levelsRes, groupsRes, leadsRes, universitiesRes, coordinatorsRes, foldersRes] = await Promise.all([
         supabase.from('tariff_options').select('*').order('name'),
         supabase.from('education_levels').select('*').order('name'),
         supabase.from('student_groups').select('*').order('name'),
         supabase.from('lead_sources').select('*').order('name'),
         supabase.from('universities').select('*').order('name'),
-        supabase.from('coordinators').select('*').order('name')
+        supabase.from('coordinators').select('*').order('name'),
+        supabase.from('folders').select('*').order('name')
       ])
 
       // If database tables are not set up yet, show a helpful setup banner
       if (
         (tariffsRes.error && tariffsRes.error.code === '42P01') ||
         (universitiesRes.error && universitiesRes.error.code === '42P01') ||
-        (coordinatorsRes && coordinatorsRes.error && coordinatorsRes.error.code === '42P01')
+        (coordinatorsRes && coordinatorsRes.error && coordinatorsRes.error.code === '42P01') ||
+        (foldersRes && foldersRes.error && foldersRes.error.code === '42P01')
       ) {
-        throw new Error('Database tables not initialized. Please execute the settings_setup.sql and add_coordinator.sql scripts in the Supabase SQL editor.')
+        throw new Error('Database tables not initialized. Please execute the settings_setup.sql, add_coordinator.sql, and add_folders.sql scripts in the Supabase SQL editor.')
       }
 
       if (tariffsRes.error) throw tariffsRes.error
@@ -289,6 +306,7 @@ export default function SettingsPage() {
       setLeads(leadsRes.data || [])
       setUniversities(universitiesRes.data || [])
       setCoordinators(coordinatorsRes.data || [])
+      setFolders(foldersRes.data || [])
     } catch (err: any) {
       console.error('Error loading settings:', err)
       setError(err.message || 'Failed to load settings from Supabase. Ensure tables are created.')
@@ -307,7 +325,7 @@ export default function SettingsPage() {
   }
 
   // Open modal for adding
-  const handleOpenAdd = (type: 'tariff' | 'level' | 'group' | 'lead' | 'university' | 'coordinator') => {
+  const handleOpenAdd = (type: 'tariff' | 'level' | 'group' | 'lead' | 'university' | 'coordinator' | 'folder') => {
     setModalType(type)
     setModalMode('add')
     setEditingId(null)
@@ -318,7 +336,7 @@ export default function SettingsPage() {
   }
 
   // Open modal for editing
-  const handleOpenEdit = (type: 'tariff' | 'level' | 'group' | 'lead' | 'university' | 'coordinator', item: any) => {
+  const handleOpenEdit = (type: 'tariff' | 'level' | 'group' | 'lead' | 'university' | 'coordinator' | 'folder', item: any) => {
     setModalType(type)
     setModalMode('edit')
     setEditingId(item.id)
@@ -329,7 +347,7 @@ export default function SettingsPage() {
   }
 
   // Handle delete
-  const handleDelete = async (type: 'tariff' | 'level' | 'group' | 'lead' | 'university' | 'coordinator', id: number, name: string) => {
+  const handleDelete = async (type: 'tariff' | 'level' | 'group' | 'lead' | 'university' | 'coordinator' | 'folder', id: number | string, name: string) => {
     if (!confirm(`Are you sure you want to delete "${name}"?`)) return
     try {
       let table = ''
@@ -339,6 +357,7 @@ export default function SettingsPage() {
       else if (type === 'lead') table = 'lead_sources'
       else if (type === 'university') table = 'universities'
       else if (type === 'coordinator') table = 'coordinators'
+      else if (type === 'folder') table = 'folders'
 
       const { error: deleteError } = await (supabase
         .from(table) as any)
@@ -348,6 +367,9 @@ export default function SettingsPage() {
       if (deleteError) throw deleteError
 
       await fetchAllOptions()
+      if (type === 'folder') {
+        fetchFilterOptions()
+      }
     } catch (err: any) {
       console.error('Error deleting item:', err)
       alert(err.message || 'Failed to delete item.')
@@ -374,6 +396,7 @@ export default function SettingsPage() {
       else if (modalType === 'lead') table = 'lead_sources'
       else if (modalType === 'university') table = 'universities'
       else if (modalType === 'coordinator') table = 'coordinators'
+      else if (modalType === 'folder') table = 'folders'
 
       let payload: any = { name: formName.trim() }
       if (modalType === 'tariff') {
@@ -407,6 +430,9 @@ export default function SettingsPage() {
 
       setIsModalOpen(false)
       await fetchAllOptions()
+      if (modalType === 'folder') {
+        fetchFilterOptions()
+      }
     } catch (err: any) {
       console.error('Error saving settings item:', err)
       setModalError(err.message || 'Failed to save item.')
@@ -424,6 +450,7 @@ export default function SettingsPage() {
   const filteredCoordinators = coordinators.filter(c => c.name.toLowerCase().includes(query))
   const filteredTags = customTagsRegistry.filter(t => t.name.toLowerCase().includes(query))
   const filteredUniversities = universities.filter(u => u.name.toLowerCase().includes(query))
+  const filteredFolders = folders.filter(f => f.name.toLowerCase().includes(query))
 
   // ── Sub-component Renderers ──────────────────────────────────────────────
   const renderTariffRow = (item: TariffOption) => (
@@ -460,7 +487,7 @@ export default function SettingsPage() {
     </motion.div>
   )
 
-  const renderGeneralRow = (item: GeneralOption, type: 'level' | 'group' | 'lead' | 'coordinator') => {
+  const renderGeneralRow = (item: GeneralOption, type: 'level' | 'group' | 'lead' | 'coordinator' | 'folder') => {
     const config = TABS_CONFIG[type]
     return (
       <motion.div
@@ -606,6 +633,10 @@ export default function SettingsPage() {
       itemsCount = universities.length
       filteredCount = filteredUniversities.length
       handleAddAction = () => handleOpenAdd('university')
+    } else if (activeTab === 'folder') {
+      itemsCount = folders.length
+      filteredCount = filteredFolders.length
+      handleAddAction = () => handleOpenAdd('folder')
     }
 
     // Specially handle pagination/limit slice for universities list
@@ -717,6 +748,7 @@ export default function SettingsPage() {
                   {activeTab === 'coordinator' && filteredCoordinators.map(item => renderGeneralRow(item, 'coordinator'))}
                   {activeTab === 'tag' && filteredTags.map(item => renderTagRow(item))}
                   {activeTab === 'university' && displayedUniversities.map(item => renderUniversityRow(item))}
+                  {activeTab === 'folder' && filteredFolders.map(item => renderGeneralRow(item, 'folder'))}
                 </motion.div>
 
                 {/* Universities pagination footer */}
@@ -973,7 +1005,7 @@ export default function SettingsPage() {
               </button>
 
               <h2 className="text-sm font-bold text-foreground mb-1 uppercase tracking-wider">
-                {modalMode === 'add' ? 'Add New' : 'Edit'} {modalType === 'tariff' ? 'Tariff' : modalType === 'level' ? 'Education Level' : modalType === 'group' ? 'Student Group' : modalType === 'lead' ? 'Lead Source' : modalType === 'university' ? 'University' : 'Kordinator'}
+                {modalMode === 'add' ? 'Add New' : 'Edit'} {modalType === 'tariff' ? 'Tariff' : modalType === 'level' ? 'Education Level' : modalType === 'group' ? 'Student Group' : modalType === 'lead' ? 'Lead Source' : modalType === 'university' ? 'University' : modalType === 'folder' ? 'Student Folder' : 'Kordinator'}
               </h2>
               <p className="text-[10px] text-foreground-muted mb-5">
                 Configure parameter descriptors for this workspace registry.
@@ -996,13 +1028,13 @@ export default function SettingsPage() {
                     type="text"
                     required
                     disabled={submitting}
-                    placeholder={modalType === 'tariff' ? 'E-VISA (TIL SERTIFIKATISIZ)' : modalType === 'level' ? 'BACHELOR' : modalType === 'group' ? '2026 BAHOR' : modalType === 'university' ? 'AJOU UNIVERSITY (SUWON, GYEONGGI)' : modalType === 'coordinator' ? 'Kordinator Name' : 'SeoulStudy'}
+                    placeholder={modalType === 'tariff' ? 'E-VISA (TIL SERTIFIKATISIZ)' : modalType === 'level' ? 'BACHELOR' : modalType === 'group' ? '2026 BAHOR' : modalType === 'university' ? 'AJOU UNIVERSITY (SUWON, GYEONGGI)' : modalType === 'coordinator' ? 'Kordinator Name' : modalType === 'folder' ? 'Korea Spring' : 'SeoulStudy'}
                     value={formName}
                     onChange={(e) => {
                       const val = e.target.value;
-                      setFormName(modalType === 'lead' || modalType === 'coordinator' ? val : val.toUpperCase());
+                      setFormName(modalType === 'lead' || modalType === 'coordinator' || modalType === 'folder' ? val : val.toUpperCase());
                     }}
-                    className={`w-full px-3.5 py-2.5 border border-border rounded-lg bg-surface text-foreground focus:outline-none focus:border-accent focus:ring-1 focus:ring-accent font-semibold text-xs tracking-wide placeholder:text-foreground-subtle ${modalType !== 'lead' && modalType !== 'coordinator' ? 'uppercase' : ''}`}
+                    className={`w-full px-3.5 py-2.5 border border-border rounded-lg bg-surface text-foreground focus:outline-none focus:border-accent focus:ring-1 focus:ring-accent font-semibold text-xs tracking-wide placeholder:text-foreground-subtle ${modalType !== 'lead' && modalType !== 'coordinator' && modalType !== 'folder' ? 'uppercase' : ''}`}
                   />
                 </div>
 
