@@ -21,11 +21,9 @@
   --surface-overlay: rgba(255, 255, 255, 0.85);
 
   /* Gemini Background & Patterns */
-  --dot-color: rgba(59, 127, 245, 0.05);
   --gemini-bg-gradient: 
-    radial-gradient(at 0% 0%, rgba(59, 127, 245, 0.06) 0px, transparent 50%),
-    radial-gradient(at 100% 0%, rgba(147, 51, 234, 0.06) 0px, transparent 50%),
-    radial-gradient(at 50% 100%, rgba(219, 39, 119, 0.04) 0px, transparent 50%);
+    radial-gradient(circle at 80% 0%, rgba(59, 127, 245, 0.04) 0%, transparent 60%),
+    radial-gradient(circle at 20% 80%, rgba(147, 51, 234, 0.03) 0%, transparent 60%);
 
   /* Text */
   --foreground: #1d1d1f;
@@ -84,11 +82,9 @@
   --surface-overlay: rgba(27, 31, 36, 0.92);
 
   /* Gemini Background & Patterns */
-  --dot-color: rgba(255, 255, 255, 0.03);
   --gemini-bg-gradient: 
-    radial-gradient(at 0% 0%, rgba(59, 127, 245, 0.12) 0px, transparent 55%),
-    radial-gradient(at 100% 0%, rgba(147, 51, 234, 0.12) 0px, transparent 55%),
-    radial-gradient(at 50% 100%, rgba(219, 39, 119, 0.06) 0px, transparent 50%);
+    radial-gradient(circle at 80% 0%, rgba(59, 127, 245, 0.08) 0%, transparent 60%),
+    radial-gradient(circle at 20% 80%, rgba(147, 51, 234, 0.06) 0%, transparent 60%);
 
   --foreground: #f3f4f6;
   --foreground-muted: #c1c7d0;
@@ -172,12 +168,9 @@ html {
 
 body {
   background-color: var(--background);
-  background-image: 
-    radial-gradient(circle, var(--dot-color) 1px, transparent 1px),
-    var(--gemini-bg-gradient);
-  background-size: 24px 24px, 100% 100%;
-  background-repeat: repeat, no-repeat;
+  background-image: var(--gemini-bg-gradient);
   background-attachment: fixed;
+  background-repeat: no-repeat;
   color: var(--foreground);
   font-family: var(--font-sans);
   font-size: 15.4px;
