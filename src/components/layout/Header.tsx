@@ -2,7 +2,6 @@
 
 import { usePathname } from 'next/navigation'
 import { Bell, Search, Plus, FileText, RefreshCw, Trash2, Loader2, Filter, FileSpreadsheet } from 'lucide-react'
-import Link from 'next/link'
 import { useUser } from '@/contexts/UserContext'
 import { cn } from '@/lib/utils'
 import { useStudentDashboard } from '@/contexts/StudentDashboardContext'
@@ -29,7 +28,6 @@ export function Header() {
     detailPageActions,
     isFilterPanelOpen,
     setIsFilterPanelOpen,
-    isExcelModalOpen,
     setIsExcelModalOpen,
     selectedTariffs,
     selectedLevels,
@@ -55,47 +53,6 @@ export function Header() {
       .sort(([a], [b]) => b.length - a.length)
       .find(([path]) => pathname.startsWith(path))?.[1] ?? 'Dashboard'
 
-  const renderNotificationsButton = () => (
-    <button
-      id="header-notifications-btn"
-      className={cn(
-        'relative flex h-9 w-9 items-center justify-center rounded-[var(--radius-md)]',
-        'text-[var(--foreground-muted)] hover:text-[var(--foreground)]',
-        'hover:bg-[var(--background)] border border-[var(--border)]',
-        'transition-all duration-150 shrink-0'
-      )}
-      aria-label="Notifications"
-    >
-      <Bell className="h-4 w-4" />
-      <span className="absolute right-1.5 top-1.5 h-2 w-2 rounded-full bg-[var(--accent)] ring-2 ring-[var(--surface)]" />
-    </button>
-  )
-
-  const renderRoleBadge = () => profile?.role && (
-    <div
-      className={cn(
-        'hidden sm:flex items-center gap-1.5 rounded-full px-3 py-1',
-        'border text-xs font-semibold shrink-0 select-none',
-        profile.role === 'Head Manager'
-          ? 'border-amber-200 bg-amber-50 text-amber-700 dark:border-amber-800/40 dark:bg-amber-950/40 dark:text-amber-400'
-          : profile.role === 'Manager'
-            ? 'border-blue-200 bg-blue-50 text-blue-700 dark:border-blue-800/40 dark:bg-blue-950/40 dark:text-blue-400'
-            : 'border-purple-200 bg-purple-50 text-purple-700 dark:border-purple-800/40 dark:bg-purple-950/40 dark:text-purple-400'
-      )}
-    >
-      <span
-        className={cn(
-          'h-1.5 w-1.5 rounded-full',
-          profile.role === 'Head Manager'
-            ? 'bg-amber-500'
-            : profile.role === 'Manager'
-              ? 'bg-blue-500'
-              : 'bg-purple-500'
-        )}
-      />
-      {profile.role}
-    </div>
-  )
 
   // Conditionally render the custom Dynamic Island header for /students and /documents pages
   if (pathname === '/students' || pathname === '/documents') {
@@ -103,7 +60,7 @@ export function Header() {
       <header
         className={cn(
           'flex flex-col md:flex-row flex-shrink-0 justify-between items-stretch md:items-center gap-3 md:gap-4 px-4 md:px-6 relative',
-          'h-auto py-4 md:h-20 md:py-0',
+          'h-auto py-2.5 md:h-14 md:py-0',
           'border-b border-[var(--border)] bg-[var(--surface)]/80 backdrop-blur-md',
           'sticky top-0 z-20'
         )}
@@ -119,7 +76,7 @@ export function Header() {
                   type="button"
                   onClick={() => setIsFilterPanelOpen(!isFilterPanelOpen)}
                   className={cn(
-                    "flex items-center justify-center gap-1.5 px-4 h-[40px] md:h-[44px] rounded-full border text-xs md:text-sm font-semibold select-none cursor-pointer transition-all duration-300 shadow-[0_8px_30px_rgba(0,0,0,0.06)] hover:shadow-md outline-none",
+                    "flex items-center justify-center gap-1.5 px-4 h-[34px] md:h-[36px] rounded-full border text-xs md:text-sm font-semibold select-none cursor-pointer transition-all duration-300 shadow-[0_8px_30px_rgba(0,0,0,0.06)] hover:shadow-md outline-none",
                     isFilterPanelOpen || activeFiltersCount > 0
                       ? "border-blue-500 bg-blue-50/50 dark:bg-blue-950/20 text-blue-600 dark:text-blue-400" 
                       : "border-[var(--border)] bg-[var(--surface-elevated)]/60 text-[var(--foreground)] hover:bg-[var(--surface-elevated)]"
@@ -150,7 +107,7 @@ export function Header() {
           <div 
             className={cn(
               "relative flex-1 flex items-center rounded-full border border-[var(--border)] bg-[var(--surface-elevated)]/60 backdrop-blur-md shadow-[0_8px_30px_rgba(0,0,0,0.06)] hover:bg-[var(--surface-elevated)]/85 hover:shadow-[0_12px_40px_rgba(0,0,0,0.08)] transition-all duration-300 ease-out",
-              "h-[48px] md:h-[54px]",
+              "h-[38px] md:h-[42px]",
               "focus-within:border-[var(--foreground-muted)] dark:focus-within:border-[var(--foreground-subtle)] focus-within:bg-[var(--surface-elevated)] focus-within:shadow-[0_16px_36px_rgba(0,0,0,0.08)] dark:focus-within:shadow-[0_16px_36px_rgba(0,0,0,0.4)]"
             )}
           >
@@ -181,7 +138,7 @@ export function Header() {
             <button
               type="button"
               onClick={() => setIsExcelModalOpen(true)}
-              className="flex items-center justify-center gap-1.5 px-4 h-[40px] rounded-full border border-emerald-600/30 bg-emerald-50 hover:bg-emerald-100/70 text-emerald-700 dark:bg-emerald-950/20 dark:border-emerald-800/40 dark:text-emerald-400 text-xs md:text-sm font-semibold select-none cursor-pointer transition-all duration-300 shadow-[0_8px_30px_rgba(0,0,0,0.06)] hover:shadow-md outline-none"
+              className="flex items-center justify-center gap-1.5 px-4 h-[34px] rounded-full border border-emerald-600/30 bg-emerald-50 hover:bg-emerald-100/70 text-emerald-700 dark:bg-emerald-950/20 dark:border-emerald-800/40 dark:text-emerald-400 text-xs md:text-sm font-semibold select-none cursor-pointer transition-all duration-300 shadow-[0_8px_30px_rgba(0,0,0,0.06)] hover:shadow-md outline-none"
               title="Export Roster to Excel"
             >
               <FileSpreadsheet className="h-4.5 w-4.5" />
@@ -192,7 +149,7 @@ export function Header() {
             <button
               id="students-add-btn"
               onClick={() => setIsAddStudentModalOpen(true)}
-              className="flex-1 md:flex-initial flex items-center justify-center gap-2 rounded-[var(--radius-md)] bg-[var(--accent)] px-3.5 py-2 text-sm font-semibold text-white hover:bg-[var(--accent-hover)] transition-all cursor-pointer select-none h-9 md:h-10 shrink-0"
+              className="flex-1 md:flex-initial flex items-center justify-center gap-2 rounded-[var(--radius-md)] bg-[var(--accent)] px-3.5 py-1.5 text-sm font-semibold text-white hover:bg-[var(--accent-hover)] transition-all cursor-pointer select-none h-8 md:h-9 shrink-0"
               style={{ boxShadow: '0 4px 12px rgba(59, 127, 245, 0.2)' }}
             >
               <Plus className="h-4 w-4" />
@@ -208,7 +165,7 @@ export function Header() {
   return (
     <header
       className={cn(
-        'flex h-16 flex-shrink-0 items-center gap-4 px-6',
+        'flex h-12 flex-shrink-0 items-center gap-4 px-6',
         'border-b border-[var(--border)] bg-[var(--surface)]/80 backdrop-blur-md',
         'sticky top-0 z-20'
       )}

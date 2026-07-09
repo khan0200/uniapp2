@@ -10,6 +10,7 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
       defaultTheme="system"
       enableSystem
       disableTransitionOnChange={false}
+      nonce=""
     >
       {children}
     </NextThemesProvider>

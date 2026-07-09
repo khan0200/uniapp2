@@ -1,17 +1,15 @@
 'use client'
 
 import { useState, useEffect, useMemo, useRef } from 'react'
-import { useRouter } from 'next/navigation'
 import {
-  Plus, Filter, Users, X, Loader2, Search, AlertCircle, CheckCircle2,
+  Plus, Users, X, Loader2, Search, AlertCircle, CheckCircle2,
   Building2, User, Landmark, Tag, Layers, Award, Bookmark, UserCheck,
-  FileSpreadsheet, ChevronDown, ChevronLeft, ChevronRight, ChevronUp, GraduationCap, Hourglass, CheckSquare,
-  MessageSquare, Sparkles, Copy, RefreshCw, Trash2, HelpCircle, Pencil, Hash, Check,
-  Phone, FileText, Wallet
+  FileSpreadsheet, ChevronDown, ChevronLeft, ChevronRight, ChevronUp,
+  Sparkles, Copy, Trash2, Hash, Check
 } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import { cn } from '@/lib/utils'
-import { type Student, type StudentLevel, type StudentTariff, type StudentLanguageCertificate } from '@/types/database'
+import { type Student, type StudentLevel } from '@/types/database'
 import { PageShell } from '@/components/ui/PageShell'
 import * as XLSX from 'xlsx-js-style'
 import { useStudentDashboard } from '@/contexts/StudentDashboardContext'
@@ -109,7 +107,6 @@ const compareStudentIds = (a: Student, b: Student, order: 'asc' | 'desc' = 'asc'
 }
 
 export function StudentDashboardClient() {
-  const router = useRouter()
   const supabase = createClient()
 
   const [activeTooltip, setActiveTooltip] = useState<{ studentId: string; tagKey: string } | null>(null)
@@ -151,8 +148,6 @@ export function StudentDashboardClient() {
     setIsExcelModalOpen,
     tariffOptions,
     levelOptions,
-    groupOptions,
-    leadByOptions,
     customTagsRegistry,
     setCustomTagsRegistry,
     foldersOptions,
@@ -165,31 +160,7 @@ export function StudentDashboardClient() {
   const showScoreFilter = selectedCerts.length === 1 && (selectedCerts[0] === 'TOPIK' || selectedCerts[0] === 'IELTS')
   const activeCertForScore = showScoreFilter ? selectedCerts[0] : null
 
-  const getScoreOptions = () => {
-    if (activeCertForScore === 'TOPIK') {
-      return ['EXPECTED', '1', '2', '3', '4', '5', '6']
-    }
-    if (activeCertForScore === 'IELTS') {
-      return ['EXPECTED', '5.0', '5.5', '6.0', '6.5', '7.0', '7.5', '8.0', '8.5', '9.0']
-    }
-    return []
-  }
 
-  const scoreOptions = getScoreOptions()
-
-  const handleToggleScore = (score: string) => {
-    setSelectedScores(prev =>
-      prev.includes(score)
-        ? prev.filter(s => s !== score)
-        : [...prev, score]
-    )
-  }
-
-  const handleToggleAllScores = () => {
-    setSelectedScores(prev =>
-      prev.length === scoreOptions.length ? [] : [...scoreOptions]
-    )
-  }
 
   const getScoreLabel = (score: string) => {
     if (score === 'EXPECTED') return 'Expected'
@@ -211,6 +182,7 @@ export function StudentDashboardClient() {
     if (prev !== activeCertForScore) {
       setSelectedScores([])
     }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeCertForScore])
 
   // Excel Export Modal States
@@ -809,6 +781,7 @@ export function StudentDashboardClient() {
       setExcelSearchQuery(searchQuery)
       setSelectedExcelIds([])
     }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isExcelModalOpen])
 
   // Dismiss active action tag tooltip on global click
@@ -859,6 +832,7 @@ export function StudentDashboardClient() {
 
   useEffect(() => {
     fetchStudents()
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
   // Listen to scroll events on main-content container and save to context
@@ -899,6 +873,7 @@ export function StudentDashboardClient() {
         console.error('Failed to parse customTagsRegistry:', e)
       }
     }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
   useEffect(() => {
@@ -922,11 +897,13 @@ export function StudentDashboardClient() {
       }
       return prev
     })
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [students])
 
   // Reset pagination when search query or filter values change
   useEffect(() => {
     setCurrentPage(1)
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [searchQuery, selectedTariffs, selectedLevels, selectedGroups, selectedCerts, selectedScores, selectedTags, selectedLeads])
 
   const getCustomTagIcon = (tagName: string) => {
@@ -1002,6 +979,34 @@ export function StudentDashboardClient() {
       .eq('id', studentId)
     if (updateError) {
       console.error('Error updating student folder:', updateError)
+      fetchStudents(true)
+    }
+  }
+
+  const [isFolderAddModalOpen, setIsFolderAddModalOpen] = useState(false)
+  const [folderAddSearch, setFolderAddSearch] = useState('')
+  const [folderAddSelectedIds, setFolderAddSelectedIds] = useState<string[]>([])
+
+  const handleOpenFolderAdd = () => {
+    setFolderAddSelectedIds([])
+    setFolderAddSearch('')
+    setIsFolderAddModalOpen(true)
+  }
+
+  const handleSaveFolderAdd = async () => {
+    if (folderAddSelectedIds.length === 0 || activeFolder === 'all' || activeFolder === 'deleted') return
+    const folderId = activeFolder
+    // Optimistic update
+    setStudents(prev => prev.map(s =>
+      folderAddSelectedIds.includes(s.id) ? { ...s, folder_id: folderId } : s
+    ))
+    setIsFolderAddModalOpen(false)
+    const { error: updateError } = await (supabase
+      .from('students') as any)
+      .update({ folder_id: folderId })
+      .in('id', folderAddSelectedIds)
+    if (updateError) {
+      console.error('Error adding students to folder:', updateError)
       fetchStudents(true)
     }
   }
@@ -1250,44 +1255,6 @@ export function StudentDashboardClient() {
     return pages
   }
 
-  // Export to CSV function
-  const handleExportCSV = () => {
-    const headers = [
-      'Student ID', 'Full Name', 'Passport', 'Gender', 'Birthday',
-      'Phone 1', 'Phone 2', 'Email', 'Address', 'Level', 'Level 2',
-      'Educational Background', 'Tariff', 'Certificate 1', 'Score 1',
-      'Certificate 2', 'Score 2', 'Certificate 3', 'Score 3',
-      'University 1', 'Status 1', 'University 2', 'Status 2', 'University 3', 'Status 3',
-      'Balance', 'Discount', 'Group', 'Lead By', 'Office', 'Created At'
-    ]
-
-    const rows = filteredStudents.map(s => [
-      s.id, s.full_name, s.passport || '', s.gender || '', s.birthday || '',
-      s.phone1 || '', s.phone2 || '', s.email || '', s.address || '', s.level || '', s.level2 || '',
-      s.educational_background || '', s.tariff || '', s.language_certificate || '', s.certificate_score || '',
-      s.language_certificate_2 || '', s.certificate_score_2 || '', s.language_certificate_3 || '', s.certificate_score_3 || '',
-      s.university_1 || '', s.university_1_status || '', s.university_2 || '', s.university_2_status || '', s.university_3 || '', s.university_3_status || '',
-      s.balance, s.discount, s.student_group || '', s.lead_by || '', s.office || '', s.created_at
-    ])
-
-    const csvContent = [
-      headers.join(','),
-      ...rows.map(row => row.map(val => {
-        const strVal = String(val).replace(/"/g, '""')
-        return strVal.includes(',') || strVal.includes('\n') || strVal.includes('"') ? `"${strVal}"` : strVal
-      }).join(','))
-    ].join('\n')
-
-    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' })
-    const url = URL.createObjectURL(blob)
-    const link = document.createElement('a')
-    link.setAttribute('href', url)
-    link.setAttribute('download', `students_export_${new Date().toISOString().split('T')[0]}.csv`)
-    link.style.visibility = 'hidden'
-    document.body.appendChild(link)
-    link.click()
-    document.body.removeChild(link)
-  }
 
 
 
@@ -1388,41 +1355,6 @@ export function StudentDashboardClient() {
   }
 
   // Render Actions column circular indicators
-  const renderActionCircle = (student: Student) => {
-    const isCompleted = student.university_1_status === 'Accepted' || student.university_1_status === 'Finished'
-    return (
-      <div className={`h-4.5 w-4.5 rounded-full border-2 flex items-center justify-center cursor-pointer transition-all ${isCompleted
-          ? 'border-emerald-600 bg-emerald-600 text-white shadow-sm'
-          : 'border-gray-300 dark:border-gray-600 bg-transparent hover:border-gray-400'
-        }`}>
-        {isCompleted && <div className="h-1.5 w-1.5 rounded-full bg-white" />}
-      </div>
-    )
-  }
-
-  // Render Actions column status icon
-  const renderActionIcon = (student: Student) => {
-    if (student.university_1_status === 'Accepted' || student.university_1_status === 'Finished') {
-      return <CheckSquare className="h-4.5 w-4.5 text-emerald-600 dark:text-emerald-400" />
-    }
-    if (student.university_1_status === 'Admitted' || student.university_1_status === 'Graduated') {
-      return <GraduationCap className="h-4.5 w-4.5 text-indigo-600 dark:text-indigo-400" />
-    }
-    if (student.university_1_status === 'Chosen' || student.university_1_status === 'Applying') {
-      return <Hourglass className="h-4.5 w-4.5 text-amber-500 dark:text-amber-400 animate-pulse" />
-    }
-    if (student.notes?.toLowerCase().includes('phone') || student.notes?.toLowerCase().includes('call')) {
-      return <MessageSquare className="h-4.5 w-4.5 text-sky-500 dark:text-sky-400" />
-    }
-    return null
-  }
-
-  // Helper to format currency values
-  const formatCurrency = (val: number) => {
-    return new Intl.NumberFormat('uz-UZ').format(val) + ' UZS'
-  }
-
-
 
   const hasActiveFilters = 
     selectedTariffs.length > 0 ||
@@ -1437,7 +1369,7 @@ export function StudentDashboardClient() {
     if (!hasActiveFilters) return null
 
     return (
-      <div className="mb-4 flex flex-wrap items-center gap-2 px-1 select-none animate-in fade-in slide-in-from-top-1 duration-200">
+      <div className="mb-3 flex flex-wrap items-center gap-2 px-1 select-none animate-in fade-in slide-in-from-top-1 duration-200">
         <span className="text-[11px] font-bold text-[var(--foreground-muted)] mr-1">Active Filters:</span>
         
         {selectedTariffs.map(t => (
@@ -1547,7 +1479,7 @@ export function StudentDashboardClient() {
       {renderActiveFilterChips()}
  
       {/* Telegram-Style Folders Selector */}
-      <div className="mb-4 flex items-center overflow-x-auto scrollbar-none gap-6 select-none shrink-0 border-b border-[var(--border)] dark:border-border/60 pb-2 px-1">
+      <div className="mb-3 flex items-center overflow-x-auto scrollbar-none gap-6 select-none shrink-0 border-b border-[var(--border)] dark:border-border/60 pb-2 px-1">
         {/* All Folder */}
         <button
           onClick={() => setActiveFolder('all')}
@@ -1580,7 +1512,7 @@ export function StudentDashboardClient() {
           )
         })}
  
-        {/* Deleted Folder */}
+        {/* Archive Folder */}
         <button
           onClick={() => setActiveFolder('deleted')}
           className={cn(
@@ -1590,7 +1522,7 @@ export function StudentDashboardClient() {
               : "text-[var(--foreground-muted)] border-transparent hover:text-red-500"
           )}
         >
-          Deleted
+          Archive
         </button>
       </div>
 
@@ -1600,11 +1532,21 @@ export function StudentDashboardClient() {
           {(searchQuery || selectedTariffs.length > 0 || selectedLevels.length > 0 || selectedGroups.length > 0 || selectedCerts.length > 0 || selectedScores.length > 0 || selectedTags.length > 0 || selectedLeads.length > 0) ? (
             <span>Showing {filteredStudents.length} of {students.filter(s => activeFolder === 'deleted' ? s.is_deleted : activeFolder === 'all' ? !s.is_deleted : (!s.is_deleted && s.folder_id === activeFolder)).length} students</span>
           ) : (
-            <span>Showing all students in {activeFolder === 'all' ? 'All' : activeFolder === 'deleted' ? 'Deleted' : (foldersOptions.find(f => f.id === activeFolder)?.name || 'Folder')}</span>
+            <span>Showing all students in {activeFolder === 'all' ? 'All' : activeFolder === 'deleted' ? 'Archive' : (foldersOptions.find(f => f.id === activeFolder)?.name || 'Folder')}</span>
           )}
         </div>
-        <div className="text-right">
-          Total {filteredStudents.length} students
+        <div className="flex items-center gap-3">
+          {/* Add to Folder button — only for custom folders */}
+          {activeFolder !== 'all' && activeFolder !== 'deleted' && (
+            <button
+              onClick={handleOpenFolderAdd}
+              className="not-italic inline-flex items-center gap-1.5 px-3 py-1.5 rounded-[var(--radius-md)] bg-[var(--accent)] hover:bg-[var(--accent-hover)] text-white text-xs font-bold cursor-pointer transition-all hover:scale-[1.02] shadow-xs"
+            >
+              <Plus className="h-3.5 w-3.5" />
+              Add to Folder
+            </button>
+          )}
+          <div className="text-right">Total {filteredStudents.length} students</div>
         </div>
       </div>
 
@@ -1614,7 +1556,7 @@ export function StudentDashboardClient() {
         <div className="rounded-[var(--radius-lg)] border border-[var(--border)] bg-[var(--surface)] overflow-hidden shadow-[var(--shadow-sm)]">
           <div className="divide-y divide-[var(--border)] animate-pulse">
             {[...Array(6)].map((_, idx) => (
-              <div key={idx} className="p-5 flex justify-between items-center gap-6">
+              <div key={idx} className="p-4 flex justify-between items-center gap-6">
                 <div className="flex gap-4 items-center flex-1">
                   <div className="h-6 w-9 bg-[var(--border-subtle)] rounded-[4px]" />
                   <div className="space-y-2 flex-1">
@@ -1645,7 +1587,7 @@ export function StudentDashboardClient() {
         </div>
       ) : filteredStudents.length === 0 ? (
         // Empty State
-        <div className="rounded-[var(--radius-lg)] border border-[var(--border)] border-dashed bg-[var(--surface)] p-12 text-center shadow-[var(--shadow-sm)]">
+        <div className="rounded-[var(--radius-lg)] border border-[var(--border)] border-dashed bg-[var(--surface)] p-8 text-center shadow-[var(--shadow-sm)]">
           <div
             className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-[var(--radius-xl)]"
             style={{ background: 'var(--accent-subtle)' }}
@@ -1653,12 +1595,22 @@ export function StudentDashboardClient() {
             <Users className="h-8 w-8 text-[var(--accent)]" strokeWidth={1.5} />
           </div>
           <h3 className="text-base font-semibold text-[var(--foreground)]">
-            No students found
+            {activeFolder !== 'all' && activeFolder !== 'deleted' ? 'No students in this folder yet' : 'No students found'}
           </h3>
           <p className="mt-1.5 text-sm text-[var(--foreground-muted)] max-w-sm mx-auto">
-            No students match your active search filters or table criteria.
+            {activeFolder !== 'all' && activeFolder !== 'deleted'
+              ? `Add students to the "${foldersOptions.find(f => f.id === activeFolder)?.name || 'folder'}" folder to see them here.`
+              : 'No students match your active search filters or table criteria.'}
           </p>
-          {!searchQuery && selectedTariffs.length === 0 && selectedLevels.length === 0 && (
+          {activeFolder !== 'all' && activeFolder !== 'deleted' ? (
+            <button
+              onClick={handleOpenFolderAdd}
+              className="mt-5 inline-flex items-center gap-2 rounded-[var(--radius-md)] bg-[var(--accent)] px-4 py-2 text-sm font-semibold text-white hover:bg-[var(--accent-hover)] transition-all cursor-pointer"
+            >
+              <Plus className="h-4 w-4" />
+              Add Students to Folder
+            </button>
+          ) : !searchQuery && selectedTariffs.length === 0 && selectedLevels.length === 0 && (
             <button
               onClick={() => setIsModalOpen(true)}
               className="mt-5 inline-flex items-center gap-2 rounded-[var(--radius-md)] bg-[var(--accent)] px-4 py-2 text-sm font-semibold text-white hover:bg-[var(--accent-hover)] transition-all cursor-pointer"
@@ -1684,7 +1636,7 @@ export function StudentDashboardClient() {
               <thead>
                 <tr className="border-b border-[var(--border)] bg-[var(--surface-elevated)] text-[11px] font-bold uppercase tracking-wider text-[var(--foreground-muted)] dark:text-[var(--foreground)] select-none">
                   <th
-                    className="px-1 py-3.5 cursor-pointer select-none hover:bg-[var(--surface-elevated)] transition-colors rounded-tl-[var(--radius-lg)]"
+                    className="px-1 py-2.5 cursor-pointer select-none hover:bg-[var(--surface-elevated)] transition-colors rounded-tl-[var(--radius-lg)]"
                     onClick={() => setSortOrder(prev => prev === 'asc' ? 'desc' : 'asc')}
                   >
                     <span className="flex items-center gap-1 font-bold text-[11px] uppercase tracking-wider text-[var(--foreground-muted)] dark:text-[var(--foreground)]">
@@ -1696,11 +1648,11 @@ export function StudentDashboardClient() {
                       )}
                     </span>
                   </th>
-                  <th className="px-1 py-3.5 w-[18%]">Full Name</th>
-                  <th className="px-6 py-3.5 w-[12%]">Phone</th>
-                  <th className="px-6 py-3.5 w-[10%]">Level</th>
-                  <th className="px-6 py-3.5 w-[32%]">University</th>
-                  <th className="px-6 py-3.5 text-left w-[12%]">Actions</th>
+                  <th className="px-1 py-2.5 w-[18%]">Full Name</th>
+                  <th className="px-6 py-2.5 w-[12%]">Phone</th>
+                  <th className="px-6 py-2.5 w-[10%]">Level</th>
+                  <th className="px-6 py-2.5 w-[32%]">University</th>
+                  <th className="px-6 py-2.5 text-left w-[12%]">Actions</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-[var(--border)]">
@@ -1714,14 +1666,14 @@ export function StudentDashboardClient() {
                       style={bgObj.style}
                     >
                       {/* ID Badge Column */}
-                      <td className="px-2 py-3.5">
+                      <td className="px-2 py-2.5">
                         <div className="flex items-center justify-center w-10 h-6.5 text-[11px] font-bold bg-[#007aff] text-white rounded-[4px] shadow-sm select-all">
                           {student.id}
                         </div>
                       </td>
 
                       {/* Full Name & Tariff Info Column */}
-                      <td className="px-2 py-3.5">
+                      <td className="px-2 py-2.5">
                         <div className="flex items-center gap-1.5">
                           <span className="font-bold uppercase tracking-wide text-xs text-[var(--foreground)]">
                             {student.full_name}
@@ -1777,7 +1729,7 @@ export function StudentDashboardClient() {
                       </td>
 
                       {/* Phone Numbers Column */}
-                      <td className="px-6 py-3.5 font-mono text-xs text-[var(--foreground-muted)] whitespace-nowrap">
+                      <td className="px-6 py-2.5 font-mono text-xs text-[var(--foreground-muted)] whitespace-nowrap">
                         <div className="flex items-center justify-start gap-3">
                           <div>
                             <div>{student.phone1 || '—'}</div>
@@ -1808,7 +1760,7 @@ export function StudentDashboardClient() {
                       </td>
 
                       {/* Levels & Languages Column */}
-                      <td className="px-6 py-3.5 whitespace-nowrap">
+                      <td className="px-6 py-2.5 whitespace-nowrap">
                         {/* Level Badges */}
                         <div className="flex flex-wrap gap-1.5">
                           {student.level && (
@@ -1827,12 +1779,12 @@ export function StudentDashboardClient() {
                       </td>
 
                       {/* Universities List Column */}
-                      <td className="px-6 py-3.5 max-w-0">
+                      <td className="px-6 py-2.5 max-w-0">
                         {renderUniversities(student)}
                       </td>
 
                       {/* Actions Column (Color Ball + Task Tags) */}
-                      <td className="px-6 py-3.5" onClick={(e) => e.stopPropagation()}>
+                      <td className="px-6 py-2.5" onClick={(e) => e.stopPropagation()}>
                         <div className="flex items-center justify-start gap-3 select-none whitespace-nowrap flex-nowrap">
                           {/* Color Ball Wrapper */}
                           <div
@@ -2283,6 +2235,152 @@ export function StudentDashboardClient() {
                     <Trash2 className="h-3.5 w-3.5 text-red-500" />
                     <span>Delete Student</span>
                   </motion.button>
+                </div>
+              </motion.div>
+            </div>
+          )
+        })()}
+      </AnimatePresence>
+      {/* Folder Add Students Modal */}
+      <AnimatePresence>
+        {isFolderAddModalOpen && (() => {
+          const folderName = foldersOptions.find(f => f.id === activeFolder)?.name || 'Folder'
+          // All active students not already in this folder
+          const pickableStudents = students.filter(s =>
+            !s.is_deleted && s.folder_id !== activeFolder
+          )
+          const filtered = pickableStudents.filter(s =>
+            s.full_name.toLowerCase().includes(folderAddSearch.toLowerCase()) ||
+            s.id.toLowerCase().includes(folderAddSearch.toLowerCase())
+          )
+          const allSelected = filtered.length > 0 && filtered.every(s => folderAddSelectedIds.includes(s.id))
+          return (
+            <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+              <motion.div
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                onClick={() => setIsFolderAddModalOpen(false)}
+                className="absolute inset-0 bg-black/40 backdrop-blur-sm"
+              />
+              <motion.div
+                initial={{ opacity: 0, scale: 0.95, y: 15 }}
+                animate={{ opacity: 1, scale: 1, y: 0 }}
+                exit={{ opacity: 0, scale: 0.95, y: 15 }}
+                className="relative w-full max-w-lg rounded-[var(--radius-lg)] border border-[var(--border)] bg-[var(--surface-elevated)] shadow-[var(--shadow-lg)] z-10 flex flex-col max-h-[80vh]"
+                onClick={e => e.stopPropagation()}
+              >
+                {/* Header */}
+                <div className="flex items-center justify-between px-6 py-5 border-b border-[var(--border)] shrink-0">
+                  <div>
+                    <h3 className="text-[15px] font-bold text-[var(--foreground)]">Add Students to Folder</h3>
+                    <p className="text-[11px] text-[var(--foreground-muted)] mt-0.5">
+                      Folder: <span className="font-semibold text-blue-600 dark:text-blue-400">{folderName}</span>
+                      {folderAddSelectedIds.length > 0 && <span className="ml-2 text-[var(--accent)] font-bold">· {folderAddSelectedIds.length} selected</span>}
+                    </p>
+                  </div>
+                  <button
+                    onClick={() => setIsFolderAddModalOpen(false)}
+                    className="p-1.5 rounded-[var(--radius-sm)] hover:bg-[var(--border-subtle)] text-[var(--foreground-muted)] hover:text-[var(--foreground)] transition-all cursor-pointer"
+                  >
+                    <X className="h-4 w-4" />
+                  </button>
+                </div>
+
+                {/* Search */}
+                <div className="px-6 pt-4 pb-3 shrink-0">
+                  <div className="relative">
+                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-[var(--foreground-subtle)] pointer-events-none" />
+                    <input
+                      type="text"
+                      placeholder="Search students by name or ID..."
+                      value={folderAddSearch}
+                      onChange={e => setFolderAddSearch(e.target.value)}
+                      className="w-full pl-8 pr-3 py-2 text-xs border border-[var(--border)] rounded-[var(--radius-md)] bg-[var(--surface)] focus:outline-none focus:border-blue-500 text-[var(--foreground)] placeholder:text-[var(--foreground-subtle)]"
+                      autoFocus
+                    />
+                  </div>
+                </div>
+
+                {/* Select All row */}
+                {filtered.length > 0 && (
+                  <div className="px-6 pb-2 shrink-0">
+                    <button
+                      onClick={() => {
+                        if (allSelected) {
+                          setFolderAddSelectedIds(prev => prev.filter(id => !filtered.some(s => s.id === id)))
+                        } else {
+                          setFolderAddSelectedIds(prev => Array.from(new Set([...prev, ...filtered.map(s => s.id)])))
+                        }
+                      }}
+                      className="text-[11px] font-bold text-[var(--accent)] hover:underline cursor-pointer"
+                    >
+                      {allSelected ? 'Deselect all' : `Select all ${filtered.length}`}
+                    </button>
+                  </div>
+                )}
+
+                {/* Student List */}
+                <div className="flex-1 overflow-y-auto px-6 pb-4 flex flex-col gap-1.5">
+                  {filtered.length === 0 ? (
+                    <div className="py-10 text-center text-sm text-[var(--foreground-muted)] italic">
+                      {pickableStudents.length === 0 ? 'All students are already in this folder.' : 'No students match your search.'}
+                    </div>
+                  ) : filtered.map(s => {
+                    const isSelected = folderAddSelectedIds.includes(s.id)
+                    return (
+                      <button
+                        key={s.id}
+                        onClick={() => setFolderAddSelectedIds(prev =>
+                          isSelected ? prev.filter(id => id !== s.id) : [...prev, s.id]
+                        )}
+                        className={cn(
+                          "flex items-center gap-3 px-3 py-2.5 rounded-[var(--radius-md)] border text-left cursor-pointer transition-all w-full",
+                          isSelected
+                            ? "border-[var(--accent)] bg-[var(--accent-subtle)]"
+                            : "border-[var(--border)] bg-[var(--surface)] hover:bg-[var(--border-subtle)]"
+                        )}
+                      >
+                        <div className={cn(
+                          "h-4.5 w-4.5 rounded border-2 flex items-center justify-center shrink-0 transition-all",
+                          isSelected ? "border-[var(--accent)] bg-[var(--accent)]" : "border-[var(--border)]"
+                        )}>
+                          {isSelected && <Check className="h-3 w-3 text-white" strokeWidth={3} />}
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <div className="text-xs font-semibold text-[var(--foreground)] truncate">{s.full_name}</div>
+                          <div className="text-[10px] text-[var(--foreground-muted)] font-mono">{s.id}</div>
+                        </div>
+                        {s.folder_id && (
+                          <span className="text-[10px] text-[var(--foreground-subtle)] bg-[var(--surface-elevated)] border border-[var(--border)] rounded px-1.5 py-0.5 shrink-0">
+                            {foldersOptions.find(f => f.id === s.folder_id)?.name || 'Other folder'}
+                          </span>
+                        )}
+                      </button>
+                    )
+                  })}
+                </div>
+
+                {/* Footer */}
+                <div className="px-6 pb-5 pt-3 border-t border-[var(--border)] flex items-center justify-between gap-3 shrink-0">
+                  <span className="text-xs text-[var(--foreground-muted)]">
+                    {folderAddSelectedIds.length} student{folderAddSelectedIds.length !== 1 ? 's' : ''} selected
+                  </span>
+                  <div className="flex gap-2">
+                    <button
+                      onClick={() => setIsFolderAddModalOpen(false)}
+                      className="px-4 py-2 text-xs font-semibold border border-[var(--border)] rounded-[var(--radius-md)] hover:bg-[var(--border-subtle)] transition-all cursor-pointer"
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      onClick={handleSaveFolderAdd}
+                      disabled={folderAddSelectedIds.length === 0}
+                      className="px-4 py-2 text-xs font-bold bg-[var(--accent)] hover:bg-[var(--accent-hover)] text-white rounded-[var(--radius-md)] transition-all cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
+                    >
+                      Save ({folderAddSelectedIds.length})
+                    </button>
+                  </div>
                 </div>
               </motion.div>
             </div>

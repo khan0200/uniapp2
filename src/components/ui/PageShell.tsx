@@ -22,7 +22,7 @@ export function PageShell({
   className,
 }: PageShellProps) {
   return (
-    <div className={cn('flex flex-col h-full p-6 gap-6', className)}>
+    <div className={cn('flex flex-col h-full p-4 gap-4', className)}>
       {/* Page header */}
       {(title || description || actions) && (
         <div className="flex items-start justify-between gap-4">
