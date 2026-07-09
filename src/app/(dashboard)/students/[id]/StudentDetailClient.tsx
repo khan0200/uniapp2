@@ -596,7 +596,7 @@ export function StudentDetailClient({ studentId }: StudentDetailClientProps) {
           <span className="wave-dot" style={{ position: 'absolute', top: '50%', right: '6px', transform: 'translateY(-50%)', height: '8px', width: '8px', borderRadius: '9999px', backgroundColor: '#e11d48', color: '#e11d48' }} />
         )}
         <div className="flex items-center justify-between gap-2">
-          <span className="text-[11px] uppercase font-medium tracking-wide text-[#64748B]">
+          <span className="text-[11px] uppercase tracking-wide glitter-label">
             {label}
           </span>
           <div className="flex items-center gap-1.5 opacity-0 group-hover:opacity-100 focus-within:opacity-100 transition-opacity">
@@ -759,7 +759,7 @@ export function StudentDetailClient({ studentId }: StudentDetailClientProps) {
           <span className="wave-dot" style={{ position: 'absolute', top: '50%', right: '6px', transform: 'translateY(-50%)', height: '8px', width: '8px', borderRadius: '9999px', backgroundColor: '#e11d48', color: '#e11d48' }} />
         )}
         <div className="flex items-center justify-between gap-2">
-          <span className="text-[11px] uppercase font-medium tracking-wide text-[#64748B]">{label}</span>
+          <span className="text-[11px] uppercase tracking-wide glitter-label">{label}</span>
           <div className="flex items-center gap-1.5 opacity-0 group-hover:opacity-100 focus-within:opacity-100 transition-opacity">
             {certVal && certVal !== 'NO CERTIFICATE' && !isEditing && (
               <button
@@ -975,7 +975,7 @@ export function StudentDetailClient({ studentId }: StudentDetailClientProps) {
               <span className="wave-dot" style={{ position: 'absolute', top: '50%', right: '6px', transform: 'translateY(-50%)', height: '8px', width: '8px', borderRadius: '9999px', backgroundColor: '#e11d48', color: '#e11d48' }} />
             )}
             <div className="flex items-center justify-between gap-2">
-              <span className="text-[10.5px] uppercase font-medium tracking-wide text-[#64748B]">{label}</span>
+              <span className="text-[10.5px] uppercase tracking-wide glitter-label">{label}</span>
               <div className="flex items-center gap-1.5 opacity-0 group-hover:opacity-100 focus-within:opacity-100 transition-opacity">
                 {uniVal && !isEditing && (
                   <button
@@ -1173,7 +1173,7 @@ export function StudentDetailClient({ studentId }: StudentDetailClientProps) {
         )}
         <div className="flex items-center justify-between gap-2">
           <div className="flex items-center gap-1">
-            <span className="text-[11px] uppercase font-medium tracking-wide text-[#64748B]">
+            <span className="text-[11px] uppercase tracking-wide glitter-label">
               {label}
             </span>
             <span className="bg-[var(--border-subtle)] border border-[var(--border)] text-[9.5px] px-1.5 py-0.2 rounded font-bold text-[var(--foreground-muted)] uppercase">AUTO</span>
@@ -1251,7 +1251,7 @@ export function StudentDetailClient({ studentId }: StudentDetailClientProps) {
 
   return (
     <PageShell className="p-3 gap-3">
-      <div className="bg-background text-[var(--foreground)] transition-colors flex flex-col gap-2.5">
+      <div className="bg-transparent text-[var(--foreground)] transition-colors flex flex-col gap-2.5">
         {/* Student Header Identifier Banner (Extremely compact) */}
         <div className="py-2.5 px-3 bg-[var(--surface)] border border-[var(--border)] rounded-[var(--radius-md)] flex items-center gap-3 shadow-[var(--shadow-sm)] transition-colors flex-shrink-0">
           <Link

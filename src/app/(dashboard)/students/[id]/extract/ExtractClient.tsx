@@ -588,7 +588,7 @@ export function ExtractClient({ studentId }: ExtractClientProps) {
   }
 
   return (
-    <div className="bg-background text-[var(--foreground)] transition-colors flex flex-col gap-6 relative w-full">
+    <div className="bg-transparent text-[var(--foreground)] transition-colors flex flex-col gap-6 relative w-full">
       <style>{`
         @keyframes ios-progress {
           0% { transform: translateX(-100%); }
