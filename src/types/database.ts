@@ -83,7 +83,7 @@ export interface Student {
   row_color: string | null
   status_row_color: string | null
   task_tags: string[]
-  folder_id: string | null
+  folder_ids: string[]
 }
 
 export type PaymentMethod = 'Karta J.A' | 'Karta Abdulaziz' | 'Naqd' | 'Karta M.A' | 'Bank' | 'Discount' | 'Withdrawal'
@@ -196,7 +196,7 @@ export type Database = {
           row_color?: string | null
           status_row_color?: string | null
           task_tags?: string[]
-          folder_id?: string | null
+          folder_ids?: string[]
         }
         Update: {
           id?: string
@@ -254,7 +254,7 @@ export type Database = {
           row_color?: string | null
           status_row_color?: string | null
           task_tags?: string[]
-          folder_id?: string | null
+          folder_ids?: string[]
         }
       }
     }

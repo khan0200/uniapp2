@@ -230,9 +230,12 @@ export function FilterPanel() {
         if (student.is_deleted !== true) return false
       } else if (activeFolder === 'all') {
         if (student.is_deleted === true) return false
+      } else if (activeFolder === 'except') {
+        if (student.is_deleted === true) return false
+        if (student.folder_ids && student.folder_ids.length > 0) return false
       } else {
         if (student.is_deleted === true) return false
-        if (student.folder_id !== activeFolder) return false
+        if (!(student.folder_ids || []).includes(activeFolder)) return false
       }
 
       // 2. Search query matching

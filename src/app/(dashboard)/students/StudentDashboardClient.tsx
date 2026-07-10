@@ -971,11 +971,11 @@ export function StudentDashboardClient() {
     }
   }
 
-  const handleChangeStudentFolder = async (studentId: string, folderId: string | null) => {
-    setStudents(prev => prev.map(s => s.id === studentId ? { ...s, folder_id: folderId } : s))
+  const handleChangeStudentFolder = async (studentId: string, folderIds: string[]) => {
+    setStudents(prev => prev.map(s => s.id === studentId ? { ...s, folder_ids: folderIds } : s))
     const { error: updateError } = await (supabase
       .from('students') as any)
-      .update({ folder_id: folderId })
+      .update({ folder_ids: folderIds })
       .eq('id', studentId)
     if (updateError) {
       console.error('Error updating student folder:', updateError)
@@ -994,18 +994,35 @@ export function StudentDashboardClient() {
   }
 
   const handleSaveFolderAdd = async () => {
-    if (folderAddSelectedIds.length === 0 || activeFolder === 'all' || activeFolder === 'deleted') return
+    if (folderAddSelectedIds.length === 0 || activeFolder === 'all' || activeFolder === 'deleted' || activeFolder === 'except') return
     const folderId = activeFolder
+    
     // Optimistic update
-    setStudents(prev => prev.map(s =>
-      folderAddSelectedIds.includes(s.id) ? { ...s, folder_id: folderId } : s
-    ))
+    setStudents(prev => prev.map(s => {
+      if (folderAddSelectedIds.includes(s.id)) {
+        const current = s.folder_ids || []
+        const updated = current.includes(folderId) ? current : [...current, folderId]
+        return { ...s, folder_ids: updated }
+      }
+      return s
+    }))
     setIsFolderAddModalOpen(false)
-    const { error: updateError } = await (supabase
-      .from('students') as any)
-      .update({ folder_id: folderId })
-      .in('id', folderAddSelectedIds)
-    if (updateError) {
+
+    try {
+      const updates = folderAddSelectedIds.map(async (studentId) => {
+        const student = students.find(s => s.id === studentId)
+        if (!student) return
+        const current = student.folder_ids || []
+        if (current.includes(folderId)) return
+        const updated = [...current, folderId]
+        const { error } = await (supabase
+          .from('students') as any)
+          .update({ folder_ids: updated })
+          .eq('id', studentId)
+        if (error) throw error
+      })
+      await Promise.all(updates)
+    } catch (updateError) {
       console.error('Error adding students to folder:', updateError)
       fetchStudents(true)
     }
@@ -1119,10 +1136,13 @@ export function StudentDashboardClient() {
       if (student.is_deleted !== true) return false
     } else if (activeFolder === 'all') {
       if (student.is_deleted === true) return false
+    } else if (activeFolder === 'except') {
+      if (student.is_deleted === true) return false
+      if (student.folder_ids && student.folder_ids.length > 0) return false
     } else {
       // Custom folder selection
       if (student.is_deleted === true) return false
-      if (student.folder_id !== activeFolder) return false
+      if (!(student.folder_ids || []).includes(activeFolder)) return false
     }
 
     // 2. Search query matching
@@ -1492,7 +1512,7 @@ export function StudentDashboardClient() {
         >
           All
         </button>
- 
+
         {/* Custom Folders */}
         {foldersOptions.map((folder) => {
           const isActive = activeFolder === folder.id
@@ -1512,11 +1532,24 @@ export function StudentDashboardClient() {
           )
         })}
  
+        {/* Except Folder */}
+        <button
+          onClick={() => setActiveFolder('except')}
+          className={cn(
+            "relative text-sm font-semibold transition-all cursor-pointer whitespace-nowrap pb-2 -mb-2.5 border-b-2 ml-auto",
+            activeFolder === 'except'
+              ? "text-blue-600 dark:text-blue-400 border-blue-600 dark:border-blue-400 font-bold animate-none"
+              : "text-[var(--foreground-muted)] border-transparent hover:text-[var(--foreground)]"
+          )}
+        >
+          Except
+        </button>
+
         {/* Archive Folder */}
         <button
           onClick={() => setActiveFolder('deleted')}
           className={cn(
-            "relative text-sm font-semibold transition-all cursor-pointer whitespace-nowrap pb-2 -mb-2.5 border-b-2 ml-auto",
+            "relative text-sm font-semibold transition-all cursor-pointer whitespace-nowrap pb-2 -mb-2.5 border-b-2",
             activeFolder === 'deleted'
               ? "text-red-500 border-red-500 font-bold animate-none"
               : "text-[var(--foreground-muted)] border-transparent hover:text-red-500"
@@ -1530,14 +1563,14 @@ export function StudentDashboardClient() {
       <div className="mb-2 flex justify-between items-center text-xs text-[var(--foreground-muted)] italic px-1 font-medium select-none">
         <div>
           {(searchQuery || selectedTariffs.length > 0 || selectedLevels.length > 0 || selectedGroups.length > 0 || selectedCerts.length > 0 || selectedScores.length > 0 || selectedTags.length > 0 || selectedLeads.length > 0) ? (
-            <span>Showing {filteredStudents.length} of {students.filter(s => activeFolder === 'deleted' ? s.is_deleted : activeFolder === 'all' ? !s.is_deleted : (!s.is_deleted && s.folder_id === activeFolder)).length} students</span>
+            <span>Showing {filteredStudents.length} of {students.filter(s => activeFolder === 'deleted' ? s.is_deleted : activeFolder === 'all' ? !s.is_deleted : activeFolder === 'except' ? (!s.is_deleted && (!s.folder_ids || s.folder_ids.length === 0)) : (!s.is_deleted && (s.folder_ids || []).includes(activeFolder))).length} students</span>
           ) : (
-            <span>Showing all students in {activeFolder === 'all' ? 'All' : activeFolder === 'deleted' ? 'Archive' : (foldersOptions.find(f => f.id === activeFolder)?.name || 'Folder')}</span>
+            <span>Showing all students in {activeFolder === 'all' ? 'All' : activeFolder === 'deleted' ? 'Archive' : activeFolder === 'except' ? 'Except' : (foldersOptions.find(f => f.id === activeFolder)?.name || 'Folder')}</span>
           )}
         </div>
         <div className="flex items-center gap-3">
           {/* Add to Folder button — only for custom folders */}
-          {activeFolder !== 'all' && activeFolder !== 'deleted' && (
+          {activeFolder !== 'all' && activeFolder !== 'deleted' && activeFolder !== 'except' && (
             <button
               onClick={handleOpenFolderAdd}
               className="not-italic inline-flex items-center gap-1.5 px-3 py-1.5 rounded-[var(--radius-md)] bg-[var(--accent)] hover:bg-[var(--accent-hover)] text-white text-xs font-bold cursor-pointer transition-all hover:scale-[1.02] shadow-xs"
@@ -1595,14 +1628,14 @@ export function StudentDashboardClient() {
             <Users className="h-8 w-8 text-[var(--accent)]" strokeWidth={1.5} />
           </div>
           <h3 className="text-base font-semibold text-[var(--foreground)]">
-            {activeFolder !== 'all' && activeFolder !== 'deleted' ? 'No students in this folder yet' : 'No students found'}
+            {activeFolder !== 'all' && activeFolder !== 'deleted' && activeFolder !== 'except' ? 'No students in this folder yet' : 'No students found'}
           </h3>
           <p className="mt-1.5 text-sm text-[var(--foreground-muted)] max-w-sm mx-auto">
-            {activeFolder !== 'all' && activeFolder !== 'deleted'
+            {activeFolder !== 'all' && activeFolder !== 'deleted' && activeFolder !== 'except'
               ? `Add students to the "${foldersOptions.find(f => f.id === activeFolder)?.name || 'folder'}" folder to see them here.`
               : 'No students match your active search filters or table criteria.'}
           </p>
-          {activeFolder !== 'all' && activeFolder !== 'deleted' ? (
+          {activeFolder !== 'all' && activeFolder !== 'deleted' && activeFolder !== 'except' ? (
             <button
               onClick={handleOpenFolderAdd}
               className="mt-5 inline-flex items-center gap-2 rounded-[var(--radius-md)] bg-[var(--accent)] px-4 py-2 text-sm font-semibold text-white hover:bg-[var(--accent-hover)] transition-all cursor-pointer"
@@ -2138,10 +2171,10 @@ export function StudentDashboardClient() {
                       {/* No Folder (All) Button */}
                       <button
                         type="button"
-                        onClick={() => handleChangeStudentFolder(student.id, null)}
+                        onClick={() => handleChangeStudentFolder(student.id, [])}
                         className={cn(
                           "inline-flex items-center gap-1.5 px-3 py-2 rounded-[var(--radius-md)] border text-xs font-semibold cursor-pointer transition-all hover:-translate-y-0.5 hover:shadow-[var(--shadow-sm)]",
-                          !student.folder_id
+                          (!student.folder_ids || student.folder_ids.length === 0)
                             ? "border-[var(--accent)] bg-[var(--accent-subtle)] text-[var(--accent)] font-bold shadow-xs"
                             : "border-[var(--border)] bg-[var(--surface)] text-[var(--foreground-muted)] hover:bg-[var(--border-subtle)] hover:text-[var(--foreground)]"
                         )}
@@ -2151,12 +2184,18 @@ export function StudentDashboardClient() {
  
                       {/* Custom Folders */}
                       {foldersOptions.map((folder) => {
-                        const isActive = student.folder_id === folder.id
+                        const currentFolders = student.folder_ids || []
+                        const isActive = currentFolders.includes(folder.id)
                         return (
                           <button
                             key={folder.id}
                             type="button"
-                            onClick={() => handleChangeStudentFolder(student.id, folder.id)}
+                            onClick={() => {
+                              const newFolders = isActive
+                                ? currentFolders.filter(id => id !== folder.id)
+                                : [...currentFolders, folder.id]
+                              handleChangeStudentFolder(student.id, newFolders)
+                            }}
                             className={cn(
                               "inline-flex items-center gap-1.5 px-3 py-2 rounded-[var(--radius-md)] border text-xs font-semibold cursor-pointer transition-all hover:-translate-y-0.5 hover:shadow-[var(--shadow-sm)] animate-none",
                               isActive
@@ -2247,7 +2286,7 @@ export function StudentDashboardClient() {
           const folderName = foldersOptions.find(f => f.id === activeFolder)?.name || 'Folder'
           // All active students not already in this folder
           const pickableStudents = students.filter(s =>
-            !s.is_deleted && s.folder_id !== activeFolder
+            !s.is_deleted && !(s.folder_ids || []).includes(activeFolder)
           )
           const filtered = pickableStudents.filter(s =>
             s.full_name.toLowerCase().includes(folderAddSearch.toLowerCase()) ||
@@ -2351,10 +2390,18 @@ export function StudentDashboardClient() {
                           <div className="text-xs font-semibold text-[var(--foreground)] truncate">{s.full_name}</div>
                           <div className="text-[10px] text-[var(--foreground-muted)] font-mono">{s.id}</div>
                         </div>
-                        {s.folder_id && (
-                          <span className="text-[10px] text-[var(--foreground-subtle)] bg-[var(--surface-elevated)] border border-[var(--border)] rounded px-1.5 py-0.5 shrink-0">
-                            {foldersOptions.find(f => f.id === s.folder_id)?.name || 'Other folder'}
-                          </span>
+                        {s.folder_ids && s.folder_ids.length > 0 && (
+                          <div className="flex flex-wrap gap-1 shrink-0">
+                            {s.folder_ids.map(fId => {
+                              const fName = foldersOptions.find(f => f.id === fId)?.name
+                              if (!fName) return null
+                              return (
+                                <span key={fId} className="text-[10px] text-[var(--foreground-subtle)] bg-[var(--surface-elevated)] border border-[var(--border)] rounded px-1.5 py-0.5">
+                                  {fName}
+                                </span>
+                              )
+                            })}
+                          </div>
                         )}
                       </button>
                     )

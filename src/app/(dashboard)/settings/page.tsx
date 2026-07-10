@@ -739,7 +739,7 @@ export default function SettingsPage() {
               <div className="flex flex-col h-full justify-between">
                 <motion.div
                   layout
-                  className={`grid gap-3 ${['university', 'tariff', 'lead', 'tag'].includes(activeTab) ? 'grid-cols-1 md:grid-cols-2' : 'grid-cols-1'}`}
+                  className={`grid gap-3 ${['university', 'tariff', 'lead', 'tag', 'folder'].includes(activeTab) ? 'grid-cols-1 md:grid-cols-2' : 'grid-cols-1'}`}
                 >
                   {activeTab === 'tariff' && filteredTariffs.map(item => renderTariffRow(item))}
                   {activeTab === 'level' && filteredLevels.map(item => renderGeneralRow(item, 'level'))}
