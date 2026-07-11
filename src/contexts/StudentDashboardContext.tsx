@@ -18,6 +18,7 @@ interface StudentDetailPageActions {
   onFillByDocument: () => void
   onReload: () => void
   onDelete: () => void
+  onPermanentDelete?: () => void
   isDeleted: boolean
   isDeleting: boolean
 }

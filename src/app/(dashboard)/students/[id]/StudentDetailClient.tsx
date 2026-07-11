@@ -522,6 +522,29 @@ export function StudentDetailClient({ studentId }: StudentDetailClientProps) {
     }
   }
 
+  // Permanent Delete student
+  const handlePermanentDeleteStudent = async () => {
+    if (!selectedStudent) return
+    if (!confirm(`WARNING: Are you sure you want to PERMANENTLY delete student profile "${selectedStudent.full_name}"? This action CANNOT be undone and will delete all their data.`)) return
+    setIsDeleting(true)
+    try {
+      const { error: deleteError } = await (supabase
+        .from('students') as any)
+        .delete()
+        .eq('id', selectedStudent.id)
+
+      if (deleteError) throw deleteError
+
+      alert('Student profile permanently deleted successfully.')
+      router.push('/students')
+    } catch (err: any) {
+      console.error('Error permanently deleting student:', err)
+      alert(err.message || 'Failed to permanently delete student.')
+    } finally {
+      setIsDeleting(false)
+    }
+  }
+
   // Register this page's action buttons (Fill By Document / Reload / Delete)
   // so the shared Header component can render them in the top bar.
   useEffect(() => {
@@ -530,10 +553,12 @@ export function StudentDetailClient({ studentId }: StudentDetailClientProps) {
       onFillByDocument: () => router.push(`/students/${selectedStudent.id}/extract`),
       onReload: fetchStudent,
       onDelete: selectedStudent.is_deleted ? handleRestoreStudent : handleDeleteStudent,
+      onPermanentDelete: selectedStudent.is_deleted ? handlePermanentDeleteStudent : undefined,
       isDeleted: selectedStudent.is_deleted,
       isDeleting,
     })
     return () => setDetailPageActions(null)
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedStudent, isDeleting])
 
   // Helper to format currency values

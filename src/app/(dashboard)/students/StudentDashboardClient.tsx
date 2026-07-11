@@ -5,7 +5,7 @@ import {
   Plus, Users, X, Loader2, Search, AlertCircle, CheckCircle2,
   Building2, User, Landmark, Tag, Layers, Award, Bookmark, UserCheck,
   FileSpreadsheet, ChevronDown, ChevronLeft, ChevronRight, ChevronUp,
-  Sparkles, Copy, Trash2, Hash, Check
+  Sparkles, Copy, Trash2, Hash, Check, RefreshCw
 } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import { cn } from '@/lib/utils'
@@ -967,6 +967,34 @@ export function StudentDashboardClient() {
       .eq('id', studentId)
     if (deleteError) {
       console.error('Error soft-deleting student:', deleteError)
+      fetchStudents(true)
+    }
+  }
+
+  const handleRestoreStudent = async (studentId: string, studentName: string) => {
+    if (!confirm(`Are you sure you want to restore student profile "${studentName}"?`)) return
+    setPopoverAnchor(null)
+    setStudents(prev => prev.map(s => s.id === studentId ? { ...s, is_deleted: false } : s))
+    const { error: restoreError } = await (supabase
+      .from('students') as any)
+      .update({ is_deleted: false })
+      .eq('id', studentId)
+    if (restoreError) {
+      console.error('Error restoring student:', restoreError)
+      fetchStudents(true)
+    }
+  }
+
+  const handlePermanentDeleteStudent = async (studentId: string, studentName: string) => {
+    if (!confirm(`WARNING: Are you sure you want to PERMANENTLY delete student profile "${studentName}"? This action CANNOT be undone and will delete all their data.`)) return
+    setPopoverAnchor(null)
+    setStudents(prev => prev.filter(s => s.id !== studentId))
+    const { error: deleteError } = await (supabase
+      .from('students') as any)
+      .delete()
+      .eq('id', studentId)
+    if (deleteError) {
+      console.error('Error permanently deleting student:', deleteError)
       fetchStudents(true)
     }
   }
@@ -2259,21 +2287,44 @@ export function StudentDashboardClient() {
 
                 {/* ── Clear All Flags / Delete Student Buttons ──────────────────── */}
                 <div className="px-6 pb-6 pt-2 flex gap-3">
-                  <motion.button
-                    whileTap={{ scale: 0.97 }}
-                    onClick={() => handleClearFlagsAndColor(student.id)}
-                    className="flex-1 py-2.5 rounded-[var(--radius-md)] border border-red-500/25 bg-red-500/5 text-red-500 hover:bg-red-500/10 hover:border-red-500/40 font-semibold transition-all text-[11.5px] cursor-pointer"
-                  >
-                    Clear All Color & Tags
-                  </motion.button>
-                  <motion.button
-                    whileTap={{ scale: 0.97 }}
-                    onClick={() => handleDeleteStudent(student.id, student.full_name)}
-                    className="flex-1 py-2.5 rounded-[var(--radius-md)] border border-red-500/40 bg-red-500/10 hover:bg-red-500/20 text-red-600 font-bold transition-all text-[11.5px] cursor-pointer flex items-center justify-center gap-1.5 shadow-xs"
-                  >
-                    <Trash2 className="h-3.5 w-3.5 text-red-500" />
-                    <span>Delete Student</span>
-                  </motion.button>
+                  {student.is_deleted ? (
+                    <>
+                      <motion.button
+                        whileTap={{ scale: 0.97 }}
+                        onClick={() => handleRestoreStudent(student.id, student.full_name)}
+                        className="flex-1 py-2.5 rounded-[var(--radius-md)] border border-emerald-500/25 bg-emerald-500/5 text-emerald-600 dark:text-emerald-400 hover:bg-emerald-500/10 hover:border-emerald-500/40 font-semibold transition-all text-[11.5px] cursor-pointer flex items-center justify-center gap-1.5"
+                      >
+                        <RefreshCw className="h-3.5 w-3.5 animate-none" />
+                        <span>Restore Student</span>
+                      </motion.button>
+                      <motion.button
+                        whileTap={{ scale: 0.97 }}
+                        onClick={() => handlePermanentDeleteStudent(student.id, student.full_name)}
+                        className="flex-1 py-2.5 rounded-[var(--radius-md)] border border-red-500/40 bg-red-500/10 hover:bg-red-500/20 text-red-600 font-bold transition-all text-[11.5px] cursor-pointer flex items-center justify-center gap-1.5 shadow-xs"
+                      >
+                        <Trash2 className="h-3.5 w-3.5 text-red-500" />
+                        <span>Permanently Delete</span>
+                      </motion.button>
+                    </>
+                  ) : (
+                    <>
+                      <motion.button
+                        whileTap={{ scale: 0.97 }}
+                        onClick={() => handleClearFlagsAndColor(student.id)}
+                        className="flex-1 py-2.5 rounded-[var(--radius-md)] border border-red-500/25 bg-red-500/5 text-red-500 hover:bg-red-500/10 hover:border-red-500/40 font-semibold transition-all text-[11.5px] cursor-pointer"
+                      >
+                        Clear All Color & Tags
+                      </motion.button>
+                      <motion.button
+                        whileTap={{ scale: 0.97 }}
+                        onClick={() => handleDeleteStudent(student.id, student.full_name)}
+                        className="flex-1 py-2.5 rounded-[var(--radius-md)] border border-red-500/40 bg-red-500/10 hover:bg-red-500/20 text-red-600 font-bold transition-all text-[11.5px] cursor-pointer flex items-center justify-center gap-1.5 shadow-xs"
+                      >
+                        <Trash2 className="h-3.5 w-3.5 text-red-500" />
+                        <span>Delete Student</span>
+                      </motion.button>
+                    </>
+                  )}
                 </div>
               </motion.div>
             </div>

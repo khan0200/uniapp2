@@ -223,6 +223,21 @@ export function Header() {
             )}
             <span className="hidden sm:inline">{detailPageActions.isDeleted ? 'Restore' : 'Delete'}</span>
           </button>
+          {detailPageActions.isDeleted && detailPageActions.onPermanentDelete && (
+            <button
+              disabled={detailPageActions.isDeleting}
+              onClick={detailPageActions.onPermanentDelete}
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-[var(--surface-elevated)] border border-[var(--border)] rounded-[var(--radius-md)] text-[13.5px] font-semibold transition-all shadow-[var(--shadow-sm)] cursor-pointer disabled:opacity-50 text-[var(--danger)] hover:bg-[var(--border-subtle)] hover:text-red-600"
+              title="Permanently delete student profile"
+            >
+              {detailPageActions.isDeleting ? (
+                <Loader2 className="h-3.5 w-3.5 animate-spin" />
+              ) : (
+                <Trash2 className="h-3.5 w-3.5" />
+              )}
+              <span className="hidden sm:inline">Permanently Delete</span>
+            </button>
+          )}
         </div>
       ) : pathname.startsWith('/students/') || pathname.startsWith('/payments') || pathname.startsWith('/settings') || pathname.startsWith('/users') ? (
         null
