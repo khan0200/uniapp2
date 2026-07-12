@@ -58,11 +58,11 @@ export function Sidebar() {
 
   return (
     <aside
-      className="relative flex flex-col h-full w-[76px] bg-[#111315] border-r border-white/5 overflow-hidden flex-shrink-0"
+      className="relative flex flex-col h-full w-[76px] bg-surface-elevated dark:bg-[#111315] border-r border-border dark:border-white/5 overflow-hidden flex-shrink-0"
       aria-label="Main navigation"
     >
       {/* ── Header / Logo ─────────────────────────────────── */}
-      <div className="flex items-center justify-center h-16 flex-shrink-0 border-b border-white/5">
+      <div className="flex items-center justify-center h-16 flex-shrink-0 border-b border-border dark:border-white/5">
         <Image
           src={logo}
           alt="UniApp logo"
@@ -96,7 +96,7 @@ export function Sidebar() {
       </nav>
 
       {/* ── Footer ─────────────────────────────────────────── */}
-      <div className="flex-shrink-0 border-t border-white/5 p-2 flex flex-col items-center gap-4 pb-4">
+      <div className="flex-shrink-0 border-t border-border dark:border-white/5 p-2 flex flex-col items-center gap-4 pb-4">
         {/* Theme toggle (Always collapsed/centered) */}
         <div className="flex justify-center w-full">
           <ThemeToggle collapsed={true} />
@@ -107,7 +107,7 @@ export function Sidebar() {
           {/* Avatar */}
           <Link
             href="/users"
-            className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-full text-xs font-bold text-white select-none hover:ring-2 hover:ring-white/20 transition-all cursor-pointer"
+            className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-full text-xs font-bold text-white select-none hover:ring-2 hover:ring-blue-500/30 dark:hover:ring-white/20 transition-all cursor-pointer"
             style={{ background: 'linear-gradient(135deg, #3b7ff5, #6366f1)' }}
             title={`${profile?.full_name || 'User'} (${profile?.role || ''})`}
           >
@@ -121,7 +121,7 @@ export function Sidebar() {
             id="signout-btn"
             onClick={handleSignOut}
             disabled={signingOut}
-            className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-xl text-gray-400 hover:text-red-400 hover:bg-white/5 transition-all cursor-pointer"
+            className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-xl text-foreground-muted hover:text-red-500 hover:bg-surface-interactive dark:text-gray-400 dark:hover:text-red-400 dark:hover:bg-white/5 transition-all cursor-pointer"
             title="Sign out"
             aria-label="Sign out"
           >

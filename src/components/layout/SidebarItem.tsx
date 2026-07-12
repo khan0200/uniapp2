@@ -33,17 +33,22 @@ export function SidebarItem({
       className="group flex flex-col items-center justify-center w-full py-2.5 px-1 relative focus:outline-none select-none"
       aria-current={isActive ? 'page' : undefined}
     >
+      {/* Active Indicator Bar */}
+      {isActive && (
+        <span className="absolute left-0 top-3 bottom-3 w-1 rounded-r bg-blue-500 dark:bg-blue-400" />
+      )}
+
       {/* Icon Wrapper (Rounded Square matching Canva) */}
       <div
         className={cn(
-          'w-[56px] h-[38px] flex items-center justify-center rounded-xl transition-all duration-200',
+          'w-[52px] h-[36px] flex items-center justify-center rounded-xl transition-all duration-300 relative',
           isActive
-            ? 'bg-white/15 text-white'
-            : 'text-gray-400 group-hover:bg-white/5 group-hover:text-white'
+            ? 'bg-gradient-to-tr from-blue-500 to-indigo-600 text-white shadow-md shadow-blue-500/25 scale-[1.05]'
+            : 'text-foreground-muted group-hover:bg-surface-interactive group-hover:text-foreground dark:text-gray-400 dark:group-hover:bg-white/5 dark:group-hover:text-white'
         )}
       >
         <Icon
-          className="h-5 w-5"
+          className="h-4.5 w-4.5"
           strokeWidth={isActive ? 2.5 : 2}
         />
         {badge && badge > 0 && (
@@ -56,10 +61,10 @@ export function SidebarItem({
       {/* Label */}
       <span
         className={cn(
-          'mt-1.5 text-[10px] font-semibold tracking-wide text-center truncate max-w-[72px] transition-all duration-200',
+          'mt-2 text-[10px] font-bold tracking-wider text-center truncate max-w-[72px] transition-all duration-300 uppercase',
           isActive
-            ? 'text-white'
-            : 'text-gray-400 group-hover:text-white'
+            ? 'text-blue-600 dark:text-blue-400 font-extrabold scale-[1.02]'
+            : 'text-foreground-muted group-hover:text-foreground dark:text-gray-400 dark:group-hover:text-white'
         )}
       >
         {label}
