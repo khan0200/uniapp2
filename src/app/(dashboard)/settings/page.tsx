@@ -1,7 +1,6 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { motion, AnimatePresence } from 'framer-motion'
 import { PageShell } from '@/components/ui/PageShell'
 import { createClient } from '@/lib/supabase/client'
 import { 
@@ -551,13 +550,9 @@ export default function SettingsPage() {
 
   // ── Sub-component Renderers ──────────────────────────────────────────────
   const renderTariffRow = (item: TariffOption) => (
-    <motion.div
-      layout
-      initial={{ opacity: 0, y: 8 }}
-      animate={{ opacity: 1, y: 0 }}
-      exit={{ opacity: 0, scale: 0.95 }}
+    <div
       key={item.id}
-      className="group flex items-center justify-between gap-3 p-2 px-3.5 bg-surface border border-border hover:border-blue-400 dark:hover:border-blue-500/50 rounded-lg shadow-sm hover:shadow transition-all duration-200"
+      className="animate-page-in group flex items-center justify-between gap-3 p-2 px-3.5 bg-surface border border-border hover:border-blue-400 dark:hover:border-blue-500/50 rounded-lg shadow-sm hover:shadow transition-all duration-200"
     >
       <div className="min-w-0">
         <div className="text-xs font-bold text-foreground uppercase tracking-wide truncate">{item.name}</div>
@@ -581,19 +576,15 @@ export default function SettingsPage() {
           <Trash2 className="h-3 w-3" />
         </button>
       </div>
-    </motion.div>
+    </div>
   )
 
   const renderGeneralRow = (item: GeneralOption, type: 'level' | 'group' | 'lead' | 'coordinator' | 'folder' | 'office') => {
     const config = TABS_CONFIG[type]
     return (
-      <motion.div
-        layout
-        initial={{ opacity: 0, y: 8 }}
-        animate={{ opacity: 1, y: 0 }}
-        exit={{ opacity: 0, scale: 0.95 }}
+      <div
         key={item.id}
-        className="group flex items-center justify-between gap-3 p-2 px-3.5 bg-surface border border-border hover:border-accent/40 rounded-lg shadow-sm hover:shadow transition-all duration-200"
+        className="animate-page-in group flex items-center justify-between gap-3 p-2 px-3.5 bg-surface border border-border hover:border-accent/40 rounded-lg shadow-sm hover:shadow transition-all duration-200"
       >
         <div className="min-w-0 flex items-center gap-2.5">
           <div className={`w-7 h-7 rounded-md flex items-center justify-center shrink-0 border border-transparent ${config.colorClass}`}>
@@ -619,18 +610,14 @@ export default function SettingsPage() {
             <Trash2 className="h-3 w-3" />
           </button>
         </div>
-      </motion.div>
+      </div>
     )
   }
 
   const renderTagRow = (tag: CustomTag) => (
-    <motion.div
-      layout
-      initial={{ opacity: 0, y: 8 }}
-      animate={{ opacity: 1, y: 0 }}
-      exit={{ opacity: 0, scale: 0.95 }}
+    <div
       key={tag.name}
-      className="group flex items-center justify-between gap-3 p-2 px-3.5 bg-surface border border-border hover:border-indigo-400 dark:hover:border-indigo-500/50 rounded-lg shadow-sm hover:shadow transition-all duration-200"
+      className="animate-page-in group flex items-center justify-between gap-3 p-2 px-3.5 bg-surface border border-border hover:border-indigo-400 dark:hover:border-indigo-500/50 rounded-lg shadow-sm hover:shadow transition-all duration-200"
     >
       <div className="flex items-center gap-2.5 min-w-0">
         <div className="w-7 h-7 rounded-md bg-indigo-50 dark:bg-indigo-950/20 border border-indigo-100 dark:border-indigo-900/30 flex items-center justify-center text-base shrink-0 leading-none">
@@ -654,17 +641,13 @@ export default function SettingsPage() {
           <Trash2 className="h-3 w-3" />
         </button>
       </div>
-    </motion.div>
+    </div>
   )
 
   const renderUniversityRow = (item: GeneralOption) => (
-    <motion.div
-      layout
-      initial={{ opacity: 0, y: 8 }}
-      animate={{ opacity: 1, y: 0 }}
-      exit={{ opacity: 0, scale: 0.95 }}
+    <div
       key={item.id}
-      className="group flex items-center justify-between gap-3 p-2 px-3.5 bg-surface border border-border hover:border-sky-400 dark:hover:border-sky-500/50 rounded-lg shadow-sm hover:shadow transition-all duration-200"
+      className="animate-page-in group flex items-center justify-between gap-3 p-2 px-3.5 bg-surface border border-border hover:border-sky-400 dark:hover:border-sky-500/50 rounded-lg shadow-sm hover:shadow transition-all duration-200"
     >
       <div className="flex items-center gap-2.5 min-w-0">
         <div className="w-7 h-7 rounded-md bg-sky-50 dark:bg-sky-950/20 border border-sky-100 dark:border-sky-900/30 flex items-center justify-center text-sky-500 shrink-0">
@@ -690,17 +673,13 @@ export default function SettingsPage() {
           <Trash2 className="h-3 w-3" />
         </button>
       </div>
-    </motion.div>
+    </div>
   )
 
   const renderUniversityStatusRow = (item: { id: number | string; name: string; color_class: string }) => (
-    <motion.div
-      layout
-      initial={{ opacity: 0, y: 8 }}
-      animate={{ opacity: 1, y: 0 }}
-      exit={{ opacity: 0, scale: 0.95 }}
+    <div
       key={item.id}
-      className="group flex items-center justify-between gap-3 p-2 px-3.5 bg-surface border border-border hover:border-pink-400 dark:hover:border-pink-500/50 rounded-lg shadow-sm hover:shadow transition-all duration-200"
+      className="animate-page-in group flex items-center justify-between gap-3 p-2 px-3.5 bg-surface border border-border hover:border-pink-400 dark:hover:border-pink-500/50 rounded-lg shadow-sm hover:shadow transition-all duration-200"
     >
       <div className="flex items-center gap-2.5 min-w-0">
         <span className={`h-2 w-2 rounded-full bg-current shrink-0 ${item.color_class || 'text-blue-500'}`} />
@@ -724,7 +703,7 @@ export default function SettingsPage() {
           <Trash2 className="h-3 w-3" />
         </button>
       </div>
-    </motion.div>
+    </div>
   )
 
   const renderActiveTabContent = () => {
@@ -929,14 +908,8 @@ export default function SettingsPage() {
 
         {/* Dynamic List Content */}
         <div className="flex-1">
-          <AnimatePresence mode="popLayout">
             {itemsCount === 0 ? (
-              <motion.div
-                initial={{ opacity: 0, y: 10 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, y: -10 }}
-                className="flex flex-col items-center justify-center py-20 text-center px-4"
-              >
+              <div className="animate-page-in flex flex-col items-center justify-center py-20 text-center px-4">
                 <div className={`p-4 rounded-full border mb-4 ${config.colorClass}`}>
                   <Icon className="h-8 w-8" />
                 </div>
@@ -949,13 +922,9 @@ export default function SettingsPage() {
                   <PlusCircle className="h-3.5 w-3.5" />
                   Add First Item
                 </button>
-              </motion.div>
+              </div>
             ) : filteredCount === 0 ? (
-              <motion.div
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                className="flex flex-col items-center justify-center py-20 text-center px-4"
-              >
+              <div className="animate-fade-in flex flex-col items-center justify-center py-20 text-center px-4">
                 <div className="p-3 bg-border-subtle text-foreground-subtle rounded-full mb-3">
                   <Search className="h-6 w-6" />
                 </div>
@@ -967,11 +936,10 @@ export default function SettingsPage() {
                 >
                   Clear search
                 </button>
-              </motion.div>
+              </div>
             ) : (
               <div className="flex flex-col h-full justify-between">
-                <motion.div
-                  layout
+                <div
                   className={`grid gap-2 ${['university', 'tariff', 'lead', 'tag', 'folder', 'office', 'university_status'].includes(activeTab) ? 'grid-cols-1 md:grid-cols-2' : 'grid-cols-1'}`}
                 >
                   {activeTab === 'tariff' && filteredTariffs.map(item => renderTariffRow(item))}
@@ -984,7 +952,7 @@ export default function SettingsPage() {
                   {activeTab === 'folder' && filteredFolders.map(item => renderGeneralRow(item, 'folder'))}
                   {activeTab === 'office' && filteredOffices.map(item => renderGeneralRow(item, 'office'))}
                   {activeTab === 'university_status' && filteredUniversityStatuses.map(item => renderUniversityStatusRow(item))}
-                </motion.div>
+                </div>
 
                 {/* Universities pagination footer */}
                 {activeTab === 'university' && filteredUniversities.length > 12 && !searchQuery.trim() && (
@@ -1003,7 +971,6 @@ export default function SettingsPage() {
                 )}
               </div>
             )}
-          </AnimatePresence>
         </div>
       </div>
     )
