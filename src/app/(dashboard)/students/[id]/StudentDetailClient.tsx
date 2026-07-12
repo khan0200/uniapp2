@@ -26,7 +26,7 @@ interface StudentDetailClientProps {
 export function StudentDetailClient({ studentId }: StudentDetailClientProps) {
   const supabase = createClient()
   const router = useRouter()
-  const { setDetailPageActions } = useStudentDashboard()
+  const { setDetailPageActions, officeOptions, universityStatusOptions } = useStudentDashboard()
 
   // State for student details
   const [selectedStudent, setSelectedStudent] = useState<Student | null>(null)
@@ -942,6 +942,18 @@ export function StudentDetailClient({ studentId }: StudentDetailClientProps) {
 
         const getStatusBadgeClass = (status: string) => {
           if (!status) return 'bg-[#0052cc] text-white border-[#0052cc]'
+          const matched = universityStatusOptions.find(s => s.name.toUpperCase() === status.toUpperCase())
+          if (matched) {
+            const cl = matched.colorClass
+            if (cl.includes('emerald') || cl.includes('green')) return 'bg-[#36b37e] text-white border-[#36b37e]'
+            if (cl.includes('rose') || cl.includes('red')) return 'bg-[#ff5630] text-white border-[#ff5630]'
+            if (cl.includes('amber') || cl.includes('yellow')) return 'bg-[#ffab00] text-white border-[#ffab00]'
+            if (cl.includes('blue')) return 'bg-[#0052cc] text-white border-[#0052cc]'
+            if (cl.includes('indigo')) return 'bg-indigo-600 text-white border-indigo-600'
+            if (cl.includes('purple')) return 'bg-purple-600 text-white border-purple-600'
+            if (cl.includes('pink')) return 'bg-pink-600 text-white border-pink-600'
+            if (cl.includes('cyan')) return 'bg-cyan-600 text-white border-cyan-600'
+          }
           const statusUpper = status.toUpperCase()
           if (statusUpper === 'ACCEPTED' || statusUpper === 'FINISHED' || statusUpper === 'ADMITTED') {
             return 'bg-[#36b37e] text-white border-[#36b37e]'
@@ -1154,13 +1166,7 @@ export function StudentDetailClient({ studentId }: StudentDetailClientProps) {
                             <div className="px-2.5 py-1 text-[10.5px] uppercase font-bold tracking-wider text-[var(--foreground-muted)] border-b border-[var(--border)] mb-0.5 select-none">
                               University Status
                             </div>
-                            {[
-                              { name: 'Chosen', colorClass: 'text-blue-500' },
-                              { name: 'Applying', colorClass: 'text-amber-500' },
-                              { name: 'Applied', colorClass: 'text-amber-500' },
-                              { name: 'Accepted', colorClass: 'text-emerald-500' },
-                              { name: 'Failed', colorClass: 'text-rose-500' }
-                            ].map((item) => (
+                            {universityStatusOptions.map((item) => (
                               <button
                                 key={item.name}
                                 onClick={() => handleStatusSelect(item.name)}
@@ -1581,8 +1587,9 @@ export function StudentDetailClient({ studentId }: StudentDetailClientProps) {
                           onChange={(e) => setEditValue(e.target.value)}
                           className="bg-blue-600 text-[15px] text-white px-2 py-0.5 rounded border border-blue-400 focus:outline-none w-full font-semibold cursor-pointer"
                         >
-                          <option value="ANDIJON OFFIS">ANDIJON OFFIS</option>
-                          <option value="TOSHKENT OFFIS">TOSHKENT OFFIS</option>
+                          {officeOptions.map(opt => (
+                            <option key={opt} value={opt}>{opt}</option>
+                          ))}
                         </select>
                         <motion.button
                           whileTap={{ scale: 0.85 }}

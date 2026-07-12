@@ -10,6 +10,7 @@ import {
   Pencil, Trash2, Printer, CreditCard, Wallet, LayoutGrid, Table, FileSpreadsheet
 } from 'lucide-react'
 import * as XLSX from 'xlsx-js-style'
+import { useStudentDashboard } from '@/contexts/StudentDashboardContext'
 
 const PAYMENT_METHODS = ['Karta J.A', 'Karta Abdulaziz', 'Naqd', 'Karta M.A', 'Bank', 'Discount']
 const RECEIVED_BY_OPTIONS = ['ABDULAZIZ', 'MUSLIHIDDIN', 'BAXTIYOR', 'MUHAMMADALI', 'JASUR', 'ADMIN', 'Discount']
@@ -96,6 +97,11 @@ const compareStudentIds = (a: Student, b: Student, order: 'asc' | 'desc' = 'asc'
 
 export function PaymentsClient() {
   const supabase = createClient()
+  const { paymentMethodOptions, paymentReceiverOptions, paymentNotePills } = useStudentDashboard()
+
+  const paymentMethods = paymentMethodOptions && paymentMethodOptions.length > 0 ? paymentMethodOptions : PAYMENT_METHODS
+  const paymentReceivers = paymentReceiverOptions && paymentReceiverOptions.length > 0 ? paymentReceiverOptions : RECEIVED_BY_OPTIONS
+  const notePills = paymentNotePills && paymentNotePills.length > 0 ? paymentNotePills : NOTE_PILLS
 
   const [activeTab, setActiveTab] = useState<'students' | 'history'>('students')
   const [viewMode, setViewMode] = useState<'grid' | 'table'>('grid')
@@ -1436,7 +1442,7 @@ export function PaymentsClient() {
               className="px-3 py-2 text-sm border border-[var(--border)] rounded-[var(--radius-md)] bg-[var(--surface-elevated)] text-[var(--foreground)] cursor-pointer"
             >
               <option value="">All Methods</option>
-              {PAYMENT_METHODS.map(m => <option key={m} value={m}>{m}</option>)}
+              {paymentMethods.map(m => <option key={m} value={m}>{m}</option>)}
               <option value="Withdrawal">Withdrawal</option>
             </select>
             <select
@@ -1445,7 +1451,7 @@ export function PaymentsClient() {
               className="px-3 py-2 text-sm border border-[var(--border)] rounded-[var(--radius-md)] bg-[var(--surface-elevated)] text-[var(--foreground)] cursor-pointer"
             >
               <option value="">All Receivers</option>
-              {RECEIVED_BY_OPTIONS.map(r => <option key={r} value={r}>{r}</option>)}
+              {paymentReceivers.map(r => <option key={r} value={r}>{r}</option>)}
             </select>
             <button
               onClick={exportPaymentHistoryToExcel}
@@ -1608,7 +1614,7 @@ export function PaymentsClient() {
                   className="mt-1 w-full px-3 py-2 text-sm border border-[var(--border)] rounded-[var(--radius-md)] bg-[var(--background)] text-[var(--foreground)] cursor-pointer"
                 >
                   <option value="">Select method</option>
-                  {PAYMENT_METHODS.map(m => <option key={m} value={m}>{m}</option>)}
+                  {paymentMethods.map(m => <option key={m} value={m}>{m}</option>)}
                 </select>
               </div>
               <div>
@@ -1619,7 +1625,7 @@ export function PaymentsClient() {
                   className="mt-1 w-full px-3 py-2 text-sm border border-[var(--border)] rounded-[var(--radius-md)] bg-[var(--background)] text-[var(--foreground)] cursor-pointer"
                 >
                   <option value="">Select receiver</option>
-                  {RECEIVED_BY_OPTIONS.map(r => <option key={r} value={r}>{r}</option>)}
+                  {paymentReceivers.map(r => <option key={r} value={r}>{r}</option>)}
                 </select>
               </div>
             </div>
@@ -1668,7 +1674,7 @@ export function PaymentsClient() {
                 className="mt-1 w-full px-3 py-2 text-sm border border-[var(--border)] rounded-[var(--radius-md)] bg-[var(--background)] text-[var(--foreground)] focus:outline-none focus:border-[var(--accent)] resize-none"
               />
               <div className="flex flex-wrap gap-1.5 mt-1.5">
-                {NOTE_PILLS.map(pill => (
+                {notePills.map(pill => (
                   <button
                     key={pill}
                     onClick={() => {
@@ -1869,7 +1875,7 @@ export function PaymentsClient() {
                   className="mt-1 w-full px-3 py-2 text-sm border border-[var(--border)] rounded-[var(--radius-md)] bg-[var(--background)] text-[var(--foreground)] cursor-pointer"
                 >
                   <option value="">Select method</option>
-                  {[...PAYMENT_METHODS, 'Withdrawal'].map(m => <option key={m} value={m}>{m}</option>)}
+                  {[...paymentMethods, 'Withdrawal'].map(m => <option key={m} value={m}>{m}</option>)}
                 </select>
               </div>
               <div>
@@ -1880,7 +1886,7 @@ export function PaymentsClient() {
                   className="mt-1 w-full px-3 py-2 text-sm border border-[var(--border)] rounded-[var(--radius-md)] bg-[var(--background)] text-[var(--foreground)] cursor-pointer"
                 >
                   <option value="">Select receiver</option>
-                  {[...RECEIVED_BY_OPTIONS, 'System'].map(r => <option key={r} value={r}>{r}</option>)}
+                  {[...paymentReceivers, 'System'].map(r => <option key={r} value={r}>{r}</option>)}
                 </select>
               </div>
             </div>

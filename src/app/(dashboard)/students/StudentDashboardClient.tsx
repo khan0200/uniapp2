@@ -152,7 +152,8 @@ export function StudentDashboardClient() {
     setCustomTagsRegistry,
     foldersOptions,
     activeFolder,
-    setActiveFolder
+    setActiveFolder,
+    officeOptions
   } = useStudentDashboard()
 
   const certOptions = ['NO CERTIFICATE', 'EXPECTED', 'TOPIK', 'SKA', 'IELTS', 'TOEFL', 'SAT', 'CEFR']
@@ -827,8 +828,14 @@ export function StudentDashboardClient() {
   // Form inputs
   const [studentId, setStudentId] = useState('')
   const [fullName, setFullName] = useState('')
-  const [office, setOffice] = useState<'ANDIJON OFFIS' | 'TOSHKENT OFFIS'>('ANDIJON OFFIS')
+  const [office, setOffice] = useState<string>('')
   const [popoverAnchor, setPopoverAnchor] = useState<{ studentId: string; rect: DOMRect } | null>(null)
+
+  useEffect(() => {
+    if (officeOptions && officeOptions.length > 0 && !office) {
+      setOffice(officeOptions[0])
+    }
+  }, [officeOptions, office])
 
   useEffect(() => {
     fetchStudents()
@@ -1135,7 +1142,7 @@ export function StudentDashboardClient() {
       setModalSuccess(true)
       setStudentId('')
       setFullName('')
-      setOffice('ANDIJON OFFIS')
+      setOffice(officeOptions[0] || '')
 
       await fetchStudents(true)
 
@@ -2056,11 +2063,12 @@ export function StudentDashboardClient() {
                   <select
                     disabled={submitting || modalSuccess}
                     value={office}
-                    onChange={(e) => setOffice(e.target.value as any)}
-                    className="w-full px-3 py-2 border border-[var(--border)] rounded-[var(--radius-md)] bg-[var(--surface)] text-[var(--foreground)] focus:outline-none focus:border-[var(--accent)] transition-all text-sm"
+                    onChange={(e) => setOffice(e.target.value)}
+                    className="w-full px-3 py-2 border border-[var(--border)] rounded-[var(--radius-md)] bg-[var(--surface)] text-[var(--foreground)] focus:outline-none focus:border-[var(--accent)] transition-all text-sm cursor-pointer"
                   >
-                    <option value="ANDIJON OFFIS">ANDIJON OFFIS</option>
-                    <option value="TOSHKENT OFFIS">TOSHKENT OFFIS</option>
+                    {officeOptions.map((opt) => (
+                      <option key={opt} value={opt}>{opt}</option>
+                    ))}
                   </select>
                 </div>
 

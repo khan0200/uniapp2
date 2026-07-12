@@ -80,6 +80,16 @@ interface StudentDashboardContextValue {
   setCustomTagsRegistry: React.Dispatch<React.SetStateAction<CustomTag[]>>
   foldersOptions: Folder[]
   setFoldersOptions: React.Dispatch<React.SetStateAction<Folder[]>>
+  officeOptions: string[]
+  setOfficeOptions: React.Dispatch<React.SetStateAction<string[]>>
+  paymentMethodOptions: string[]
+  setPaymentMethodOptions: React.Dispatch<React.SetStateAction<string[]>>
+  paymentReceiverOptions: string[]
+  setPaymentReceiverOptions: React.Dispatch<React.SetStateAction<string[]>>
+  paymentNotePills: string[]
+  setPaymentNotePills: React.Dispatch<React.SetStateAction<string[]>>
+  universityStatusOptions: { name: string; colorClass: string }[]
+  setUniversityStatusOptions: React.Dispatch<React.SetStateAction<{ name: string; colorClass: string }[]>>
   activeFolder: string
   setActiveFolder: (folder: string) => void
   fetchFilterOptions: () => Promise<void>
@@ -134,6 +144,17 @@ export function StudentDashboardProvider({ children }: { children: ReactNode }) 
   const [leadByOptions, setLeadByOptions] = useState<string[]>([])
   const [customTagsRegistry, setCustomTagsRegistry] = useState<CustomTag[]>([])
   const [foldersOptions, setFoldersOptions] = useState<Folder[]>([])
+  const [officeOptions, setOfficeOptions] = useState<string[]>(['ANDIJON OFFIS', 'TOSHKENT OFFIS'])
+  const [paymentMethodOptions, setPaymentMethodOptions] = useState<string[]>(['Karta J.A', 'Karta Abdulaziz', 'Naqd', 'Karta M.A', 'Bank', 'Discount'])
+  const [paymentReceiverOptions, setPaymentReceiverOptions] = useState<string[]>(['ABDULAZIZ', 'MUSLIHIDDIN', 'BAXTIYOR', 'MUHAMMADALI', 'JASUR', 'ADMIN', 'Discount'])
+  const [paymentNotePills, setPaymentNotePills] = useState<string[]>(['Shartnoma uchun', 'Qarz', 'Elchixona uchun', 'Appfee', 'DISCOUNT'])
+  const [universityStatusOptions, setUniversityStatusOptions] = useState<{ name: string; colorClass: string }[]>([
+    { name: 'Chosen', colorClass: 'text-blue-500' },
+    { name: 'Applying', colorClass: 'text-amber-500' },
+    { name: 'Applied', colorClass: 'text-amber-500' },
+    { name: 'Accepted', colorClass: 'text-emerald-500' },
+    { name: 'Failed', colorClass: 'text-rose-500' }
+  ])
   const [activeFolder, setActiveFolder] = useState<string>(() => getSessionValue('activeFolder', 'all'))
 
   const scrollPositionRef = useRef(0)
@@ -172,12 +193,28 @@ export function StudentDashboardProvider({ children }: { children: ReactNode }) 
 
   const fetchFilterOptions = async () => {
     try {
-      const [tariffsRes, levelsRes, groupsRes, leadsRes, foldersRes] = await Promise.all([
+      const [
+        tariffsRes,
+        levelsRes,
+        groupsRes,
+        leadsRes,
+        foldersRes,
+        officesRes,
+        methodsRes,
+        receiversRes,
+        notesRes,
+        statusesRes
+      ] = await Promise.all([
         supabase.from('tariff_options').select('name'),
         supabase.from('education_levels').select('name'),
         supabase.from('student_groups').select('name'),
         supabase.from('lead_sources').select('name'),
-        supabase.from('folders').select('id, name')
+        supabase.from('folders').select('id, name'),
+        supabase.from('offices').select('name').order('name'),
+        supabase.from('payment_methods').select('name').order('name'),
+        supabase.from('payment_receivers').select('name').order('name'),
+        supabase.from('payment_note_templates').select('name').order('name'),
+        supabase.from('university_statuses').select('name, color_class').order('name')
       ])
  
       if (tariffsRes.data && tariffsRes.data.length > 0) setTariffOptions((tariffsRes.data as any[]).map(t => t.name))
@@ -188,6 +225,13 @@ export function StudentDashboardProvider({ children }: { children: ReactNode }) 
         setFoldersOptions(foldersRes.data as Folder[])
       } else {
         setFoldersOptions([])
+      }
+      if (officesRes.data && officesRes.data.length > 0) setOfficeOptions((officesRes.data as any[]).map(o => o.name))
+      if (methodsRes.data && methodsRes.data.length > 0) setPaymentMethodOptions((methodsRes.data as any[]).map(m => m.name))
+      if (receiversRes.data && receiversRes.data.length > 0) setPaymentReceiverOptions((receiversRes.data as any[]).map(r => r.name))
+      if (notesRes.data && notesRes.data.length > 0) setPaymentNotePills((notesRes.data as any[]).map(n => n.name))
+      if (statusesRes.data && statusesRes.data.length > 0) {
+        setUniversityStatusOptions((statusesRes.data as any[]).map(s => ({ name: s.name, colorClass: s.color_class })))
       }
     } catch (err) {
       console.error('Error fetching filter options in context:', err)
@@ -279,6 +323,16 @@ export function StudentDashboardProvider({ children }: { children: ReactNode }) 
       setCustomTagsRegistry,
       foldersOptions,
       setFoldersOptions,
+      officeOptions,
+      setOfficeOptions,
+      paymentMethodOptions,
+      setPaymentMethodOptions,
+      paymentReceiverOptions,
+      setPaymentReceiverOptions,
+      paymentNotePills,
+      setPaymentNotePills,
+      universityStatusOptions,
+      setUniversityStatusOptions,
       activeFolder,
       setActiveFolder,
       fetchFilterOptions

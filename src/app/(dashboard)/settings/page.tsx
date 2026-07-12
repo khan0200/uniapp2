@@ -5,7 +5,8 @@ import { motion, AnimatePresence } from 'framer-motion'
 import { PageShell } from '@/components/ui/PageShell'
 import { createClient } from '@/lib/supabase/client'
 import { 
-  Tag, GraduationCap, Users, Contact, PlusCircle, Pencil, Trash2, X, Loader2, AlertCircle, School, Bookmark, Search, Folder
+  Tag, GraduationCap, Users, Contact, PlusCircle, Pencil, Trash2, X, Loader2, AlertCircle, School, Bookmark, Search, Folder,
+  Building2, CreditCard
 } from 'lucide-react'
 import { CUSTOM_TAG_ICONS, type CustomTag } from '@/app/(dashboard)/students/StudentDashboardClient'
 import { useStudentDashboard } from '@/contexts/StudentDashboardContext'
@@ -118,6 +119,42 @@ const TABS_CONFIG = {
     btnBgClass: 'bg-rose-600 hover:bg-rose-700 dark:bg-rose-500 dark:hover:bg-rose-600 focus:ring-rose-500/20',
     addText: 'Add Folder',
     placeholder: 'Define custom folders (e.g. Korea Spring) to group students.'
+  },
+  office: {
+    id: 'office',
+    label: 'Office Branches',
+    subLabel: 'Offices',
+    description: 'Configure branch locations for client intake (e.g. Andijon, Toshkent).',
+    icon: Building2,
+    colorClass: 'text-cyan-500 bg-cyan-50 dark:bg-cyan-950/20 border-cyan-100 dark:border-cyan-900/30',
+    activeColorClass: 'bg-cyan-500/10 text-cyan-500 dark:bg-cyan-500/20',
+    btnBgClass: 'bg-cyan-600 hover:bg-cyan-700 dark:bg-cyan-500 dark:hover:bg-cyan-600 focus:ring-cyan-500/20',
+    addText: 'Add Office',
+    placeholder: 'Define office locations for student registration.'
+  },
+  payment_setting: {
+    id: 'payment_setting',
+    label: 'Payments Settings',
+    subLabel: 'Payment options',
+    description: 'Configure payment methods, transaction receivers, and note templates.',
+    icon: CreditCard,
+    colorClass: 'text-orange-500 bg-orange-50 dark:bg-orange-950/20 border-orange-100 dark:border-orange-900/30',
+    activeColorClass: 'bg-orange-500/10 text-orange-500 dark:bg-orange-500/20',
+    btnBgClass: 'bg-orange-600 hover:bg-orange-700 dark:bg-orange-500 dark:hover:bg-orange-600 focus:ring-orange-500/20',
+    addText: 'Add Option',
+    placeholder: 'Configure billing parameters.'
+  },
+  university_status: {
+    id: 'university_status',
+    label: 'University Statuses',
+    subLabel: 'Status stages',
+    description: 'Define student pipeline statuses for university admissions (e.g. Chosen, Accepted).',
+    icon: Bookmark,
+    colorClass: 'text-pink-500 bg-pink-50 dark:bg-pink-950/20 border-pink-100 dark:border-pink-900/30',
+    activeColorClass: 'bg-pink-500/10 text-pink-500 dark:bg-pink-500/20',
+    btnBgClass: 'bg-pink-600 hover:bg-pink-700 dark:bg-pink-500 dark:hover:bg-pink-600 focus:ring-pink-500/20',
+    addText: 'Add Status',
+    placeholder: 'Define custom progress statuses.'
   }
 }
 
@@ -139,6 +176,11 @@ export default function SettingsPage() {
   const [universities, setUniversities] = useState<GeneralOption[]>([])
   const [coordinators, setCoordinators] = useState<GeneralOption[]>([])
   const [folders, setFolders] = useState<GeneralOption[]>([])
+  const [offices, setOffices] = useState<GeneralOption[]>([])
+  const [paymentMethods, setPaymentMethods] = useState<GeneralOption[]>([])
+  const [paymentReceivers, setPaymentReceivers] = useState<GeneralOption[]>([])
+  const [paymentNoteTemplates, setPaymentNoteTemplates] = useState<GeneralOption[]>([])
+  const [universityStatuses, setUniversityStatuses] = useState<{ id: number | string; name: string; color_class: string }[]>([])
   const [isExpanded, setIsExpanded] = useState(false)
 
   // Loading & Error States
@@ -147,13 +189,14 @@ export default function SettingsPage() {
 
   // Modal State
   const [isModalOpen, setIsModalOpen] = useState(false)
-  const [modalType, setModalType] = useState<'tariff' | 'level' | 'group' | 'lead' | 'university' | 'coordinator' | 'folder'>('tariff')
+  const [modalType, setModalType] = useState<'tariff' | 'level' | 'group' | 'lead' | 'university' | 'coordinator' | 'folder' | 'office' | 'payment_method' | 'payment_receiver' | 'payment_note_template' | 'university_status'>('tariff')
   const [modalMode, setModalMode] = useState<'add' | 'edit'>('add')
   const [editingId, setEditingId] = useState<number | string | null>(null)
   
   // Form values
   const [formName, setFormName] = useState('')
   const [formPrice, setFormPrice] = useState<string>('')
+  const [formColorClass, setFormColorClass] = useState<string>('text-blue-500')
   const [submitting, setSubmitting] = useState(false)
   const [modalError, setModalError] = useState<string | null>(null)
 
@@ -273,14 +316,32 @@ export default function SettingsPage() {
       setLoading(true)
       setError(null)
 
-      const [tariffsRes, levelsRes, groupsRes, leadsRes, universitiesRes, coordinatorsRes, foldersRes] = await Promise.all([
+      const [
+        tariffsRes, 
+        levelsRes, 
+        groupsRes, 
+        leadsRes, 
+        universitiesRes, 
+        coordinatorsRes, 
+        foldersRes,
+        officesRes,
+        methodsRes,
+        receiversRes,
+        notesRes,
+        statusesRes
+      ] = await Promise.all([
         supabase.from('tariff_options').select('*').order('name'),
         supabase.from('education_levels').select('*').order('name'),
         supabase.from('student_groups').select('*').order('name'),
         supabase.from('lead_sources').select('*').order('name'),
         supabase.from('universities').select('*').order('name'),
         supabase.from('coordinators').select('*').order('name'),
-        supabase.from('folders').select('*').order('name')
+        supabase.from('folders').select('*').order('name'),
+        supabase.from('offices').select('*').order('name'),
+        supabase.from('payment_methods').select('*').order('name'),
+        supabase.from('payment_receivers').select('*').order('name'),
+        supabase.from('payment_note_templates').select('*').order('name'),
+        supabase.from('university_statuses').select('*').order('name')
       ])
 
       // If database tables are not set up yet, show a helpful setup banner
@@ -288,9 +349,14 @@ export default function SettingsPage() {
         (tariffsRes.error && tariffsRes.error.code === '42P01') ||
         (universitiesRes.error && universitiesRes.error.code === '42P01') ||
         (coordinatorsRes && coordinatorsRes.error && coordinatorsRes.error.code === '42P01') ||
-        (foldersRes && foldersRes.error && foldersRes.error.code === '42P01')
+        (foldersRes && foldersRes.error && foldersRes.error.code === '42P01') ||
+        (officesRes && officesRes.error && officesRes.error.code === '42P01') ||
+        (methodsRes && methodsRes.error && methodsRes.error.code === '42P01') ||
+        (receiversRes && receiversRes.error && receiversRes.error.code === '42P01') ||
+        (notesRes && notesRes.error && notesRes.error.code === '42P01') ||
+        (statusesRes && statusesRes.error && statusesRes.error.code === '42P01')
       ) {
-        throw new Error('Database tables not initialized. Please execute the settings_setup.sql, add_coordinator.sql, and add_folders.sql scripts in the Supabase SQL editor.')
+        throw new Error('Database tables not initialized. Please execute the settings_setup.sql and new dynamic settings SQL scripts in the Supabase SQL editor.')
       }
 
       if (tariffsRes.error) throw tariffsRes.error
@@ -299,6 +365,12 @@ export default function SettingsPage() {
       if (leadsRes.error) throw leadsRes.error
       if (universitiesRes.error) throw universitiesRes.error
       if (coordinatorsRes.error) throw coordinatorsRes.error
+      if (foldersRes.error) throw foldersRes.error
+      if (officesRes.error) throw officesRes.error
+      if (methodsRes.error) throw methodsRes.error
+      if (receiversRes.error) throw receiversRes.error
+      if (notesRes.error) throw notesRes.error
+      if (statusesRes.error) throw statusesRes.error
 
       setTariffs(tariffsRes.data || [])
       setLevels(levelsRes.data || [])
@@ -307,6 +379,11 @@ export default function SettingsPage() {
       setUniversities(universitiesRes.data || [])
       setCoordinators(coordinatorsRes.data || [])
       setFolders(foldersRes.data || [])
+      setOffices(officesRes.data || [])
+      setPaymentMethods(methodsRes.data || [])
+      setPaymentReceivers(receiversRes.data || [])
+      setPaymentNoteTemplates(notesRes.data || [])
+      setUniversityStatuses(statusesRes.data || [])
     } catch (err: any) {
       console.error('Error loading settings:', err)
       setError(err.message || 'Failed to load settings from Supabase. Ensure tables are created.')
@@ -317,6 +394,7 @@ export default function SettingsPage() {
 
   useEffect(() => {
     fetchAllOptions()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
   // Format currency
@@ -325,29 +403,31 @@ export default function SettingsPage() {
   }
 
   // Open modal for adding
-  const handleOpenAdd = (type: 'tariff' | 'level' | 'group' | 'lead' | 'university' | 'coordinator' | 'folder') => {
+  const handleOpenAdd = (type: 'tariff' | 'level' | 'group' | 'lead' | 'university' | 'coordinator' | 'folder' | 'office' | 'payment_method' | 'payment_receiver' | 'payment_note_template' | 'university_status') => {
     setModalType(type)
     setModalMode('add')
     setEditingId(null)
     setFormName('')
     setFormPrice('')
+    setFormColorClass('text-blue-500')
     setModalError(null)
     setIsModalOpen(true)
   }
 
   // Open modal for editing
-  const handleOpenEdit = (type: 'tariff' | 'level' | 'group' | 'lead' | 'university' | 'coordinator' | 'folder', item: any) => {
+  const handleOpenEdit = (type: 'tariff' | 'level' | 'group' | 'lead' | 'university' | 'coordinator' | 'folder' | 'office' | 'payment_method' | 'payment_receiver' | 'payment_note_template' | 'university_status', item: any) => {
     setModalType(type)
     setModalMode('edit')
     setEditingId(item.id)
     setFormName(item.name)
     setFormPrice(type === 'tariff' ? String(item.price) : '')
+    setFormColorClass(type === 'university_status' ? (item.color_class || 'text-blue-500') : 'text-blue-500')
     setModalError(null)
     setIsModalOpen(true)
   }
 
   // Handle delete
-  const handleDelete = async (type: 'tariff' | 'level' | 'group' | 'lead' | 'university' | 'coordinator' | 'folder', id: number | string, name: string) => {
+  const handleDelete = async (type: 'tariff' | 'level' | 'group' | 'lead' | 'university' | 'coordinator' | 'folder' | 'office' | 'payment_method' | 'payment_receiver' | 'payment_note_template' | 'university_status', id: number | string, name: string) => {
     if (!confirm(`Are you sure you want to delete "${name}"?`)) return
     try {
       let table = ''
@@ -358,6 +438,11 @@ export default function SettingsPage() {
       else if (type === 'university') table = 'universities'
       else if (type === 'coordinator') table = 'coordinators'
       else if (type === 'folder') table = 'folders'
+      else if (type === 'office') table = 'offices'
+      else if (type === 'payment_method') table = 'payment_methods'
+      else if (type === 'payment_receiver') table = 'payment_receivers'
+      else if (type === 'payment_note_template') table = 'payment_note_templates'
+      else if (type === 'university_status') table = 'university_statuses'
 
       const { error: deleteError } = await (supabase
         .from(table) as any)
@@ -367,9 +452,7 @@ export default function SettingsPage() {
       if (deleteError) throw deleteError
 
       await fetchAllOptions()
-      if (type === 'folder') {
-        fetchFilterOptions()
-      }
+      fetchFilterOptions()
     } catch (err: any) {
       console.error('Error deleting item:', err)
       alert(err.message || 'Failed to delete item.')
@@ -397,6 +480,11 @@ export default function SettingsPage() {
       else if (modalType === 'university') table = 'universities'
       else if (modalType === 'coordinator') table = 'coordinators'
       else if (modalType === 'folder') table = 'folders'
+      else if (modalType === 'office') table = 'offices'
+      else if (modalType === 'payment_method') table = 'payment_methods'
+      else if (modalType === 'payment_receiver') table = 'payment_receivers'
+      else if (modalType === 'payment_note_template') table = 'payment_note_templates'
+      else if (modalType === 'university_status') table = 'university_statuses'
 
       let payload: any = { name: formName.trim() }
       if (modalType === 'tariff') {
@@ -405,6 +493,8 @@ export default function SettingsPage() {
           throw new Error('Price must be a positive number.')
         }
         payload.price = parsedPrice
+      } else if (modalType === 'university_status') {
+        payload.color_class = formColorClass
       }
 
       if (modalMode === 'add') {
@@ -430,9 +520,7 @@ export default function SettingsPage() {
 
       setIsModalOpen(false)
       await fetchAllOptions()
-      if (modalType === 'folder') {
-        fetchFilterOptions()
-      }
+      fetchFilterOptions()
     } catch (err: any) {
       console.error('Error saving settings item:', err)
       setModalError(err.message || 'Failed to save item.')
@@ -451,6 +539,11 @@ export default function SettingsPage() {
   const filteredTags = customTagsRegistry.filter(t => t.name.toLowerCase().includes(query))
   const filteredUniversities = universities.filter(u => u.name.toLowerCase().includes(query))
   const filteredFolders = folders.filter(f => f.name.toLowerCase().includes(query))
+  const filteredOffices = offices.filter(o => o.name.toLowerCase().includes(query))
+  const filteredPaymentMethods = paymentMethods.filter(pm => pm.name.toLowerCase().includes(query))
+  const filteredPaymentReceivers = paymentReceivers.filter(pr => pr.name.toLowerCase().includes(query))
+  const filteredPaymentNoteTemplates = paymentNoteTemplates.filter(pnt => pnt.name.toLowerCase().includes(query))
+  const filteredUniversityStatuses = universityStatuses.filter(us => us.name.toLowerCase().includes(query))
 
   // ── Sub-component Renderers ──────────────────────────────────────────────
   const renderTariffRow = (item: TariffOption) => (
@@ -487,7 +580,7 @@ export default function SettingsPage() {
     </motion.div>
   )
 
-  const renderGeneralRow = (item: GeneralOption, type: 'level' | 'group' | 'lead' | 'coordinator' | 'folder') => {
+  const renderGeneralRow = (item: GeneralOption, type: 'level' | 'group' | 'lead' | 'coordinator' | 'folder' | 'office') => {
     const config = TABS_CONFIG[type]
     return (
       <motion.div
@@ -596,9 +689,138 @@ export default function SettingsPage() {
     </motion.div>
   )
 
+  const renderUniversityStatusRow = (item: { id: number | string; name: string; color_class: string }) => (
+    <motion.div
+      layout
+      initial={{ opacity: 0, y: 8 }}
+      animate={{ opacity: 1, y: 0 }}
+      exit={{ opacity: 0, scale: 0.95 }}
+      key={item.id}
+      className="group flex items-center justify-between gap-3 p-4 bg-surface border border-border hover:border-pink-400 dark:hover:border-pink-500/50 rounded-lg shadow-sm hover:shadow transition-all duration-200"
+    >
+      <div className="flex items-center gap-3 min-w-0">
+        <span className={`h-2.5 w-2.5 rounded-full bg-current shrink-0 ${item.color_class || 'text-blue-500'}`} />
+        <div className="text-xs font-bold text-foreground truncate uppercase tracking-wide">
+          {item.name}
+        </div>
+      </div>
+      <div className="flex items-center gap-1.5 shrink-0 opacity-90 sm:opacity-0 group-hover:opacity-100 transition-opacity duration-200">
+        <button
+          onClick={() => handleOpenEdit('university_status', item)}
+          className="w-8 h-8 flex items-center justify-center border border-border hover:bg-surface-hover rounded-md text-blue-500 hover:text-blue-600 transition-all cursor-pointer bg-transparent"
+          title="Edit"
+        >
+          <Pencil className="h-3.5 w-3.5" />
+        </button>
+        <button
+          onClick={() => handleDelete('university_status', item.id, item.name)}
+          className="w-8 h-8 flex items-center justify-center border border-border hover:bg-surface-hover rounded-md text-red-500 hover:text-red-650 transition-all cursor-pointer bg-transparent"
+          title="Delete"
+        >
+          <Trash2 className="h-3.5 w-3.5" />
+        </button>
+      </div>
+    </motion.div>
+  )
+
   const renderActiveTabContent = () => {
     const config = TABS_CONFIG[activeTab]
     const Icon = config.icon
+
+    if (activeTab === 'payment_setting') {
+      return (
+        <div className="flex flex-col flex-1 h-full">
+          {/* Section Header */}
+          <div className="border-b border-border pb-5 mb-5 flex items-start gap-3">
+            <div className={`p-2.5 rounded-xl border shrink-0 ${config.colorClass}`}>
+              <Icon className="h-6 w-6" />
+            </div>
+            <div>
+              <h3 className="text-base font-bold text-foreground leading-tight">{config.label}</h3>
+              <p className="text-xs text-foreground-muted mt-1.5 leading-relaxed max-w-xl">{config.description}</p>
+            </div>
+          </div>
+
+          {/* Three-column layout */}
+          <div className="grid grid-cols-1 xl:grid-cols-3 gap-6 items-start">
+            {/* Column 1: Payment Methods */}
+            <div className="bg-surface border border-border rounded-xl p-4 flex flex-col gap-3.5">
+              <div className="flex items-center justify-between border-b border-border pb-2.5">
+                <span className="text-[11px] font-bold uppercase tracking-wider text-foreground-muted">Payment Methods</span>
+                <button
+                  onClick={() => handleOpenAdd('payment_method')}
+                  className="inline-flex items-center gap-1 text-[10.5px] font-bold text-orange-500 hover:text-orange-600 bg-transparent border-none cursor-pointer"
+                >
+                  <PlusCircle className="h-3.5 w-3.5" /> Add
+                </button>
+              </div>
+              <div className="flex flex-col gap-2 max-h-[300px] overflow-y-auto pr-1 scrollbar-none">
+                {filteredPaymentMethods.map(item => (
+                  <div key={item.id} className="flex items-center justify-between p-2.5 bg-surface-elevated border border-border rounded-lg text-xs font-semibold group">
+                    <span>{item.name}</span>
+                    <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity shrink-0">
+                      <button onClick={() => handleOpenEdit('payment_method', item)} className="p-1 text-blue-500 hover:text-blue-650 cursor-pointer bg-transparent border-none"><Pencil className="h-3 w-3" /></button>
+                      <button onClick={() => handleDelete('payment_method', item.id, item.name)} className="p-1 text-red-500 hover:text-red-650 cursor-pointer bg-transparent border-none"><Trash2 className="h-3 w-3" /></button>
+                    </div>
+                  </div>
+                ))}
+                {filteredPaymentMethods.length === 0 && <div className="text-center py-6 text-[10.5px] text-foreground-subtle italic">No payment methods configured.</div>}
+              </div>
+            </div>
+
+            {/* Column 2: Payment Receivers */}
+            <div className="bg-surface border border-border rounded-xl p-4 flex flex-col gap-3.5">
+              <div className="flex items-center justify-between border-b border-border pb-2.5">
+                <span className="text-[11px] font-bold uppercase tracking-wider text-foreground-muted">Payment Receivers</span>
+                <button
+                  onClick={() => handleOpenAdd('payment_receiver')}
+                  className="inline-flex items-center gap-1 text-[10.5px] font-bold text-orange-500 hover:text-orange-600 bg-transparent border-none cursor-pointer"
+                >
+                  <PlusCircle className="h-3.5 w-3.5" /> Add
+                </button>
+              </div>
+              <div className="flex flex-col gap-2 max-h-[300px] overflow-y-auto pr-1 scrollbar-none">
+                {filteredPaymentReceivers.map(item => (
+                  <div key={item.id} className="flex items-center justify-between p-2.5 bg-surface-elevated border border-border rounded-lg text-xs font-semibold group">
+                    <span>{item.name}</span>
+                    <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity shrink-0">
+                      <button onClick={() => handleOpenEdit('payment_receiver', item)} className="p-1 text-blue-500 hover:text-blue-650 cursor-pointer bg-transparent border-none"><Pencil className="h-3 w-3" /></button>
+                      <button onClick={() => handleDelete('payment_receiver', item.id, item.name)} className="p-1 text-red-500 hover:text-red-650 cursor-pointer bg-transparent border-none"><Trash2 className="h-3 w-3" /></button>
+                    </div>
+                  </div>
+                ))}
+                {filteredPaymentReceivers.length === 0 && <div className="text-center py-6 text-[10.5px] text-foreground-subtle italic">No payment receivers configured.</div>}
+              </div>
+            </div>
+
+            {/* Column 3: Payment Note Templates */}
+            <div className="bg-surface border border-border rounded-xl p-4 flex flex-col gap-3.5">
+              <div className="flex items-center justify-between border-b border-border pb-2.5">
+                <span className="text-[11px] font-bold uppercase tracking-wider text-foreground-muted">Quick Note Templates</span>
+                <button
+                  onClick={() => handleOpenAdd('payment_note_template')}
+                  className="inline-flex items-center gap-1 text-[10.5px] font-bold text-orange-500 hover:text-orange-600 bg-transparent border-none cursor-pointer"
+                >
+                  <PlusCircle className="h-3.5 w-3.5" /> Add
+                </button>
+              </div>
+              <div className="flex flex-col gap-2 max-h-[300px] overflow-y-auto pr-1 scrollbar-none">
+                {filteredPaymentNoteTemplates.map(item => (
+                  <div key={item.id} className="flex items-center justify-between p-2.5 bg-surface-elevated border border-border rounded-lg text-xs font-semibold group">
+                    <span className="truncate max-w-[140px]" title={item.name}>{item.name}</span>
+                    <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity shrink-0">
+                      <button onClick={() => handleOpenEdit('payment_note_template', item)} className="p-1 text-blue-500 hover:text-blue-650 cursor-pointer bg-transparent border-none"><Pencil className="h-3 w-3" /></button>
+                      <button onClick={() => handleDelete('payment_note_template', item.id, item.name)} className="p-1 text-red-500 hover:text-red-650 cursor-pointer bg-transparent border-none"><Trash2 className="h-3 w-3" /></button>
+                    </div>
+                  </div>
+                ))}
+                {filteredPaymentNoteTemplates.length === 0 && <div className="text-center py-6 text-[10.5px] text-foreground-subtle italic">No note templates configured.</div>}
+              </div>
+            </div>
+          </div>
+        </div>
+      )
+    }
     
     // Determine target lists and actions dynamically
     let itemsCount = 0
@@ -637,6 +859,14 @@ export default function SettingsPage() {
       itemsCount = folders.length
       filteredCount = filteredFolders.length
       handleAddAction = () => handleOpenAdd('folder')
+    } else if (activeTab === 'office') {
+      itemsCount = offices.length
+      filteredCount = filteredOffices.length
+      handleAddAction = () => handleOpenAdd('office')
+    } else if (activeTab === 'university_status') {
+      itemsCount = universityStatuses.length
+      filteredCount = filteredUniversityStatuses.length
+      handleAddAction = () => handleOpenAdd('university_status')
     }
 
     // Specially handle pagination/limit slice for universities list
@@ -726,7 +956,7 @@ export default function SettingsPage() {
                 <div className="p-3 bg-border-subtle text-foreground-subtle rounded-full mb-3">
                   <Search className="h-6 w-6" />
                 </div>
-                <h4 className="text-xs font-bold text-foreground">No matches for "{searchQuery}"</h4>
+                <h4 className="text-xs font-bold text-foreground">No matches for &quot;{searchQuery}&quot;</h4>
                 <p className="text-[10px] text-foreground-subtle mt-0.5">Try refining your search terms or clear the filter.</p>
                 <button
                   onClick={() => setSearchQuery('')}
@@ -739,7 +969,7 @@ export default function SettingsPage() {
               <div className="flex flex-col h-full justify-between">
                 <motion.div
                   layout
-                  className={`grid gap-3 ${['university', 'tariff', 'lead', 'tag', 'folder'].includes(activeTab) ? 'grid-cols-1 md:grid-cols-2' : 'grid-cols-1'}`}
+                  className={`grid gap-3 ${['university', 'tariff', 'lead', 'tag', 'folder', 'office', 'university_status'].includes(activeTab) ? 'grid-cols-1 md:grid-cols-2' : 'grid-cols-1'}`}
                 >
                   {activeTab === 'tariff' && filteredTariffs.map(item => renderTariffRow(item))}
                   {activeTab === 'level' && filteredLevels.map(item => renderGeneralRow(item, 'level'))}
@@ -749,6 +979,8 @@ export default function SettingsPage() {
                   {activeTab === 'tag' && filteredTags.map(item => renderTagRow(item))}
                   {activeTab === 'university' && displayedUniversities.map(item => renderUniversityRow(item))}
                   {activeTab === 'folder' && filteredFolders.map(item => renderGeneralRow(item, 'folder'))}
+                  {activeTab === 'office' && filteredOffices.map(item => renderGeneralRow(item, 'office'))}
+                  {activeTab === 'university_status' && filteredUniversityStatuses.map(item => renderUniversityStatusRow(item))}
                 </motion.div>
 
                 {/* Universities pagination footer */}
@@ -963,7 +1195,7 @@ export default function SettingsPage() {
                   >
                     Cancel
                   </motion.button>
-                  <motion.button
+                   <motion.button
                     whileTap={{ scale: 0.96 }}
                     onClick={handleSaveTag}
                     disabled={tagSubmitting}
@@ -1005,7 +1237,7 @@ export default function SettingsPage() {
               </button>
 
               <h2 className="text-sm font-bold text-foreground mb-1 uppercase tracking-wider">
-                {modalMode === 'add' ? 'Add New' : 'Edit'} {modalType === 'tariff' ? 'Tariff' : modalType === 'level' ? 'Education Level' : modalType === 'group' ? 'Student Group' : modalType === 'lead' ? 'Lead Source' : modalType === 'university' ? 'University' : modalType === 'folder' ? 'Student Folder' : 'Kordinator'}
+                {modalMode === 'add' ? 'Add New' : 'Edit'} {modalType === 'tariff' ? 'Tariff' : modalType === 'level' ? 'Education Level' : modalType === 'group' ? 'Student Group' : modalType === 'lead' ? 'Lead Source' : modalType === 'university' ? 'University' : modalType === 'folder' ? 'Student Folder' : modalType === 'office' ? 'Office Branch' : modalType === 'payment_method' ? 'Payment Method' : modalType === 'payment_receiver' ? 'Payment Receiver' : modalType === 'payment_note_template' ? 'Note Template' : modalType === 'university_status' ? 'University Status' : 'Kordinator'}
               </h2>
               <p className="text-[10px] text-foreground-muted mb-5">
                 Configure parameter descriptors for this workspace registry.
@@ -1028,17 +1260,39 @@ export default function SettingsPage() {
                     type="text"
                     required
                     disabled={submitting}
-                    placeholder={modalType === 'tariff' ? 'E-VISA (TIL SERTIFIKATISIZ)' : modalType === 'level' ? 'BACHELOR' : modalType === 'group' ? '2026 BAHOR' : modalType === 'university' ? 'AJOU UNIVERSITY (SUWON, GYEONGGI)' : modalType === 'coordinator' ? 'Kordinator Name' : modalType === 'folder' ? 'Korea Spring' : 'SeoulStudy'}
+                    placeholder={modalType === 'tariff' ? 'E-VISA (TIL SERTIFIKATISIZ)' : modalType === 'level' ? 'BACHELOR' : modalType === 'group' ? '2026 BAHOR' : modalType === 'university' ? 'AJOU UNIVERSITY (SUWON, GYEONGGI)' : modalType === 'coordinator' ? 'Kordinator Name' : modalType === 'folder' ? 'Korea Spring' : modalType === 'office' ? 'Office Location' : modalType === 'payment_method' ? 'Karta J.A' : modalType === 'payment_receiver' ? 'ABDULAZIZ' : modalType === 'payment_note_template' ? 'Shartnoma uchun' : modalType === 'university_status' ? 'Chosen' : 'SeoulStudy'}
                     value={formName}
                     onChange={(e) => {
                       const val = e.target.value;
-                      setFormName(modalType === 'lead' || modalType === 'coordinator' || modalType === 'folder' ? val : val.toUpperCase());
+                      const isMixed = ['lead', 'coordinator', 'folder', 'payment_note_template', 'university_status'].includes(modalType)
+                      setFormName(isMixed ? val : val.toUpperCase());
                     }}
-                    className={`w-full px-3.5 py-2.5 border border-border rounded-lg bg-surface text-foreground focus:outline-none focus:border-accent focus:ring-1 focus:ring-accent font-semibold text-xs tracking-wide placeholder:text-foreground-subtle ${modalType !== 'lead' && modalType !== 'coordinator' && modalType !== 'folder' ? 'uppercase' : ''}`}
+                    className={`w-full px-3.5 py-2.5 border border-border rounded-lg bg-surface text-foreground focus:outline-none focus:border-accent focus:ring-1 focus:ring-accent font-semibold text-xs tracking-wide placeholder:text-foreground-subtle ${!['lead', 'coordinator', 'folder', 'payment_note_template', 'university_status'].includes(modalType) ? 'uppercase' : ''}`}
                   />
                 </div>
 
-                {/* Price input field (Tariff Options only) */}
+                {/* Color class dropdown (University Statuses only) */}
+                {modalType === 'university_status' && (
+                  <div>
+                    <label className="block text-[10px] font-bold uppercase tracking-wider text-foreground-muted mb-1.5">
+                      Badge Color
+                    </label>
+                    <select
+                      value={formColorClass}
+                      onChange={(e) => setFormColorClass(e.target.value)}
+                      className="w-full px-3.5 py-2.5 border border-border rounded-lg bg-surface text-foreground focus:outline-none focus:border-accent focus:ring-1 focus:ring-accent font-semibold text-xs tracking-wide cursor-pointer"
+                    >
+                      <option value="text-blue-500">Blue</option>
+                      <option value="text-amber-500">Amber (Yellow)</option>
+                      <option value="text-emerald-500">Emerald (Green)</option>
+                      <option value="text-rose-500">Rose (Red)</option>
+                      <option value="text-indigo-500">Indigo</option>
+                      <option value="text-purple-500">Purple</option>
+                      <option value="text-pink-500">Pink</option>
+                      <option value="text-cyan-500">Cyan</option>
+                    </select>
+                  </div>
+                )}
                 {modalType === 'tariff' && (
                   <div>
                     <label className="block text-[10px] font-bold uppercase tracking-wider text-foreground-muted mb-1.5">
