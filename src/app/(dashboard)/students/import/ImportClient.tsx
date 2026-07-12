@@ -8,7 +8,6 @@ import {
   Trash2, X, ChevronRight, AlertCircle, Terminal
 } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
-import { motion, AnimatePresence } from 'framer-motion'
 import { type Student, type StudentLevel, type StudentTariff, type StudentLanguageCertificate } from '@/types/database'
 
 // Pre-fill with the legacy configuration found in the codebase
@@ -670,14 +669,13 @@ export function ImportClient() {
     <div className="min-h-screen bg-[var(--background)] p-6 text-[var(--foreground)]">
       {/* Back to Students Dashboard */}
       <div className="max-w-6xl mx-auto mb-6 flex items-center justify-between">
-        <motion.button
-          whileTap={{ scale: 0.96 }}
+        <button
           onClick={() => router.push('/students')}
-          className="flex items-center gap-2 text-sm font-semibold text-[var(--foreground-muted)] hover:text-[var(--foreground)] transition-colors cursor-pointer"
+          className="flex items-center gap-2 text-sm font-semibold text-[var(--foreground-muted)] hover:text-[var(--foreground)] active:scale-[0.96] transition-all cursor-pointer"
         >
           <ArrowLeft className="h-4 w-4" />
           Back to Students List
-        </motion.button>
+        </button>
         <div className="flex items-center gap-1.5 rounded-full px-3 py-1 border border-indigo-200 bg-indigo-50/50 text-indigo-700 dark:border-indigo-800 dark:bg-indigo-950/30 dark:text-indigo-400 text-xs font-semibold">
           <Database className="h-3.5 w-3.5" />
           Migration Engine v2.0
@@ -1200,11 +1198,9 @@ export function ImportClient() {
                 <span>{Math.round((importProgress.current / importProgress.total) * 100) || 0}%</span>
               </div>
               <div className="h-2 w-full bg-[var(--border)] rounded-full overflow-hidden relative">
-                <motion.div
-                  className="h-full bg-gradient-to-r from-blue-500 to-indigo-500 rounded-full"
-                  initial={{ width: 0 }}
-                  animate={{ width: `${(importProgress.current / importProgress.total) * 100}%` }}
-                  transition={{ duration: 0.1 }}
+                <div
+                  className="h-full bg-gradient-to-r from-blue-500 to-indigo-500 rounded-full transition-[width] duration-100 ease-out"
+                  style={{ width: `${(importProgress.current / importProgress.total) * 100}%` }}
                 />
               </div>
 

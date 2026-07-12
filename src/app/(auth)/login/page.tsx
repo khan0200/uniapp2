@@ -2,7 +2,6 @@
 
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { motion } from 'framer-motion'
 import Image from 'next/image'
 import logo from '@/logo.png'
 import { Mail, Lock, Eye, EyeOff, AlertCircle, Loader2 } from 'lucide-react'
@@ -37,11 +36,7 @@ export default function LoginPage() {
   }
 
   return (
-    <motion.div
-      initial={{ opacity: 0, y: 24 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.4, ease: [0.25, 0.46, 0.45, 0.94] }}
-    >
+    <div className="animate-page-in">
       {/* Card */}
       <div
         className="rounded-[var(--radius-xl)] border border-[var(--border)] bg-[var(--surface)] p-8"
@@ -69,14 +64,10 @@ export default function LoginPage() {
 
         {/* Error banner */}
         {error && (
-          <motion.div
-            initial={{ opacity: 0, height: 0 }}
-            animate={{ opacity: 1, height: 'auto' }}
-            className="mb-5 flex items-start gap-2.5 rounded-[var(--radius-md)] bg-red-50 px-4 py-3 dark:bg-red-950/40"
-          >
+          <div className="animate-fade-in mb-5 flex items-start gap-2.5 rounded-[var(--radius-md)] bg-red-50 px-4 py-3 dark:bg-red-950/40">
             <AlertCircle className="mt-0.5 h-4 w-4 flex-shrink-0 text-[var(--danger)]" />
             <p className="text-sm text-[var(--danger)]">{error}</p>
-          </motion.div>
+          </div>
         )}
 
         {/* Form */}
@@ -178,6 +169,6 @@ export default function LoginPage() {
           Contact your administrator to create an account.
         </p>
       </div>
-    </motion.div>
+    </div>
   )
 }

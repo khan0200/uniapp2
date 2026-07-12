@@ -1,7 +1,6 @@
 'use client'
 
 import { useState, useEffect, useMemo } from 'react'
-import { motion } from 'framer-motion'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { 
@@ -26,7 +25,17 @@ interface StudentDetailClientProps {
 export function StudentDetailClient({ studentId }: StudentDetailClientProps) {
   const supabase = createClient()
   const router = useRouter()
-  const { setDetailPageActions, officeOptions, universityStatusOptions } = useStudentDashboard()
+  const {
+    setDetailPageActions,
+    officeOptions,
+    universityStatusOptions,
+    students: allStudents,
+    tariffOptions,
+    tariffPrices,
+    levelOptions,
+    groupOptions,
+    leadByOptions,
+  } = useStudentDashboard()
 
   // State for student details
   const [selectedStudent, setSelectedStudent] = useState<Student | null>(null)
@@ -45,47 +54,20 @@ export function StudentDetailClient({ studentId }: StudentDetailClientProps) {
   const [isTranslatingNames, setIsTranslatingNames] = useState(false)
   const [translateError, setTranslateError] = useState<string | null>(null)
 
-  // Dynamic Select Options from Settings
-  const [tariffOptions, setTariffOptions] = useState<string[]>(['STANDART', 'PREMIUM', 'VISA PLUS', 'E-VISA', 'REGIONAL VISA'])
-  const [tariffPrices, setTariffPrices] = useState<Record<string, number>>({
-    'STANDART': 13000000,
-    'PREMIUM': 32500000,
-    'VISA PLUS': 65000000,
-    'E-VISA (TIL SERTIFIKATISIZ)': 24000000,
-    'E-VISA (TIL SERTIFIKATLI)': 16000000,
-    'REGIONAL VISA': 24000000,
-    'ZERO RISK': 18500000,
-    'E-VISA': 2000000,
-  })
-  const [levelOptions, setLevelOptions] = useState<string[]>(['COLLEGE', 'BACHELOR', 'MASTERS', 'MASTER NO CERTIFICATE', 'LANGUAGE COURSE'])
-  const [groupOptions, setGroupOptions] = useState<string[]>(['2026 BAHOR', '2026 KUZ', '2027 BAHOR'])
-  const [leadByOptions, setLeadByOptions] = useState<string[]>(['Ali Uncle', 'Cornell', 'Headway', 'SeoulStudy', 'UP Marhamat'])
+  // tariffOptions/tariffPrices/levelOptions/groupOptions/leadByOptions come from
+  // the shared dashboard context (fetched once for the whole dashboard).
+  // universities/coordinators are specific to this page and fetched below.
   const [universityOptions, setUniversityOptions] = useState<string[]>([])
   const [coordinatorOptions, setCoordinatorOptions] = useState<string[]>([])
 
-  // Fetch settings filter options
+  // Fetch settings filter options not already covered by the shared context
   const fetchFilterOptions = async () => {
     try {
-      const [tariffsRes, levelsRes, groupsRes, leadsRes, universitiesRes, coordinatorsRes] = await Promise.all([
-        supabase.from('tariff_options').select('name, price'),
-        supabase.from('education_levels').select('name'),
-        supabase.from('student_groups').select('name'),
-        supabase.from('lead_sources').select('name'),
+      const [universitiesRes, coordinatorsRes] = await Promise.all([
         supabase.from('universities').select('name'),
         supabase.from('coordinators').select('name')
       ])
 
-      if (tariffsRes.data && tariffsRes.data.length > 0) {
-        setTariffOptions((tariffsRes.data as any[]).map(t => t.name))
-        const map: Record<string, number> = {}
-        ;(tariffsRes.data as any[]).forEach(t => {
-          map[t.name] = Number(t.price) || 0
-        })
-        setTariffPrices(prev => ({ ...prev, ...map }))
-      }
-      if (levelsRes.data && levelsRes.data.length > 0) setLevelOptions((levelsRes.data as any[]).map(l => l.name))
-      if (groupsRes.data && groupsRes.data.length > 0) setGroupOptions((groupsRes.data as any[]).map(g => g.name))
-      if (leadsRes.data && leadsRes.data.length > 0) setLeadByOptions((leadsRes.data as any[]).map(l => l.name))
       if (universitiesRes.data && universitiesRes.data.length > 0) setUniversityOptions((universitiesRes.data as any[]).map(u => u.name))
       if (coordinatorsRes && coordinatorsRes.data && coordinatorsRes.data.length > 0) setCoordinatorOptions((coordinatorsRes.data as any[]).map(c => c.name))
     } catch (err) {
@@ -103,11 +85,20 @@ export function StudentDetailClient({ studentId }: StudentDetailClientProps) {
     return tariffPrices[tariff] || 0
   }
 
-  // Fetch student details on mount
-  const fetchStudent = async () => {
-    try {
+  // Fetch student details. If a cached copy (from the shared dashboard list
+  // context) is passed in, we paint immediately with that data instead of
+  // blocking on the network, then quietly refresh in the background.
+  const fetchStudent = async (cached?: Student | null) => {
+    const isBackground = !!cached
+    if (isBackground) {
+      setSelectedStudent(cached)
+      setLoading(false)
+    } else {
       setLoading(true)
       setError(null)
+    }
+
+    try {
       const [studentRes, paymentsRes] = await Promise.all([
         supabase.from('students').select('*').eq('id', studentId).single(),
         supabase.from('payments').select('*').eq('student_id', studentId).order('created_at', { ascending: false })
@@ -115,44 +106,50 @@ export function StudentDetailClient({ studentId }: StudentDetailClientProps) {
 
       if (studentRes.error) throw studentRes.error
       const fetchedStudent = studentRes.data as Student
-      
-      // Auto-validate and sync missing documents on load
-      const syncedPick = syncMissingDocuments(fetchedStudent)
-      let finalStudent = fetchedStudent
 
+      // Auto-validate missing documents on load. Apply the corrected value
+      // locally right away and persist it in the background (fire-and-forget)
+      // so the page doesn't wait on this write before rendering.
+      const syncedPick = syncMissingDocuments(fetchedStudent)
       const originalPick = fetchedStudent.pick_needed || []
-      const isPickDifferent = originalPick.length !== syncedPick.length || 
+      const isPickDifferent = originalPick.length !== syncedPick.length ||
         !originalPick.every((val: string) => syncedPick.includes(val))
 
+      const finalStudent = isPickDifferent
+        ? { ...fetchedStudent, pick_needed: syncedPick }
+        : fetchedStudent
+
       if (isPickDifferent) {
-        const { error: updateErr } = await (supabase
-          .from('students') as any)
+        ;(supabase.from('students') as any)
           .update({ pick_needed: syncedPick })
           .eq('id', fetchedStudent.id)
-        
-        if (!updateErr) {
-          finalStudent = { ...fetchedStudent, pick_needed: syncedPick }
-        } else {
-          console.error('Error auto-syncing missing documents on page load:', updateErr)
-        }
+          .then(({ error: updateErr }: { error: any }) => {
+            if (updateErr) console.error('Error auto-syncing missing documents on page load:', updateErr)
+          })
       }
 
       setSelectedStudent(finalStudent)
       setPayments(paymentsRes.data || [])
     } catch (err: any) {
       console.error('Error fetching student details:', err)
-      setError(err.message || 'Failed to load student details. Student may not exist.')
+      if (!isBackground) {
+        setError(err.message || 'Failed to load student details. Student may not exist.')
+      }
     } finally {
-      setLoading(false)
+      if (!isBackground) {
+        setLoading(false)
+      }
     }
   }
 
   useEffect(() => {
-    fetchStudent()
+    const cached = allStudents.find(s => s.id === studentId) || null
+    fetchStudent(cached)
     fetchFilterOptions()
     setNameLanguage('EN')
     setKoreanNames(null)
     setTranslateError(null)
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [studentId])
 
   const computedPaymentsDone = useMemo(() => {
@@ -694,22 +691,20 @@ export function StudentDetailClient({ studentId }: StudentDetailClientProps) {
                 />
               )}
               <div className="absolute right-1 top-1/2 -translate-y-1/2 flex items-center gap-1">
-                <motion.button
-                  whileTap={{ scale: 0.85 }}
+                <button
                   onClick={() => handleSaveField(field)}
-                  className="h-5 w-5 inline-flex items-center justify-center rounded bg-emerald-500 hover:bg-emerald-600 text-white cursor-pointer transition-colors"
+                  className="h-5 w-5 inline-flex items-center justify-center rounded bg-emerald-500 hover:bg-emerald-600 text-white cursor-pointer active:scale-[0.85] transition-all"
                   title="Save"
                 >
                   <CheckCircle2 className="h-3 w-3" />
-                </motion.button>
-                <motion.button
-                  whileTap={{ scale: 0.85 }}
+                </button>
+                <button
                   onClick={handleCancelEditing}
-                  className="h-5 w-5 inline-flex items-center justify-center rounded bg-rose-500 hover:bg-rose-600 text-white cursor-pointer transition-colors"
+                  className="h-5 w-5 inline-flex items-center justify-center rounded bg-rose-500 hover:bg-rose-600 text-white cursor-pointer active:scale-[0.85] transition-all"
                   title="Cancel"
                 >
                   <X className="h-3 w-3" />
-                </motion.button>
+                </button>
               </div>
             </div>
           ) : (
@@ -1591,20 +1586,18 @@ export function StudentDetailClient({ studentId }: StudentDetailClientProps) {
                             <option key={opt} value={opt}>{opt}</option>
                           ))}
                         </select>
-                        <motion.button
-                          whileTap={{ scale: 0.85 }}
+                        <button
                           onClick={() => handleSaveField('office')}
-                          className="p-0.5 hover:bg-blue-700 rounded text-emerald-250 cursor-pointer"
+                          className="p-0.5 hover:bg-blue-700 rounded text-emerald-250 cursor-pointer active:scale-[0.85] transition-transform"
                         >
                           <CheckCircle2 className="h-4 w-4" />
-                        </motion.button>
-                        <motion.button
-                          whileTap={{ scale: 0.85 }}
+                        </button>
+                        <button
                           onClick={handleCancelEditing}
-                          className="p-0.5 hover:bg-blue-700 rounded text-rose-250 cursor-pointer"
+                          className="p-0.5 hover:bg-blue-700 rounded text-rose-250 cursor-pointer active:scale-[0.85] transition-transform"
                         >
                           <X className="h-4 w-4" />
-                        </motion.button>
+                        </button>
                       </div>
                     ) : (
                       copiedField === 'office' ? (

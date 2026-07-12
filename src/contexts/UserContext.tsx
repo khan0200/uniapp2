@@ -22,7 +22,12 @@ export function UserProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     const fetchProfile = async () => {
       try {
-        const { data: { user }, error: authError } = await supabase.auth.getUser()
+        // getSession() reads the locally cached session (no network round trip).
+        // We don't need getUser()'s server-side revalidation here — route access
+        // is already authoritatively checked server-side in the dashboard layout,
+        // and this profile query is protected by RLS regardless.
+        const { data: { session }, error: authError } = await supabase.auth.getSession()
+        const user = session?.user
         if (authError || !user) {
           setProfile(null)
           setLoading(false)

@@ -1,15 +1,16 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { motion, AnimatePresence } from 'framer-motion'
 import { createClient } from '@/lib/supabase/client'
 import { useUser } from '@/contexts/UserContext'
 import { type Profile, type UserRole } from '@/types/database'
 import { RestrictedAccess } from '@/components/ui/RestrictedAccess'
 import {
-  Users, Plus, Pencil, Trash2, X, Loader2, AlertCircle, 
+  Users, Plus, Pencil, Trash2, X, Loader2, AlertCircle,
   Shield, Mail, Key, User, CheckCircle2, Info
 } from 'lucide-react'
+import { cn } from '@/lib/utils'
+import { useCssTransition } from '@/hooks/useCssTransition'
 
 export function UsersClient() {
   const supabase = createClient()
@@ -23,6 +24,7 @@ export function UsersClient() {
 
   // Modals state
   const [isModalOpen, setIsModalOpen] = useState(false)
+  const modalTransition = useCssTransition(isModalOpen, 220)
   const [modalMode, setModalMode] = useState<'add' | 'edit'>('add')
   const [editingUserId, setEditingUserId] = useState<string | null>(null)
 
@@ -254,16 +256,15 @@ export function UsersClient() {
         <h3 className="text-sm font-bold text-[var(--foreground-muted)] uppercase tracking-wider">
           System Users ({users.length})
         </h3>
-        <motion.button
-          whileTap={{ scale: 0.96 }}
+        <button
           onClick={handleOpenAdd}
           disabled={dbMissing}
-          className="flex items-center gap-2 rounded-[var(--radius-md)] bg-[var(--accent)] hover:bg-[var(--accent-hover)] text-white text-xs font-semibold px-4 py-2 transition-all shadow-sm cursor-pointer select-none border-none disabled:opacity-50 disabled:cursor-not-allowed"
+          className="flex items-center gap-2 rounded-[var(--radius-md)] bg-[var(--accent)] hover:bg-[var(--accent-hover)] text-white text-xs font-semibold px-4 py-2 transition-all active:scale-[0.96] shadow-sm cursor-pointer select-none border-none disabled:opacity-50 disabled:cursor-not-allowed"
           style={{ boxShadow: '0 4px 12px rgba(59, 127, 245, 0.2)' }}
         >
           <Plus className="h-4 w-4" />
           Add New User
-        </motion.button>
+        </button>
       </div>
 
       {/* Main List Box */}
@@ -409,21 +410,21 @@ export function UsersClient() {
       )}
 
       {/* Add / Edit Users Modal */}
-      <AnimatePresence>
-        {isModalOpen && (
+      {modalTransition.shouldRender && (
           <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-            <motion.div
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
+            <div
               onClick={() => { if (!submitting) setIsModalOpen(false) }}
-              className="fixed inset-0 bg-black/60 backdrop-blur-sm"
+              className={cn(
+                'fixed inset-0 bg-black/50 transition-opacity duration-220 ease-out',
+                modalTransition.isVisible ? 'opacity-100' : 'opacity-0'
+              )}
             />
-            <motion.div
-              initial={{ opacity: 0, scale: 0.95, y: 15 }}
-              animate={{ opacity: 1, scale: 1, y: 0 }}
-              exit={{ opacity: 0, scale: 0.95, y: 15 }}
-              className="relative w-full max-w-sm overflow-hidden rounded-[var(--radius-lg)] border border-[var(--border)] bg-[var(--surface-elevated)] p-6 shadow-[var(--shadow-lg)] z-10"
+            <div
+              className={cn(
+                'relative w-full max-w-sm overflow-hidden rounded-[var(--radius-lg)] border border-[var(--border)] bg-[var(--surface-elevated)] p-6 shadow-[var(--shadow-lg)] z-10',
+                'transition-all duration-220 ease-[cubic-bezier(0.25,0.46,0.45,0.94)]',
+                modalTransition.isVisible ? 'opacity-100 scale-100 translate-y-0' : 'opacity-0 scale-95 translate-y-[15px]'
+              )}
             >
             {/* Close Button */}
             <button
@@ -537,30 +538,27 @@ export function UsersClient() {
 
               {/* Submit Buttons */}
               <div className="pt-2 flex justify-end gap-2.5">
-                <motion.button
-                  whileTap={{ scale: 0.96 }}
+                <button
                   type="button"
                   disabled={submitting}
                   onClick={() => setIsModalOpen(false)}
-                  className="px-3.5 py-1.5 border border-[var(--border)] rounded-[var(--radius-md)] bg-transparent text-[var(--foreground-muted)] hover:bg-[var(--border-subtle)] hover:text-[var(--foreground)] text-xs font-semibold cursor-pointer"
+                  className="px-3.5 py-1.5 border border-[var(--border)] rounded-[var(--radius-md)] bg-transparent text-[var(--foreground-muted)] hover:bg-[var(--border-subtle)] hover:text-[var(--foreground)] text-xs font-semibold active:scale-[0.96] transition-transform cursor-pointer"
                 >
                   Cancel
-                </motion.button>
-                <motion.button
-                  whileTap={{ scale: 0.96 }}
+                </button>
+                <button
                   type="submit"
                   disabled={submitting}
-                  className="flex items-center justify-center gap-1 px-4 py-1.5 bg-[var(--accent)] hover:bg-[var(--accent-hover)] text-white text-xs font-semibold rounded-[var(--radius-md)] cursor-pointer select-none"
+                  className="flex items-center justify-center gap-1 px-4 py-1.5 bg-[var(--accent)] hover:bg-[var(--accent-hover)] text-white text-xs font-semibold rounded-[var(--radius-md)] active:scale-[0.96] transition-transform cursor-pointer select-none"
                 >
                   {submitting && <Loader2 className="h-3 w-3 animate-spin" />}
                   {modalMode === 'add' ? 'Create' : 'Save Changes'}
-                </motion.button>
+                </button>
               </div>
             </form>
-            </motion.div>
+            </div>
           </div>
-        )}
-      </AnimatePresence>
+      )}
     </div>
   )
 }

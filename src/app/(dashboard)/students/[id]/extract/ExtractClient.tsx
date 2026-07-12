@@ -1,16 +1,17 @@
 'use client'
 
 import { useState, useEffect, useRef } from 'react'
-import { motion, AnimatePresence } from 'framer-motion'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
-import { 
+import {
   ArrowLeft, RefreshCw, Trash2, Loader2, Upload, FileText, CheckCircle2,
   AlertCircle, Edit, Copy, ChevronDown, ChevronUp, Cpu, Sliders
 } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import { type Student, type StudentLanguageCertificate, type StudentLevel, type StudentTariff } from '@/types/database'
 import { syncMissingDocuments } from '@/lib/validation'
+import { cn } from '@/lib/utils'
+import { useCssTransition } from '@/hooks/useCssTransition'
 
 interface ExtractClientProps {
   studentId: string
@@ -82,6 +83,7 @@ export function ExtractClient({ studentId }: ExtractClientProps) {
   const [editingIndex, setEditingIndex] = useState<number | null>(null)
   const [editValue, setEditValue] = useState<string>('')
   const [isEditModalOpen, setIsEditModalOpen] = useState(false)
+  const editModalTransition = useCssTransition(isEditModalOpen, 220)
 
   // Layout states
   const [isSettingsOpen, setIsSettingsOpen] = useState(false)
@@ -1030,14 +1032,13 @@ export function ExtractClient({ studentId }: ExtractClientProps) {
                         </button>
 
                         {dbField && (
-                          <motion.button
-                            whileTap={isSaved || isAlreadyMatching ? undefined : { scale: 0.94 }}
+                          <button
                             disabled={isSaved || isAlreadyMatching}
                             onClick={() => handleSaveFieldToProfile(field.key, field.value)}
                             className={`px-3 py-1.5 rounded-full text-[10px] font-extrabold uppercase transition-all flex items-center gap-1 cursor-pointer select-none border ${
                               isSaved || isAlreadyMatching
                                 ? 'bg-emerald-500/10 text-emerald-500 dark:text-emerald-400 border-emerald-500/20 cursor-default'
-                                : 'bg-emerald-600 hover:bg-emerald-500 border-emerald-600 hover:border-emerald-500 text-white shadow-sm'
+                                : 'bg-emerald-600 hover:bg-emerald-500 border-emerald-600 hover:border-emerald-500 text-white shadow-sm active:scale-[0.94]'
                             }`}
                           >
                             {isSaved || isAlreadyMatching ? (
@@ -1048,7 +1049,7 @@ export function ExtractClient({ studentId }: ExtractClientProps) {
                             ) : (
                               'Save to >>'
                             )}
-                          </motion.button>
+                          </button>
                         )}
                       </div>
                     </div>
@@ -1063,23 +1064,23 @@ export function ExtractClient({ studentId }: ExtractClientProps) {
       {/* Raw OCR Panel Removed */}
 
       {/* Edit Modal Overlay */}
-      <AnimatePresence>
-        {isEditModalOpen && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-            <motion.div
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              onClick={() => setIsEditModalOpen(false)}
-              className="fixed inset-0 bg-black/60 backdrop-blur-sm"
-            />
-            <motion.div
-              initial={{ opacity: 0, scale: 0.95, y: 15 }}
-              animate={{ opacity: 1, scale: 1, y: 0 }}
-              exit={{ opacity: 0, scale: 0.95, y: 15 }}
-              className="relative z-10 bg-[var(--surface)] border border-[var(--border)] rounded-3xl max-w-sm w-full p-5 flex flex-col gap-5 shadow-xl"
-              onClick={(e) => e.stopPropagation()}
-            >
+      {editModalTransition.shouldRender && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          <div
+            onClick={() => setIsEditModalOpen(false)}
+            className={cn(
+              'fixed inset-0 bg-black/50 transition-opacity duration-220 ease-out',
+              editModalTransition.isVisible ? 'opacity-100' : 'opacity-0'
+            )}
+          />
+          <div
+            className={cn(
+              'relative z-10 bg-[var(--surface)] border border-[var(--border)] rounded-3xl max-w-sm w-full p-5 flex flex-col gap-5 shadow-xl',
+              'transition-all duration-220 ease-[cubic-bezier(0.25,0.46,0.45,0.94)]',
+              editModalTransition.isVisible ? 'opacity-100 scale-100 translate-y-0' : 'opacity-0 scale-95 translate-y-[15px]'
+            )}
+            onClick={(e) => e.stopPropagation()}
+          >
             <div className="flex items-center justify-between border-b border-[var(--border)] pb-3">
               <h3 className="text-xs font-extrabold uppercase tracking-wider text-[var(--accent)] flex items-center gap-2">
                 <Edit className="h-4.5 w-4.5" />
@@ -1099,25 +1100,22 @@ export function ExtractClient({ studentId }: ExtractClientProps) {
             </div>
 
             <div className="flex gap-3">
-              <motion.button
-                whileTap={{ scale: 0.96 }}
+              <button
                 onClick={() => setIsEditModalOpen(false)}
-                className="flex-1 py-2.5 border border-[var(--border)] hover:bg-[var(--border-subtle)] text-xs font-bold rounded-xl transition-all cursor-pointer"
+                className="flex-1 py-2.5 border border-[var(--border)] hover:bg-[var(--border-subtle)] text-xs font-bold rounded-xl transition-all active:scale-[0.96] cursor-pointer"
               >
                 Cancel
-              </motion.button>
-              <motion.button
-                whileTap={{ scale: 0.96 }}
+              </button>
+              <button
                 onClick={saveEditedField}
-                className="flex-1 py-2.5 bg-[var(--accent)] hover:bg-[var(--accent-hover)] text-white text-xs font-bold rounded-xl transition-all cursor-pointer"
+                className="flex-1 py-2.5 bg-[var(--accent)] hover:bg-[var(--accent-hover)] text-white text-xs font-bold rounded-xl transition-all active:scale-[0.96] cursor-pointer"
               >
                 Save
-              </motion.button>
+              </button>
             </div>
-            </motion.div>
           </div>
-        )}
-      </AnimatePresence>
+        </div>
+      )}
 
     </div>
   )

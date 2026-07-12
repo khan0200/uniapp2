@@ -10,6 +10,8 @@ import {
 } from 'lucide-react'
 import { CUSTOM_TAG_ICONS, type CustomTag } from '@/app/(dashboard)/students/StudentDashboardClient'
 import { useStudentDashboard } from '@/contexts/StudentDashboardContext'
+import { cn } from '@/lib/utils'
+import { useCssTransition } from '@/hooks/useCssTransition'
 
 interface TariffOption {
   id: number
@@ -189,6 +191,7 @@ export default function SettingsPage() {
 
   // Modal State
   const [isModalOpen, setIsModalOpen] = useState(false)
+  const modalTransition = useCssTransition(isModalOpen, 220)
   const [modalType, setModalType] = useState<'tariff' | 'level' | 'group' | 'lead' | 'university' | 'coordinator' | 'folder' | 'office' | 'payment_method' | 'payment_receiver' | 'payment_note_template' | 'university_status'>('tariff')
   const [modalMode, setModalMode] = useState<'add' | 'edit'>('add')
   const [editingId, setEditingId] = useState<number | string | null>(null)
@@ -203,6 +206,7 @@ export default function SettingsPage() {
   // ── Custom Tags State ────────────────────────────────────────────────────
   const [customTagsRegistry, setCustomTagsRegistry] = useState<CustomTag[]>([])
   const [isTagModalOpen, setIsTagModalOpen] = useState(false)
+  const tagModalTransition = useCssTransition(isTagModalOpen, 220)
   const [tagModalMode, setTagModalMode] = useState<'add' | 'edit'>('add')
   const [editingTagEntry, setEditingTagEntry] = useState<CustomTag | null>(null)
   const [tagFormName, setTagFormName] = useState('')
@@ -892,14 +896,13 @@ export default function SettingsPage() {
               <p className="text-xs text-foreground-muted mt-1.5 leading-relaxed max-w-xl">{config.description}</p>
             </div>
           </div>
-          <motion.button
-            whileTap={{ scale: 0.96 }}
+          <button
             onClick={handleAddAction}
-            className={`inline-flex items-center gap-1.5 px-4 py-2 text-white text-xs font-bold rounded-lg transition-all shadow-sm hover:shadow cursor-pointer select-none border-none hover:scale-[1.02] shrink-0 self-start sm:self-center ${config.btnBgClass}`}
+            className={`inline-flex items-center gap-1.5 px-4 py-2 text-white text-xs font-bold rounded-lg transition-all active:scale-[0.96] shadow-sm hover:shadow cursor-pointer select-none border-none hover:scale-[1.02] shrink-0 self-start sm:self-center ${config.btnBgClass}`}
           >
             <PlusCircle className="h-4 w-4" />
             {config.addText}
-          </motion.button>
+          </button>
         </div>
 
         {/* Search Bar filter */}
@@ -1090,21 +1093,21 @@ export default function SettingsPage() {
       </div>
 
       {/* ── Custom Tag Add / Edit Modal ────────────────────────────────── */}
-      <AnimatePresence>
-        {isTagModalOpen && (
+      {tagModalTransition.shouldRender && (
           <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-            <motion.div
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
+            <div
               onClick={() => { if (!tagSubmitting) setIsTagModalOpen(false) }}
-              className="fixed inset-0 bg-black/60 backdrop-blur-sm"
+              className={cn(
+                'fixed inset-0 bg-black/50 transition-opacity duration-220 ease-out',
+                tagModalTransition.isVisible ? 'opacity-100' : 'opacity-0'
+              )}
             />
-            <motion.div
-              initial={{ opacity: 0, scale: 0.95, y: 15 }}
-              animate={{ opacity: 1, scale: 1, y: 0 }}
-              exit={{ opacity: 0, scale: 0.95, y: 15 }}
-              className="relative w-full max-w-md overflow-hidden rounded-xl border border-border/80 bg-surface-elevated p-6 shadow-2xl z-10 glass"
+            <div
+              className={cn(
+                'relative w-full max-w-md overflow-hidden rounded-xl border border-border/80 bg-surface-elevated p-6 shadow-2xl z-10 glass',
+                'transition-all duration-220 ease-[cubic-bezier(0.25,0.46,0.45,0.94)]',
+                tagModalTransition.isVisible ? 'opacity-100 scale-100 translate-y-0' : 'opacity-0 scale-95 translate-y-[15px]'
+              )}
             >
               <button
                 disabled={tagSubmitting}
@@ -1186,47 +1189,44 @@ export default function SettingsPage() {
 
                 {/* Action buttons */}
                 <div className="pt-2 flex justify-end gap-2.5">
-                  <motion.button
-                    whileTap={{ scale: 0.96 }}
+                  <button
                     type="button"
                     disabled={tagSubmitting}
                     onClick={() => setIsTagModalOpen(false)}
-                    className="px-4 py-2 border border-border rounded-lg bg-transparent text-foreground-muted hover:bg-surface-hover hover:text-foreground text-xs font-bold cursor-pointer"
+                    className="px-4 py-2 border border-border rounded-lg bg-transparent text-foreground-muted hover:bg-surface-hover hover:text-foreground text-xs font-bold active:scale-[0.96] transition-transform cursor-pointer"
                   >
                     Cancel
-                  </motion.button>
-                   <motion.button
-                    whileTap={{ scale: 0.96 }}
+                  </button>
+                   <button
                     onClick={handleSaveTag}
                     disabled={tagSubmitting}
-                    className="flex items-center justify-center gap-1.5 px-4.5 py-2 bg-accent hover:bg-accent-hover text-white text-xs font-bold rounded-lg cursor-pointer select-none border-none"
+                    className="flex items-center justify-center gap-1.5 px-4.5 py-2 bg-accent hover:bg-accent-hover text-white text-xs font-bold rounded-lg active:scale-[0.96] transition-transform cursor-pointer select-none border-none"
                   >
                     {tagSubmitting && <Loader2 className="h-3.5 w-3.5 animate-spin" />}
                     {tagModalMode === 'add' ? 'Create Tag' : 'Save Changes'}
-                  </motion.button>
+                  </button>
                 </div>
               </div>
-            </motion.div>
+            </div>
           </div>
-        )}
-      </AnimatePresence>
+      )}
 
       {/* Add / Edit General Registry Options Modal */}
-      <AnimatePresence>
-        {isModalOpen && (
+      {modalTransition.shouldRender && (
           <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-            <motion.div
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
+            <div
               onClick={() => { if (!submitting) setIsModalOpen(false) }}
-              className="fixed inset-0 bg-black/60 backdrop-blur-sm"
+              className={cn(
+                'fixed inset-0 bg-black/50 transition-opacity duration-220 ease-out',
+                modalTransition.isVisible ? 'opacity-100' : 'opacity-0'
+              )}
             />
-            <motion.div
-              initial={{ opacity: 0, scale: 0.95, y: 15 }}
-              animate={{ opacity: 1, scale: 1, y: 0 }}
-              exit={{ opacity: 0, scale: 0.95, y: 15 }}
-              className="relative w-full max-w-md overflow-hidden rounded-xl border border-border/80 bg-surface-elevated p-6 shadow-2xl z-10 glass"
+            <div
+              className={cn(
+                'relative w-full max-w-md overflow-hidden rounded-xl border border-border/80 bg-surface-elevated p-6 shadow-2xl z-10 glass',
+                'transition-all duration-220 ease-[cubic-bezier(0.25,0.46,0.45,0.94)]',
+                modalTransition.isVisible ? 'opacity-100 scale-100 translate-y-0' : 'opacity-0 scale-95 translate-y-[15px]'
+              )}
             >
               <button
                 disabled={submitting}
@@ -1312,30 +1312,27 @@ export default function SettingsPage() {
 
                 {/* Actions submit */}
                 <div className="pt-2 flex justify-end gap-2.5">
-                  <motion.button
-                    whileTap={{ scale: 0.96 }}
+                  <button
                     type="button"
                     disabled={submitting}
                     onClick={() => setIsModalOpen(false)}
-                    className="px-4 py-2 border border-border rounded-lg bg-transparent text-foreground-muted hover:bg-surface-hover hover:text-foreground text-xs font-bold cursor-pointer"
+                    className="px-4 py-2 border border-border rounded-lg bg-transparent text-foreground-muted hover:bg-surface-hover hover:text-foreground text-xs font-bold active:scale-[0.96] transition-transform cursor-pointer"
                   >
                     Cancel
-                  </motion.button>
-                  <motion.button
-                    whileTap={{ scale: 0.96 }}
+                  </button>
+                  <button
                     type="submit"
                     disabled={submitting}
-                    className="flex items-center justify-center gap-1.5 px-4.5 py-2 bg-accent hover:bg-accent-hover text-white text-xs font-bold rounded-lg cursor-pointer select-none border-none"
+                    className="flex items-center justify-center gap-1.5 px-4.5 py-2 bg-accent hover:bg-accent-hover text-white text-xs font-bold rounded-lg active:scale-[0.96] transition-transform cursor-pointer select-none border-none"
                   >
                     {submitting && <Loader2 className="h-3.5 w-3.5 animate-spin" />}
                     {modalMode === 'add' ? 'Create' : 'Save Changes'}
-                  </motion.button>
+                  </button>
                 </div>
               </form>
-            </motion.div>
+            </div>
           </div>
-        )}
-      </AnimatePresence>
+      )}
     </PageShell>
   )
 }

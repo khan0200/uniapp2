@@ -1,26 +1,32 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { motion, AnimatePresence } from 'framer-motion'
 import { createClient } from '@/lib/supabase/client'
 import { useStudentDashboard } from '@/contexts/StudentDashboardContext'
 import { type Student } from '@/types/database'
 import { syncMissingDocuments, isFieldFilled } from '@/lib/validation'
-import { 
+import {
   Folder, ChevronDown, ChevronUp, ChevronLeft, ChevronRight, CheckCircle2, ShieldAlert,
   X, Loader2, ArrowLeft, Plus, AlertCircle, Info, RefreshCw, Hash, Users, Bookmark, UserCheck, Layers, Tag,
   FileText, CheckSquare
 } from 'lucide-react'
+import { cn } from '@/lib/utils'
+import { useCssTransition } from '@/hooks/useCssTransition'
 
 export function DocumentsClient() {
   const supabase = createClient()
-  const { searchQuery } = useStudentDashboard()
+  const {
+    searchQuery,
+    students,
+    setStudents,
+    loading,
+    error,
+    fetchStudents,
+    tariffOptions,
+    levelOptions,
+    groupOptions,
+  } = useStudentDashboard()
 
-  // States
-  const [students, setStudents] = useState<Student[]>([])
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState<string | null>(null)
-  
   // Selected filter states
   const [selectedTariffs, setSelectedTariffs] = useState<string[]>([])
   const [selectedLevels, setSelectedLevels] = useState<string[]>([])
@@ -42,17 +48,14 @@ export function DocumentsClient() {
   // Selected student for details modal
   const [selectedStudent, setSelectedStudent] = useState<Student | null>(null)
   const [isModalOpen, setIsModalOpen] = useState(false)
+  const modalTransition = useCssTransition(isModalOpen && !!selectedStudent, 220)
   const [modalUpdating, setModalUpdating] = useState(false)
 
   // Real payments done sum (fetched from payments table)
   const [studentPaymentsDone, setStudentPaymentsDone] = useState<number | null>(null)
   const [studentPaymentsDoneLoading, setStudentPaymentsDoneLoading] = useState(false)
 
-  // Option lists
-  const [tariffOptions, setTariffOptions] = useState<string[]>(['STANDART', 'PREMIUM', 'VISA PLUS', 'E-VISA', 'REGIONAL VISA'])
-  const [levelOptions, setLevelOptions] = useState<string[]>(['COLLEGE', 'BACHELOR', 'MASTERS', 'MASTER NO CERTIFICATE', 'LANGUAGE COURSE'])
-  const [groupOptions, setGroupOptions] = useState<string[]>([])
-
+  // Option lists (tariffOptions/levelOptions/groupOptions come from shared dashboard context)
   const certOptions = ['NO CERTIFICATE', 'EXPECTED', 'TOPIK', 'SKA', 'IELTS', 'TOEFL', 'SAT', 'CEFR']
   
   const pickNeededList = [
@@ -62,46 +65,9 @@ export function DocumentsClient() {
     "SAT", "CEFR", "3.5x4.5", "2 ta nomer", "Email", "Manzil", "Edu-Level", "FULL OK"
   ]
 
-  // Fetch Students & Options
-  const fetchStudents = async () => {
-    try {
-      setLoading(true)
-      setError(null)
-      const { data, error: fetchError } = await supabase
-        .from('students')
-        .select('*')
-        .order('created_at', { ascending: false })
-
-      if (fetchError) throw fetchError
-      setStudents(data || [])
-    } catch (err: any) {
-      console.error('Error fetching students:', err)
-      setError(err.message || 'Failed to load students.')
-    } finally {
-      setLoading(false)
-    }
-  }
-
-  const fetchFilterOptions = async () => {
-    try {
-      const [tariffsRes, levelsRes, groupsRes] = await Promise.all([
-        supabase.from('tariff_options').select('name'),
-        supabase.from('education_levels').select('name'),
-        supabase.from('student_groups').select('name')
-      ])
-
-      if (tariffsRes.data && tariffsRes.data.length > 0) setTariffOptions((tariffsRes.data as any[]).map(t => t.name))
-      if (levelsRes.data && levelsRes.data.length > 0) setLevelOptions((levelsRes.data as any[]).map(l => l.name))
-      if (groupsRes.data && groupsRes.data.length > 0) setGroupOptions((groupsRes.data as any[]).map(g => g.name))
-    } catch (err) {
-      console.error('Error fetching filter options:', err)
-    }
-  }
-
-  useEffect(() => {
-    fetchStudents()
-    fetchFilterOptions()
-  }, [])
+  // Students and filter options (tariff/level/group) are shared via
+  // StudentDashboardContext, which fetches them once for the whole
+  // dashboard — no per-page fetch needed here.
 
   // Auto-update modal student reference if background students array updates
   useEffect(() => {
@@ -897,7 +863,7 @@ export function DocumentsClient() {
           <AlertCircle className="mx-auto h-12 w-12 text-[var(--danger)] mb-3" />
           <h3 className="text-base font-semibold text-[var(--foreground)]">Failed to Load Documents Dashboard</h3>
           <p className="mt-1 text-sm text-[var(--foreground-muted)]">{error}</p>
-          <button onClick={fetchStudents} className="mt-4 px-4 py-2 bg-[var(--accent)] text-white text-sm font-semibold rounded-[var(--radius-md)] hover:bg-[var(--accent-hover)] transition-all cursor-pointer">
+          <button onClick={() => fetchStudents(true)} className="mt-4 px-4 py-2 bg-[var(--accent)] text-white text-sm font-semibold rounded-[var(--radius-md)] hover:bg-[var(--accent-hover)] transition-all cursor-pointer">
             Reload
           </button>
         </div>
@@ -1066,22 +1032,22 @@ export function DocumentsClient() {
       )}
 
       {/* Dynamic Manage Documents Modal */}
-      <AnimatePresence>
-        {isModalOpen && selectedStudent && (
+      {modalTransition.shouldRender && selectedStudent && (
           <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-            <motion.div
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              className="fixed inset-0 bg-black/60 backdrop-blur-sm"
+            <div
+              className={cn(
+                'fixed inset-0 bg-black/50 transition-opacity duration-220 ease-out',
+                modalTransition.isVisible ? 'opacity-100' : 'opacity-0'
+              )}
               onClick={() => setIsModalOpen(false)}
             />
 
-            <motion.div
-              initial={{ opacity: 0, scale: 0.95, y: 15 }}
-              animate={{ opacity: 1, scale: 1, y: 0 }}
-              exit={{ opacity: 0, scale: 0.95, y: 15 }}
-              className="relative w-full max-w-4xl max-h-[95vh] overflow-y-auto rounded-3xl border border-[var(--border)] bg-[var(--surface-elevated)] p-6 shadow-[var(--shadow-lg)] z-10 flex flex-col gap-6"
+            <div
+              className={cn(
+                'relative w-full max-w-4xl max-h-[95vh] overflow-y-auto rounded-3xl border border-[var(--border)] bg-[var(--surface-elevated)] p-6 shadow-[var(--shadow-lg)] z-10 flex flex-col gap-6',
+                'transition-all duration-220 ease-[cubic-bezier(0.25,0.46,0.45,0.94)]',
+                modalTransition.isVisible ? 'opacity-100 scale-100 translate-y-0' : 'opacity-0 scale-95 translate-y-[15px]'
+              )}
             >
             {/* Close Button */}
             <button
@@ -1320,20 +1286,18 @@ export function DocumentsClient() {
 
             {/* Footer with Done button */}
             <div className="flex justify-end mt-2">
-              <motion.button
-                whileTap={{ scale: 0.96 }}
+              <button
                 type="button"
                 onClick={() => setIsModalOpen(false)}
-                className="bg-[#007aff] hover:bg-blue-600 text-white rounded-full px-6 py-2.5 flex items-center gap-2 font-bold text-sm shadow-md transition-all cursor-pointer"
+                className="bg-[#007aff] hover:bg-blue-600 text-white rounded-full px-6 py-2.5 flex items-center gap-2 font-bold text-sm shadow-md active:scale-[0.96] transition-all cursor-pointer"
               >
                 <CheckCircle2 className="h-4.5 w-4.5" />
                 Done
-              </motion.button>
+              </button>
             </div>
-            </motion.div>
+            </div>
           </div>
-        )}
-      </AnimatePresence>
+      )}
     </div>
   )
 }

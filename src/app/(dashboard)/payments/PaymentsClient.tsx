@@ -1,7 +1,6 @@
 'use client'
 
 import { useState, useEffect, useMemo, useRef } from 'react'
-import { motion, AnimatePresence } from 'framer-motion'
 import { createClient } from '@/lib/supabase/client'
 import { type Student, type Payment } from '@/types/database'
 import { sendTelegramNotification } from '@/lib/telegram'
@@ -9,8 +8,9 @@ import {
   Users, Receipt, Plus, Minus, Search, ChevronDown, ChevronUp, X, Loader2,
   Pencil, Trash2, Printer, CreditCard, Wallet, LayoutGrid, Table, FileSpreadsheet
 } from 'lucide-react'
-import * as XLSX from 'xlsx-js-style'
 import { useStudentDashboard } from '@/contexts/StudentDashboardContext'
+import { cn } from '@/lib/utils'
+import { useCssTransition } from '@/hooks/useCssTransition'
 
 const PAYMENT_METHODS = ['Karta J.A', 'Karta Abdulaziz', 'Naqd', 'Karta M.A', 'Bank', 'Discount']
 const RECEIVED_BY_OPTIONS = ['ABDULAZIZ', 'MUSLIHIDDIN', 'BAXTIYOR', 'MUHAMMADALI', 'JASUR', 'ADMIN', 'Discount']
@@ -97,7 +97,15 @@ const compareStudentIds = (a: Student, b: Student, order: 'asc' | 'desc' = 'asc'
 
 export function PaymentsClient() {
   const supabase = createClient()
-  const { paymentMethodOptions, paymentReceiverOptions, paymentNotePills } = useStudentDashboard()
+  const {
+    paymentMethodOptions,
+    paymentReceiverOptions,
+    paymentNotePills,
+    students: allStudents,
+    setStudents: setAllStudents,
+    loading: studentsLoading,
+    error: studentsError,
+  } = useStudentDashboard()
 
   const paymentMethods = paymentMethodOptions && paymentMethodOptions.length > 0 ? paymentMethodOptions : PAYMENT_METHODS
   const paymentReceivers = paymentReceiverOptions && paymentReceiverOptions.length > 0 ? paymentReceiverOptions : RECEIVED_BY_OPTIONS
@@ -107,10 +115,13 @@ export function PaymentsClient() {
   const [viewMode, setViewMode] = useState<'grid' | 'table'>('grid')
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('asc')
 
-  const [students, setStudents] = useState<Student[]>([])
+  // Non-deleted students, sourced from the shared dashboard context instead
+  // of a separate per-page fetch of the whole students table.
+  const students = useMemo(() => allStudents.filter(s => !s.is_deleted), [allStudents])
   const [payments, setPayments] = useState<Payment[]>([])
-  const [loading, setLoading] = useState(true)
+  const [paymentsLoading, setPaymentsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const loading = studentsLoading || paymentsLoading
 
   // Students tab search/filter
   const [studentSearch, setStudentSearch] = useState('')
@@ -135,6 +146,7 @@ export function PaymentsClient() {
 
   // Add Payment modal
   const [isAddModalOpen, setIsAddModalOpen] = useState(false)
+  const addModalTransition = useCssTransition(isAddModalOpen, 220)
   const [addAmount, setAddAmount] = useState('')
   const [addMethod, setAddMethod] = useState('')
   const [addReceivedBy, setAddReceivedBy] = useState('')
@@ -145,6 +157,7 @@ export function PaymentsClient() {
 
   // Withdraw modal
   const [isWithdrawModalOpen, setIsWithdrawModalOpen] = useState(false)
+  const withdrawModalTransition = useCssTransition(isWithdrawModalOpen, 220)
   const [withdrawAmount, setWithdrawAmount] = useState('')
   const [withdrawReason, setWithdrawReason] = useState('')
   const [withdrawStudentId, setWithdrawStudentId] = useState('')
@@ -152,25 +165,26 @@ export function PaymentsClient() {
 
   // Edit modal
   const [editingPayment, setEditingPayment] = useState<Payment | null>(null)
+  const editModalTransition = useCssTransition(!!editingPayment, 220)
+  const lastEditingPaymentRef = useRef(editingPayment)
+  if (editingPayment) lastEditingPaymentRef.current = editingPayment
   const [editAmount, setEditAmount] = useState('')
   const [editMethod, setEditMethod] = useState('')
   const [editReceivedBy, setEditReceivedBy] = useState('')
   const [editNotes, setEditNotes] = useState('')
   const [viewingPayment, setViewingPayment] = useState<Payment | null>(null)
+  const viewModalTransition = useCssTransition(!!viewingPayment, 220)
+  const lastViewingPaymentRef = useRef(viewingPayment)
+  if (viewingPayment) lastViewingPaymentRef.current = viewingPayment
 
   const fetchData = async () => {
     try {
-      setLoading(true)
+      setPaymentsLoading(true)
       setError(null)
-      const [studentsRes, paymentsRes] = await Promise.all([
-        supabase.from('students').select('*').eq('is_deleted', false).order('full_name', { ascending: true }),
-        supabase.from('payments').select('*').order('created_at', { ascending: false }),
-      ])
+      const paymentsRes = await supabase.from('payments').select('*').order('created_at', { ascending: false })
 
-      if (studentsRes.error) throw studentsRes.error
       if (paymentsRes.error) throw paymentsRes.error
 
-      setStudents(studentsRes.data || [])
       setPayments(paymentsRes.data || [])
     } catch (err: any) {
       console.error('Error fetching payments data details:', {
@@ -180,12 +194,12 @@ export function PaymentsClient() {
         hint: err.hint,
         error: err
       })
-      const displayMessage = err.message 
+      const displayMessage = err.message
         ? `${err.message}${err.hint ? ` (${err.hint})` : ''}`
         : 'Failed to load payments.'
       setError(displayMessage)
     } finally {
-      setLoading(false)
+      setPaymentsLoading(false)
     }
   }
 
@@ -304,7 +318,7 @@ export function PaymentsClient() {
 
     if (updateError) throw updateError
 
-    setStudents(prev => prev.map(s => s.id === studentId ? { ...s, balance: newBalance, ...(discountDelta !== 0 ? { discount: newDiscount } : {}) } : s))
+    setAllStudents(prev => prev.map(s => s.id === studentId ? { ...s, balance: newBalance, ...(discountDelta !== 0 ? { discount: newDiscount } : {}) } : s))
   }
 
   // ── Add Payment ───────────────────────────────────────────
@@ -928,11 +942,15 @@ export function PaymentsClient() {
   }
 
   // Export current filtered payment history to Excel
-  const exportPaymentHistoryToExcel = () => {
+  const exportPaymentHistoryToExcel = async () => {
     if (filteredPayments.length === 0) {
       alert('No payments to export!')
       return
     }
+
+    // Load the Excel library only when actually exporting, instead of
+    // shipping it in the initial bundle for this page.
+    const XLSX = await import('xlsx-js-style')
 
     const pad = (n: number) => String(n).padStart(2, '0')
     const formatDate = (dateStr: string) => {
@@ -998,10 +1016,10 @@ export function PaymentsClient() {
     )
   }
 
-  if (error) {
+  if (error || studentsError) {
     return (
       <div className="rounded-[var(--radius-lg)] border border-[var(--danger)] bg-[var(--surface)] p-6 text-center text-[var(--danger)] shadow-[var(--shadow-sm)]">
-        {error}
+        {error || studentsError}
       </div>
     )
   }
@@ -1030,20 +1048,18 @@ export function PaymentsClient() {
         </div>
 
         <div className="flex items-center gap-2">
-          <motion.button
-            whileTap={{ scale: 0.96 }}
+          <button
             onClick={() => openAddModal()}
-            className="flex items-center gap-2 rounded-[var(--radius-md)] bg-[var(--accent)] px-3.5 py-2 text-sm font-semibold text-white hover:bg-[var(--accent-hover)] transition-all cursor-pointer"
+            className="flex items-center gap-2 rounded-[var(--radius-md)] bg-[var(--accent)] px-3.5 py-2 text-sm font-semibold text-white hover:bg-[var(--accent-hover)] active:scale-[0.96] transition-all cursor-pointer"
           >
             <Plus className="h-4 w-4" /> Add Payment
-          </motion.button>
-          <motion.button
-            whileTap={{ scale: 0.96 }}
+          </button>
+          <button
             onClick={() => { resetWithdrawForm(); setIsWithdrawModalOpen(true) }}
-            className="flex items-center gap-2 rounded-[var(--radius-md)] border border-[var(--border)] bg-[var(--surface)] px-3.5 py-2 text-sm font-semibold text-[var(--foreground)] hover:bg-[var(--surface-elevated)] transition-all cursor-pointer"
+            className="flex items-center gap-2 rounded-[var(--radius-md)] border border-[var(--border)] bg-[var(--surface)] px-3.5 py-2 text-sm font-semibold text-[var(--foreground)] hover:bg-[var(--surface-elevated)] active:scale-[0.96] transition-all cursor-pointer"
           >
             <Minus className="h-4 w-4" /> Withdraw
-          </motion.button>
+          </button>
         </div>
       </div>
 
@@ -1568,22 +1584,22 @@ export function PaymentsClient() {
       )}
 
       {/* ── Add Payment Modal ────────────────────────────── */}
-      <AnimatePresence>
-        {isAddModalOpen && (
+      {addModalTransition.shouldRender && (
           <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-            <motion.div
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
+            <div
               onClick={() => setIsAddModalOpen(false)}
-              className="fixed inset-0 bg-black/50"
+              className={cn(
+                'fixed inset-0 bg-black/50 transition-opacity duration-220 ease-out',
+                addModalTransition.isVisible ? 'opacity-100' : 'opacity-0'
+              )}
             />
-            <motion.div
-              initial={{ opacity: 0, scale: 0.95, y: 15 }}
-              animate={{ opacity: 1, scale: 1, y: 0 }}
-              exit={{ opacity: 0, scale: 0.95, y: 15 }}
-              className="relative z-10 w-full max-w-lg max-h-[90vh] overflow-y-auto rounded-[var(--radius-lg)] border border-[var(--border)] bg-[var(--surface-elevated)] p-6 shadow-[var(--shadow-lg)] flex flex-col gap-4"
-              onClick={e => e.stopPropagation()}
+            <div
+              className={cn(
+                'relative z-10 w-full max-w-lg max-h-[90vh] overflow-y-auto rounded-[var(--radius-lg)] border border-[var(--border)] bg-[var(--surface-elevated)] p-6 shadow-[var(--shadow-lg)] flex flex-col gap-4',
+                'transition-all duration-220 ease-[cubic-bezier(0.25,0.46,0.45,0.94)]',
+                addModalTransition.isVisible ? 'opacity-100 scale-100 translate-y-0' : 'opacity-0 scale-95 translate-y-[15px]'
+              )}
+              onClick={(e: React.MouseEvent) => e.stopPropagation()}
             >
             <div className="flex items-center justify-between">
               <h3 className="text-base font-bold text-[var(--foreground)] flex items-center gap-2">
@@ -1711,36 +1727,34 @@ export function PaymentsClient() {
               </div>
             )}
 
-            <motion.button
-              whileTap={{ scale: 0.96 }}
+            <button
               onClick={submitAddPayment}
               disabled={submitting}
-              className="mt-2 w-full py-2.5 rounded-[var(--radius-md)] bg-[var(--accent)] text-white font-semibold text-sm hover:bg-[var(--accent-hover)] transition-all cursor-pointer disabled:opacity-50"
+              className="mt-2 w-full py-2.5 rounded-[var(--radius-md)] bg-[var(--accent)] text-white font-semibold text-sm hover:bg-[var(--accent-hover)] active:scale-[0.96] transition-all cursor-pointer disabled:opacity-50"
             >
               {submitting ? 'Saving...' : 'Save Payment'}
-            </motion.button>
-            </motion.div>
+            </button>
+            </div>
           </div>
-        )}
-      </AnimatePresence>
+      )}
 
       {/* ── Withdraw Modal ───────────────────────────────── */}
-      <AnimatePresence>
-        {isWithdrawModalOpen && (
+      {withdrawModalTransition.shouldRender && (
           <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-            <motion.div
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
+            <div
               onClick={() => setIsWithdrawModalOpen(false)}
-              className="fixed inset-0 bg-black/50"
+              className={cn(
+                'fixed inset-0 bg-black/50 transition-opacity duration-220 ease-out',
+                withdrawModalTransition.isVisible ? 'opacity-100' : 'opacity-0'
+              )}
             />
-            <motion.div
-              initial={{ opacity: 0, scale: 0.95, y: 15 }}
-              animate={{ opacity: 1, scale: 1, y: 0 }}
-              exit={{ opacity: 0, scale: 0.95, y: 15 }}
-              className="relative z-10 w-full max-w-lg max-h-[90vh] overflow-y-auto rounded-[var(--radius-lg)] border border-[var(--border)] bg-[var(--surface-elevated)] p-6 shadow-[var(--shadow-lg)] flex flex-col gap-4"
-              onClick={e => e.stopPropagation()}
+            <div
+              className={cn(
+                'relative z-10 w-full max-w-lg max-h-[90vh] overflow-y-auto rounded-[var(--radius-lg)] border border-[var(--border)] bg-[var(--surface-elevated)] p-6 shadow-[var(--shadow-lg)] flex flex-col gap-4',
+                'transition-all duration-220 ease-[cubic-bezier(0.25,0.46,0.45,0.94)]',
+                withdrawModalTransition.isVisible ? 'opacity-100 scale-100 translate-y-0' : 'opacity-0 scale-95 translate-y-[15px]'
+              )}
+              onClick={(e: React.MouseEvent) => e.stopPropagation()}
             >
             <div className="flex items-center justify-between">
               <h3 className="text-base font-bold text-[var(--foreground)] flex items-center gap-2">
@@ -1807,36 +1821,37 @@ export function PaymentsClient() {
               />
             </div>
 
-            <motion.button
-              whileTap={{ scale: 0.96 }}
+            <button
               onClick={submitWithdrawal}
               disabled={submitting}
-              className="mt-2 w-full py-2.5 rounded-[var(--radius-md)] bg-rose-500 text-white font-semibold text-sm hover:bg-rose-600 transition-all cursor-pointer disabled:opacity-50"
+              className="mt-2 w-full py-2.5 rounded-[var(--radius-md)] bg-rose-500 text-white font-semibold text-sm hover:bg-rose-600 active:scale-[0.96] transition-all cursor-pointer disabled:opacity-50"
             >
               {submitting ? 'Saving...' : 'Confirm Withdrawal'}
-            </motion.button>
-            </motion.div>
+            </button>
+            </div>
           </div>
-        )}
-      </AnimatePresence>
+      )}
 
       {/* ── Edit Payment Modal ───────────────────────────── */}
-      <AnimatePresence>
-        {editingPayment && (
+      {editModalTransition.shouldRender && (() => {
+        const editingPaymentDisplay = editingPayment || lastEditingPaymentRef.current
+        if (!editingPaymentDisplay) return null
+        return (
           <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-            <motion.div
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
+            <div
               onClick={() => setEditingPayment(null)}
-              className="fixed inset-0 bg-black/50"
+              className={cn(
+                'fixed inset-0 bg-black/50 transition-opacity duration-220 ease-out',
+                editModalTransition.isVisible ? 'opacity-100' : 'opacity-0'
+              )}
             />
-            <motion.div
-              initial={{ opacity: 0, scale: 0.95, y: 15 }}
-              animate={{ opacity: 1, scale: 1, y: 0 }}
-              exit={{ opacity: 0, scale: 0.95, y: 15 }}
-              className="relative z-10 w-full max-w-lg max-h-[90vh] overflow-y-auto rounded-[var(--radius-lg)] border border-[var(--border)] bg-[var(--surface-elevated)] p-6 shadow-[var(--shadow-lg)] flex flex-col gap-4"
-              onClick={e => e.stopPropagation()}
+            <div
+              className={cn(
+                'relative z-10 w-full max-w-lg max-h-[90vh] overflow-y-auto rounded-[var(--radius-lg)] border border-[var(--border)] bg-[var(--surface-elevated)] p-6 shadow-[var(--shadow-lg)] flex flex-col gap-4',
+                'transition-all duration-220 ease-[cubic-bezier(0.25,0.46,0.45,0.94)]',
+                editModalTransition.isVisible ? 'opacity-100 scale-100 translate-y-0' : 'opacity-0 scale-95 translate-y-[15px]'
+              )}
+              onClick={(e: React.MouseEvent) => e.stopPropagation()}
             >
             <div className="flex items-center justify-between">
               <h3 className="text-base font-bold text-[var(--foreground)] flex items-center gap-2">
@@ -1850,8 +1865,8 @@ export function PaymentsClient() {
             <div>
               <label className="text-xs font-semibold text-[var(--foreground-muted)]">Student</label>
               <div className="mt-1 px-3 py-2 text-sm border border-[var(--border)] rounded-[var(--radius-md)] bg-[var(--background)] text-[var(--foreground-muted)]">
-                {editingPayment.student_id && editingPayment.student_name
-                  ? `${editingPayment.student_id} - ${editingPayment.student_name}`
+                {editingPaymentDisplay.student_id && editingPaymentDisplay.student_name
+                  ? `${editingPaymentDisplay.student_id} - ${editingPaymentDisplay.student_name}`
                   : 'No student (General payment)'}
               </div>
             </div>
@@ -1901,36 +1916,38 @@ export function PaymentsClient() {
               />
             </div>
 
-            <motion.button
-              whileTap={{ scale: 0.96 }}
+            <button
               onClick={submitEditPayment}
               disabled={submitting}
-              className="mt-2 w-full py-2.5 rounded-[var(--radius-md)] bg-[var(--accent)] text-white font-semibold text-sm hover:bg-[var(--accent-hover)] transition-all cursor-pointer disabled:opacity-50"
+              className="mt-2 w-full py-2.5 rounded-[var(--radius-md)] bg-[var(--accent)] text-white font-semibold text-sm hover:bg-[var(--accent-hover)] active:scale-[0.96] transition-all cursor-pointer disabled:opacity-50"
             >
               {submitting ? 'Saving...' : 'Save Changes'}
-            </motion.button>
-            </motion.div>
+            </button>
+            </div>
           </div>
-        )}
-      </AnimatePresence>
+        )
+      })()}
 
       {/* ── Payment Details Modal ───────────────────────── */}
-      <AnimatePresence>
-        {viewingPayment && (
+      {viewModalTransition.shouldRender && (() => {
+        const viewingPaymentDisplay = viewingPayment || lastViewingPaymentRef.current
+        if (!viewingPaymentDisplay) return null
+        return (
           <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-            <motion.div
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
+            <div
               onClick={() => setViewingPayment(null)}
-              className="fixed inset-0 bg-black/50"
+              className={cn(
+                'fixed inset-0 bg-black/50 transition-opacity duration-220 ease-out',
+                viewModalTransition.isVisible ? 'opacity-100' : 'opacity-0'
+              )}
             />
-            <motion.div
-              initial={{ opacity: 0, scale: 0.95, y: 15 }}
-              animate={{ opacity: 1, scale: 1, y: 0 }}
-              exit={{ opacity: 0, scale: 0.95, y: 15 }}
-              className="relative z-10 w-full max-w-lg max-h-[90vh] overflow-y-auto rounded-[var(--radius-lg)] border border-[var(--border)] bg-[var(--surface-elevated)] p-6 shadow-[var(--shadow-lg)] flex flex-col gap-4"
-              onClick={e => e.stopPropagation()}
+            <div
+              className={cn(
+                'relative z-10 w-full max-w-lg max-h-[90vh] overflow-y-auto rounded-[var(--radius-lg)] border border-[var(--border)] bg-[var(--surface-elevated)] p-6 shadow-[var(--shadow-lg)] flex flex-col gap-4',
+                'transition-all duration-220 ease-[cubic-bezier(0.25,0.46,0.45,0.94)]',
+                viewModalTransition.isVisible ? 'opacity-100 scale-100 translate-y-0' : 'opacity-0 scale-95 translate-y-[15px]'
+              )}
+              onClick={(e: React.MouseEvent) => e.stopPropagation()}
           >
             <div className="flex items-center justify-between border-b border-[var(--border)] pb-3">
               <h3 className="text-base font-bold text-[var(--foreground)] flex items-center gap-2">
@@ -1946,7 +1963,7 @@ export function PaymentsClient() {
               <div className="flex items-center justify-between text-xs border-b border-[var(--border)] pb-2">
                 <span className="text-[var(--foreground-muted)] font-semibold">Payment ID</span>
                 <span className="font-mono text-[var(--foreground)] bg-[var(--surface)] px-2 py-0.5 rounded border border-[var(--border)] select-all uppercase">
-                  {viewingPayment.id}
+                  {viewingPaymentDisplay.id}
                 </span>
               </div>
 
@@ -1954,13 +1971,13 @@ export function PaymentsClient() {
               <div className="flex flex-col gap-1">
                 <span className="text-xs font-semibold text-[var(--foreground-muted)]">Student</span>
                 <div className="px-3 py-2.5 rounded-[var(--radius-md)] border border-[var(--border)] bg-[var(--surface)] flex flex-col gap-0.5">
-                  {viewingPayment.student_id ? (
+                  {viewingPaymentDisplay.student_id ? (
                     <>
                       <span className="text-sm font-bold text-[var(--foreground)] uppercase">
-                        {viewingPayment.student_name}
+                        {viewingPaymentDisplay.student_name}
                       </span>
                       <span className="text-xs font-semibold text-[var(--foreground-muted)]">
-                        ID: <span className="text-[var(--accent)] font-mono font-bold">{viewingPayment.student_id}</span>
+                        ID: <span className="text-[var(--accent)] font-mono font-bold">{viewingPaymentDisplay.student_id}</span>
                       </span>
                     </>
                   ) : (
@@ -1974,8 +1991,8 @@ export function PaymentsClient() {
                 <div className="flex flex-col gap-1">
                   <span className="text-xs font-semibold text-[var(--foreground-muted)]">Amount</span>
                   <div className="px-3 py-2.5 rounded-[var(--radius-md)] border border-[var(--border)] bg-[var(--surface)]">
-                    <span className={`text-base font-extrabold ${viewingPayment.amount < 0 ? 'text-rose-500' : 'text-emerald-500'}`}>
-                      {viewingPayment.amount < 0 ? '-' : '+'}{formatAmount(Math.abs(viewingPayment.amount))} UZS
+                    <span className={`text-base font-extrabold ${viewingPaymentDisplay.amount < 0 ? 'text-rose-500' : 'text-emerald-500'}`}>
+                      {viewingPaymentDisplay.amount < 0 ? '-' : '+'}{formatAmount(Math.abs(viewingPaymentDisplay.amount))} UZS
                     </span>
                   </div>
                 </div>
@@ -1983,11 +2000,11 @@ export function PaymentsClient() {
                 <div className="flex flex-col gap-1">
                   <span className="text-xs font-semibold text-[var(--foreground-muted)]">Transaction Type</span>
                   <div className="px-3 py-2.5 rounded-[var(--radius-md)] border border-[var(--border)] bg-[var(--surface)] flex items-center">
-                    {viewingPayment.is_withdrawal ? (
+                    {viewingPaymentDisplay.is_withdrawal ? (
                       <span className="inline-flex px-2.5 py-1 rounded-[6px] text-xs font-bold bg-rose-500/15 text-rose-600 dark:text-rose-400 uppercase">
                         Withdrawal
                       </span>
-                    ) : viewingPayment.is_discount ? (
+                    ) : viewingPaymentDisplay.is_discount ? (
                       <span className="inline-flex px-2.5 py-1 rounded-[6px] text-xs font-bold bg-pink-500/15 text-pink-600 dark:text-pink-400 uppercase">
                         Discount
                       </span>
@@ -2005,14 +2022,14 @@ export function PaymentsClient() {
                 <div className="flex flex-col gap-1">
                   <span className="text-xs font-semibold text-[var(--foreground-muted)]">Payment Method</span>
                   <div className="px-3 py-2 rounded-[var(--radius-md)] border border-[var(--border)] bg-[var(--surface)] text-sm font-semibold text-[var(--foreground)]">
-                    {viewingPayment.method}
+                    {viewingPaymentDisplay.method}
                   </div>
                 </div>
 
                 <div className="flex flex-col gap-1">
                   <span className="text-xs font-semibold text-[var(--foreground-muted)]">Received By</span>
                   <div className="px-3 py-2 rounded-[var(--radius-md)] border border-[var(--border)] bg-[var(--surface)] text-sm font-semibold text-[var(--foreground)]">
-                    {viewingPayment.received_by}
+                    {viewingPaymentDisplay.received_by}
                   </div>
                 </div>
               </div>
@@ -2021,8 +2038,8 @@ export function PaymentsClient() {
               <div className="flex flex-col gap-1">
                 <span className="text-xs font-semibold text-[var(--foreground-muted)]">Timestamp</span>
                 <div className="px-3 py-2 rounded-[var(--radius-md)] border border-[var(--border)] bg-[var(--surface)] text-xs font-medium text-[var(--foreground)]">
-                  {viewingPayment.created_at
-                    ? new Date(viewingPayment.created_at).toLocaleString('uz-UZ', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit', second: '2-digit' })
+                  {viewingPaymentDisplay.created_at
+                    ? new Date(viewingPaymentDisplay.created_at).toLocaleString('uz-UZ', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit', second: '2-digit' })
                     : '—'}
                 </div>
               </div>
@@ -2031,7 +2048,7 @@ export function PaymentsClient() {
               <div className="flex flex-col gap-1">
                 <span className="text-xs font-semibold text-[var(--foreground-muted)]">Notes / Description</span>
                 <div className="px-3 py-2.5 rounded-[var(--radius-md)] border border-[var(--border)] bg-[var(--surface)] text-xs text-[var(--foreground)] min-h-[50px] whitespace-pre-wrap">
-                  {viewingPayment.notes || (
+                  {viewingPaymentDisplay.notes || (
                     <span className="text-[var(--foreground-muted)] italic">No notes attached.</span>
                   )}
                 </div>
@@ -2040,37 +2057,34 @@ export function PaymentsClient() {
 
             {/* Action buttons footer */}
             <div className="flex items-center gap-2 mt-4 pt-3 border-t border-[var(--border)]">
-              <motion.button
-                whileTap={{ scale: 0.96 }}
+              <button
                 onClick={() => {
                   setViewingPayment(null);
-                  openEditModal(viewingPayment);
+                  openEditModal(viewingPaymentDisplay);
                 }}
-                className="flex-1 flex items-center justify-center gap-1.5 py-2 text-sm font-semibold rounded-[var(--radius-md)] border border-[var(--border)] hover:bg-[var(--surface)] transition-all cursor-pointer text-[var(--foreground)]"
+                className="flex-1 flex items-center justify-center gap-1.5 py-2 text-sm font-semibold rounded-[var(--radius-md)] border border-[var(--border)] hover:bg-[var(--surface)] active:scale-[0.96] transition-all cursor-pointer text-[var(--foreground)]"
               >
                 <Pencil className="h-4 w-4" /> Edit
-              </motion.button>
-              <motion.button
-                whileTap={{ scale: 0.96 }}
+              </button>
+              <button
                 onClick={() => {
-                  printReceipt(viewingPayment);
+                  printReceipt(viewingPaymentDisplay);
                 }}
-                className="flex-1 flex items-center justify-center gap-1.5 py-2 text-sm font-semibold rounded-[var(--radius-md)] border border-[var(--border)] hover:bg-[var(--surface)] transition-all cursor-pointer text-[var(--foreground)]"
+                className="flex-1 flex items-center justify-center gap-1.5 py-2 text-sm font-semibold rounded-[var(--radius-md)] border border-[var(--border)] hover:bg-[var(--surface)] active:scale-[0.96] transition-all cursor-pointer text-[var(--foreground)]"
               >
                 <Printer className="h-4 w-4" /> Print
-              </motion.button>
-              <motion.button
-                whileTap={{ scale: 0.96 }}
+              </button>
+              <button
                 onClick={() => setViewingPayment(null)}
-                className="flex-1 py-2 text-sm font-semibold rounded-[var(--radius-md)] bg-[var(--accent)] hover:bg-[var(--accent-hover)] text-white transition-all cursor-pointer"
+                className="flex-1 py-2 text-sm font-semibold rounded-[var(--radius-md)] bg-[var(--accent)] hover:bg-[var(--accent-hover)] text-white active:scale-[0.96] transition-all cursor-pointer"
               >
                 Close
-              </motion.button>
+              </button>
             </div>
-            </motion.div>
+            </div>
           </div>
-        )}
-      </AnimatePresence>
+        )
+      })()}
     </div>
   )
 }

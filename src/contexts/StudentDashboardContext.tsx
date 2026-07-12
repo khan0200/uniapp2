@@ -70,6 +70,8 @@ interface StudentDashboardContextValue {
   // Filter option arrays fetched from DB
   tariffOptions: string[]
   setTariffOptions: React.Dispatch<React.SetStateAction<string[]>>
+  tariffPrices: Record<string, number>
+  setTariffPrices: React.Dispatch<React.SetStateAction<Record<string, number>>>
   levelOptions: string[]
   setLevelOptions: React.Dispatch<React.SetStateAction<string[]>>
   groupOptions: string[]
@@ -139,6 +141,16 @@ export function StudentDashboardProvider({ children }: { children: ReactNode }) 
 
   // Filter option arrays fetched from DB
   const [tariffOptions, setTariffOptions] = useState<string[]>(['STANDART', 'PREMIUM', 'VISA PLUS', 'E-VISA', 'REGIONAL VISA'])
+  const [tariffPrices, setTariffPrices] = useState<Record<string, number>>({
+    'STANDART': 13000000,
+    'PREMIUM': 32500000,
+    'VISA PLUS': 65000000,
+    'E-VISA (TIL SERTIFIKATISIZ)': 24000000,
+    'E-VISA (TIL SERTIFIKATLI)': 16000000,
+    'REGIONAL VISA': 24000000,
+    'ZERO RISK': 18500000,
+    'E-VISA': 2000000,
+  })
   const [levelOptions, setLevelOptions] = useState<string[]>(['COLLEGE', 'BACHELOR', 'MASTERS', 'MASTER NO CERTIFICATE', 'LANGUAGE COURSE'])
   const [groupOptions, setGroupOptions] = useState<string[]>([])
   const [leadByOptions, setLeadByOptions] = useState<string[]>([])
@@ -205,7 +217,7 @@ export function StudentDashboardProvider({ children }: { children: ReactNode }) 
         notesRes,
         statusesRes
       ] = await Promise.all([
-        supabase.from('tariff_options').select('name'),
+        supabase.from('tariff_options').select('name, price'),
         supabase.from('education_levels').select('name'),
         supabase.from('student_groups').select('name'),
         supabase.from('lead_sources').select('name'),
@@ -217,7 +229,14 @@ export function StudentDashboardProvider({ children }: { children: ReactNode }) 
         supabase.from('university_statuses').select('name, color_class').order('name')
       ])
  
-      if (tariffsRes.data && tariffsRes.data.length > 0) setTariffOptions((tariffsRes.data as any[]).map(t => t.name))
+      if (tariffsRes.data && tariffsRes.data.length > 0) {
+        setTariffOptions((tariffsRes.data as any[]).map(t => t.name))
+        const priceMap: Record<string, number> = {}
+        ;(tariffsRes.data as any[]).forEach(t => {
+          priceMap[t.name] = Number(t.price) || 0
+        })
+        setTariffPrices(prev => ({ ...prev, ...priceMap }))
+      }
       if (levelsRes.data && levelsRes.data.length > 0) setLevelOptions((levelsRes.data as any[]).map(l => l.name))
       if (groupsRes.data && groupsRes.data.length > 0) setGroupOptions((groupsRes.data as any[]).map(g => g.name))
       if (leadsRes.data && leadsRes.data.length > 0) setLeadByOptions((leadsRes.data as any[]).map(l => l.name))
@@ -313,6 +332,8 @@ export function StudentDashboardProvider({ children }: { children: ReactNode }) 
       resetAllFilters,
       tariffOptions,
       setTariffOptions,
+      tariffPrices,
+      setTariffPrices,
       levelOptions,
       setLevelOptions,
       groupOptions,

@@ -1,8 +1,7 @@
 'use client'
 
 import { useState, useEffect, useMemo } from 'react'
-import { motion, AnimatePresence } from 'framer-motion'
-import { 
+import {
   X, Search, Check,
   Tag, Layers, Users, Award, Bookmark, UserCheck, Hash
 } from 'lucide-react'
@@ -395,18 +394,14 @@ export function FilterPanel() {
       />
 
       {/* Responsive Filter Panel Container */}
-      <AnimatePresence>
-        <motion.div
-          initial={{ opacity: 0, y: 15, scale: 0.98 }}
-          animate={{ opacity: 1, y: 0, scale: 1 }}
-          exit={{ opacity: 0, y: 15, scale: 0.98 }}
-          transition={{ duration: 0.2, ease: 'easeOut' }}
-          className={`
-            fixed z-50 rounded-t-[20px] bg-[var(--surface)] border border-[var(--border)] shadow-[var(--shadow-lg)]
-            bottom-0 inset-x-0 max-h-[85vh] flex flex-col
-            md:absolute md:top-full md:bottom-auto md:left-0 md:right-auto md:w-[680px] md:h-[480px] md:mt-2.5 md:rounded-[var(--radius-lg)]
-          `}
-        >
+      <div
+        className={`
+          animate-panel-in
+          fixed z-50 rounded-t-[20px] bg-[var(--surface)] border border-[var(--border)] shadow-[var(--shadow-lg)]
+          bottom-0 inset-x-0 max-h-[85vh] flex flex-col
+          md:absolute md:top-full md:bottom-auto md:left-0 md:right-auto md:w-[680px] md:h-[480px] md:mt-2.5 md:rounded-[var(--radius-lg)]
+        `}
+      >
           {/* Mobile Drag Handle */}
           <div className="h-6 flex items-center justify-center shrink-0 md:hidden cursor-pointer" onClick={() => setIsFilterPanelOpen(false)}>
             <div className="w-12 h-1 bg-[var(--border)] rounded-full" />
@@ -514,15 +509,10 @@ export function FilterPanel() {
 
             {/* Right Pane / Options List Pane */}
             <div className="flex-1 flex flex-col min-h-0 bg-[var(--surface)]">
-              <AnimatePresence mode="wait">
-                <motion.div
-                  key={activeCategory}
-                  initial={{ opacity: 0, x: 6 }}
-                  animate={{ opacity: 1, x: 0 }}
-                  exit={{ opacity: 0, x: -6 }}
-                  transition={{ duration: 0.15 }}
-                  className="flex-1 flex flex-col min-h-0 p-5 space-y-4"
-                >
+              <div
+                key={activeCategory}
+                className="animate-content-swap-in flex-1 flex flex-col min-h-0 p-5 space-y-4"
+              >
                   <div className="flex items-center justify-between">
                     <h4 className="text-[10px] font-bold uppercase tracking-wider text-[var(--foreground-muted)] select-none">
                       {currentCategory.label} Options
@@ -595,8 +585,7 @@ export function FilterPanel() {
                       })
                     )}
                   </div>
-                </motion.div>
-              </AnimatePresence>
+              </div>
             </div>
           </div>
 
@@ -617,8 +606,7 @@ export function FilterPanel() {
               Show {matchingStudentsCount} Students
             </button>
           </div>
-        </motion.div>
-      </AnimatePresence>
+      </div>
     </>
   )
 }

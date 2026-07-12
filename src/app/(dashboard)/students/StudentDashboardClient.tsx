@@ -1,21 +1,23 @@
 'use client'
 
 import { useState, useEffect, useMemo, useRef } from 'react'
+import dynamic from 'next/dynamic'
 import {
-  Plus, Users, X, Loader2, Search, AlertCircle, CheckCircle2,
-  Building2, User, Landmark, Tag, Layers, Award, Bookmark, UserCheck,
+  Plus, Users, X, Search, AlertCircle, CheckCircle2,
+  Tag, Layers, Award, Bookmark, UserCheck,
   FileSpreadsheet, ChevronDown, ChevronLeft, ChevronRight, ChevronUp,
-  Sparkles, Copy, Trash2, Hash, Check, RefreshCw
+  Copy, Trash2, Hash, Check, RefreshCw
 } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import { cn } from '@/lib/utils'
 import { type Student, type StudentLevel } from '@/types/database'
 import { PageShell } from '@/components/ui/PageShell'
-import * as XLSX from 'xlsx-js-style'
 import { useStudentDashboard } from '@/contexts/StudentDashboardContext'
-import { motion, AnimatePresence } from 'framer-motion'
 import { sendTelegramNotification } from '@/lib/telegram'
 import { syncMissingDocuments } from '@/lib/validation'
+import { useCssTransition } from '@/hooks/useCssTransition'
+
+const AddStudentModal = dynamic(() => import('./AddStudentModal'), { ssr: false })
 
 export const ROW_COLOR_MAP: Record<string, { bg: string; ball: string; name: string }> = {
   BLUE: { bg: 'rgba(37, 99, 235, 0.45)', ball: '#2563EB', name: 'Blue' },
@@ -112,6 +114,10 @@ export function StudentDashboardClient() {
   const [activeTooltip, setActiveTooltip] = useState<{ studentId: string; tagKey: string } | null>(null)
   const [copiedId, setCopiedId] = useState<string | null>(null)
   const [copiedPhoneId, setCopiedPhoneId] = useState<string | null>(null)
+  // Gates the dynamic import of AddStudentModal so its chunk isn't fetched
+  // until the user opens it for the first time; stays true afterward so the
+  // modal can play its CSS exit animation on subsequent closes.
+  const [hasOpenedAddModal, setHasOpenedAddModal] = useState(false)
 
   // Context shared state
   const {
@@ -155,6 +161,8 @@ export function StudentDashboardClient() {
     setActiveFolder,
     officeOptions
   } = useStudentDashboard()
+
+  const excelModalTransition = useCssTransition(isExcelModalOpen, 220)
 
   const certOptions = ['NO CERTIFICATE', 'EXPECTED', 'TOPIK', 'SKA', 'IELTS', 'TOEFL', 'SAT', 'CEFR']
 
@@ -588,11 +596,15 @@ export function StudentDashboardClient() {
   }
 
   // Download selected students as Excel
-  const downloadSelectedAsExcel = () => {
+  const downloadSelectedAsExcel = async () => {
     if (selectedExcelIds.length === 0) {
       alert('Please select at least one student!')
       return
     }
+
+    // Load the Excel library only when actually exporting, instead of
+    // shipping it in the initial bundle for this page.
+    const XLSX = await import('xlsx-js-style')
 
     // Get student data for selected IDs globally, matching the alphabetical sort order
     const selectedStudents = students
@@ -830,6 +842,11 @@ export function StudentDashboardClient() {
   const [fullName, setFullName] = useState('')
   const [office, setOffice] = useState<string>('')
   const [popoverAnchor, setPopoverAnchor] = useState<{ studentId: string; rect: DOMRect } | null>(null)
+  const popoverTransition = useCssTransition(!!popoverAnchor, 220)
+  // Keep the last non-null anchor around while the close animation plays,
+  // since popoverAnchor itself flips to null immediately on close.
+  const lastPopoverAnchorRef = useRef(popoverAnchor)
+  if (popoverAnchor) lastPopoverAnchorRef.current = popoverAnchor
 
   useEffect(() => {
     if (officeOptions && officeOptions.length > 0 && !office) {
@@ -837,10 +854,14 @@ export function StudentDashboardClient() {
     }
   }, [officeOptions, office])
 
+  // Add Student modal can also be opened from the Header; catch both triggers.
   useEffect(() => {
-    fetchStudents()
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [])
+    if (isModalOpen) setHasOpenedAddModal(true)
+  }, [isModalOpen])
+
+  // Students are already fetched once by StudentDashboardProvider on mount and
+  // kept fresh via fetchStudents(true) after every mutation below, so no
+  // re-fetch is needed here on each visit to this page.
 
   // Listen to scroll events on main-content container and save to context
   useEffect(() => {
@@ -1019,6 +1040,7 @@ export function StudentDashboardClient() {
   }
 
   const [isFolderAddModalOpen, setIsFolderAddModalOpen] = useState(false)
+  const folderAddTransition = useCssTransition(isFolderAddModalOpen, 220)
   const [folderAddSearch, setFolderAddSearch] = useState('')
   const [folderAddSelectedIds, setFolderAddSelectedIds] = useState<string[]>([])
 
@@ -1895,21 +1917,16 @@ export function StudentDashboardClient() {
                                   {icon}
 
                                   {/* iOS-styled Tooltip */}
-                                  <AnimatePresence>
-                                    {activeTooltip?.studentId === student.id && activeTooltip?.tagKey === tag && (
-                                      <motion.div
-                                        initial={{ opacity: 0, scale: 0.8, y: 5, x: '-50%' }}
-                                        animate={{ opacity: 1, scale: 1, y: 0, x: '-50%' }}
-                                        exit={{ opacity: 0, scale: 0.8, y: 5, x: '-50%' }}
-                                        className="absolute bottom-full left-1/2 mb-2 px-2.5 py-1 bg-black/90 dark:bg-zinc-800 border border-white/10 dark:border-zinc-700/50 text-[10px] font-bold text-white rounded-[6px] shadow-[0_4px_12px_rgba(0,0,0,0.15)] whitespace-nowrap z-50 pointer-events-none"
-                                        style={{ originX: 0.5, originY: 1 }}
-                                      >
-                                        {tag}
-                                        {/* Tooltip Triangle Arrow */}
-                                        <div className="absolute top-full left-1/2 -translate-x-1/2 w-0 h-0 border-l-[4px] border-l-transparent border-r-[4px] border-r-transparent border-t-[4.5px] border-t-black/90 dark:border-t-zinc-800" />
-                                      </motion.div>
-                                    )}
-                                  </AnimatePresence>
+                                  {activeTooltip?.studentId === student.id && activeTooltip?.tagKey === tag && (
+                                    <div
+                                      className="animate-dropdown-in absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-2.5 py-1 bg-black/90 dark:bg-zinc-800 border border-white/10 dark:border-zinc-700/50 text-[10px] font-bold text-white rounded-[6px] shadow-[0_4px_12px_rgba(0,0,0,0.15)] whitespace-nowrap z-50 pointer-events-none"
+                                      style={{ transformOrigin: 'bottom center' }}
+                                    >
+                                      {tag}
+                                      {/* Tooltip Triangle Arrow */}
+                                      <div className="absolute top-full left-1/2 -translate-x-1/2 w-0 h-0 border-l-[4px] border-l-transparent border-r-[4px] border-r-transparent border-t-[4.5px] border-t-black/90 dark:border-t-zinc-800" />
+                                    </div>
+                                  )}
                                 </span>
                               )
                             })}
@@ -1964,173 +1981,51 @@ export function StudentDashboardClient() {
         </div>
       )}
 
-      {/* Add Student Modal */}
-      <AnimatePresence>
-        {isModalOpen && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-            {/* Backdrop Overlay */}
-            <motion.div
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              onClick={() => {
-                if (!submitting) setIsModalOpen(false)
-              }}
-              className="fixed inset-0 bg-black/60 backdrop-blur-sm"
-            />
-
-            {/* Modal Dialog Panel */}
-            <motion.div
-              initial={{ opacity: 0, scale: 0.95, y: 15 }}
-              animate={{ opacity: 1, scale: 1, y: 0 }}
-              exit={{ opacity: 0, scale: 0.95, y: 15 }}
-              className="relative w-full max-w-md overflow-hidden rounded-[var(--radius-lg)] border border-[var(--border)] bg-[var(--surface-elevated)] p-6 shadow-[var(--shadow-lg)] z-10"
-            >
-              {/* Close Button */}
-              <button
-                disabled={submitting}
-                onClick={() => setIsModalOpen(false)}
-                className="absolute right-4 top-4 rounded-[var(--radius-sm)] p-1.5 text-[var(--foreground-muted)] hover:bg-[var(--border-subtle)] hover:text-[var(--foreground)] transition-all cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                <X className="h-5 w-5" />
-              </button>
-
-              <h2 className="text-xl font-bold text-[var(--foreground)] mb-1 flex items-center gap-2">
-                <Sparkles className="h-5 w-5 text-[var(--accent)]" />
-                Add New Student
-              </h2>
-              <p className="text-xs text-[var(--foreground-muted)] mb-5">
-                Register a new student profile in the CRM system.
-              </p>
-
-              {/* Status Alerts */}
-              {modalError && (
-                <div className="mb-4 flex items-start gap-2.5 rounded-[var(--radius-md)] bg-rose-50 dark:bg-rose-950/20 border border-rose-200 dark:border-rose-900/30 p-3.5 text-sm text-rose-800 dark:text-rose-300">
-                  <AlertCircle className="h-4 w-4 shrink-0 mt-0.5" />
-                  <p>{modalError}</p>
-                </div>
-              )}
-
-              {modalSuccess && (
-                <div className="mb-4 flex items-center gap-2.5 rounded-[var(--radius-md)] bg-emerald-50 dark:bg-emerald-950/20 border border-emerald-200 dark:border-emerald-900/30 p-3.5 text-sm text-emerald-800 dark:text-emerald-300">
-                  <CheckCircle2 className="h-4 w-4 shrink-0" />
-                  <p>Student successfully registered!</p>
-                </div>
-              )}
-
-              {/* Add Student Form */}
-              <form onSubmit={handleCreateStudent} className="space-y-4">
-                {/* Student ID */}
-                <div>
-                  <label className="block text-xs font-semibold uppercase tracking-wider text-[var(--foreground-muted)] mb-1.5 flex items-center gap-1">
-                    <Landmark className="h-3 w-3" />
-                    Student ID
-                  </label>
-                  <input
-                    type="text"
-                    required
-                    disabled={submitting || modalSuccess}
-                    placeholder="F999"
-                    value={studentId}
-                    onChange={(e) => setStudentId(e.target.value.toUpperCase())}
-                    className="w-full px-3 py-2 border border-[var(--border)] rounded-[var(--radius-md)] bg-[var(--surface)] text-[var(--foreground)] placeholder-[var(--foreground-subtle)] focus:outline-none focus:border-[var(--accent)] transition-all font-mono font-semibold"
-                  />
-                </div>
-
-                {/* Name */}
-                <div>
-                  <label className="block text-xs font-semibold uppercase tracking-wider text-[var(--foreground-muted)] mb-1.5 flex items-center gap-1">
-                    <User className="h-3 w-3" />
-                    Student Name
-                  </label>
-                  <input
-                    type="text"
-                    required
-                    disabled={submitting || modalSuccess}
-                    placeholder="BAXTIYOR"
-                    value={fullName}
-                    onChange={(e) => setFullName(e.target.value.toUpperCase())}
-                    className="w-full px-3 py-2 border border-[var(--border)] rounded-[var(--radius-md)] bg-[var(--surface)] text-[var(--foreground)] placeholder-[var(--foreground-subtle)] focus:outline-none focus:border-[var(--accent)] transition-all font-medium"
-                  />
-                </div>
-
-                {/* Office Dropdown */}
-                <div>
-                  <label className="block text-xs font-semibold uppercase tracking-wider text-[var(--foreground-muted)] mb-1.5 flex items-center gap-1">
-                    <Building2 className="h-3 w-3" />
-                    Office Branch
-                  </label>
-                  <select
-                    disabled={submitting || modalSuccess}
-                    value={office}
-                    onChange={(e) => setOffice(e.target.value)}
-                    className="w-full px-3 py-2 border border-[var(--border)] rounded-[var(--radius-md)] bg-[var(--surface)] text-[var(--foreground)] focus:outline-none focus:border-[var(--accent)] transition-all text-sm cursor-pointer"
-                  >
-                    {officeOptions.map((opt) => (
-                      <option key={opt} value={opt}>{opt}</option>
-                    ))}
-                  </select>
-                </div>
-
-                {/* Action Buttons */}
-                <div className="pt-2 flex justify-end gap-3">
-                  <motion.button
-                    whileTap={{ scale: 0.96 }}
-                    type="button"
-                    disabled={submitting || modalSuccess}
-                    onClick={() => setIsModalOpen(false)}
-                    className="px-4 py-2 border border-[var(--border)] rounded-[var(--radius-md)] bg-transparent text-[var(--foreground-muted)] hover:bg-[var(--border-subtle)] hover:text-[var(--foreground)] text-sm font-semibold transition-all cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
-                  >
-                    Cancel
-                  </motion.button>
-                  <motion.button
-                    whileTap={{ scale: 0.96 }}
-                    type="submit"
-                    disabled={submitting || modalSuccess}
-                    className="flex items-center justify-center gap-1.5 px-4 py-2 bg-[var(--accent)] hover:bg-[var(--accent-hover)] text-white text-sm font-semibold rounded-[var(--radius-md)] transition-all cursor-pointer select-none disabled:opacity-50 disabled:cursor-not-allowed"
-                    style={{ boxShadow: '0 4px 12px rgba(59, 127, 245, 0.2)' }}
-                  >
-                    {submitting ? (
-                      <>
-                        <Loader2 className="h-4 w-4 animate-spin" />
-                        Saving...
-                      </>
-                    ) : (
-                      'Save Student'
-                    )}
-                  </motion.button>
-                </div>
-              </form>
-            </motion.div>
-          </div>
-        )}
-      </AnimatePresence>
+      {/* Add Student Modal (lazy-loaded: not downloaded until first opened) */}
+      {hasOpenedAddModal && (
+        <AddStudentModal
+          isOpen={isModalOpen}
+          onClose={() => setIsModalOpen(false)}
+          officeOptions={officeOptions}
+          studentId={studentId}
+          setStudentId={setStudentId}
+          fullName={fullName}
+          setFullName={setFullName}
+          office={office}
+          setOffice={setOffice}
+          submitting={submitting}
+          modalError={modalError}
+          modalSuccess={modalSuccess}
+          onSubmit={handleCreateStudent}
+        />
+      )}
 
       {/* Actions Modal */}
-      <AnimatePresence>
-        {popoverAnchor && (() => {
-          const student = students.find(s => s.id === popoverAnchor.studentId)
+      {popoverTransition.shouldRender && (() => {
+          const anchor = popoverAnchor || lastPopoverAnchorRef.current
+          const student = anchor ? students.find(s => s.id === anchor.studentId) : undefined
           if (!student) return null
 
           return (
             <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
               {/* Backdrop Overlay */}
-              <motion.div
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                exit={{ opacity: 0 }}
+              <div
                 onClick={() => {
                   setPopoverAnchor(null)
                 }}
-                className="fixed inset-0 bg-black/60 backdrop-blur-sm"
+                className={cn(
+                  'fixed inset-0 bg-black/50 transition-opacity duration-220 ease-out',
+                  popoverTransition.isVisible ? 'opacity-100' : 'opacity-0'
+                )}
               />
 
               {/* Modal Dialog Panel */}
-              <motion.div
-                initial={{ opacity: 0, scale: 0.95, y: 15 }}
-                animate={{ opacity: 1, scale: 1, y: 0 }}
-                exit={{ opacity: 0, scale: 0.95, y: 15 }}
-                className="relative w-full max-w-[640px] overflow-hidden rounded-[var(--radius-lg)] border border-[var(--border)] bg-[var(--surface-elevated)] shadow-[var(--shadow-lg)] z-10 text-xs text-[var(--foreground)] flex flex-col"
+              <div
+                className={cn(
+                  'relative w-full max-w-[640px] overflow-hidden rounded-[var(--radius-lg)] border border-[var(--border)] bg-[var(--surface-elevated)] shadow-[var(--shadow-lg)] z-10 text-xs text-[var(--foreground)] flex flex-col',
+                  'transition-all duration-220 ease-[cubic-bezier(0.25,0.46,0.45,0.94)]',
+                  popoverTransition.isVisible ? 'opacity-100 scale-100 translate-y-0' : 'opacity-0 scale-95 translate-y-[15px]'
+                )}
                 onClick={(e) => e.stopPropagation()}
               >
                 {/* Header with Student Name, ID and Close Button */}
@@ -2297,51 +2192,45 @@ export function StudentDashboardClient() {
                 <div className="px-6 pb-6 pt-2 flex gap-3">
                   {student.is_deleted ? (
                     <>
-                      <motion.button
-                        whileTap={{ scale: 0.97 }}
+                      <button
                         onClick={() => handleRestoreStudent(student.id, student.full_name)}
-                        className="flex-1 py-2.5 rounded-[var(--radius-md)] border border-emerald-500/25 bg-emerald-500/5 text-emerald-600 dark:text-emerald-400 hover:bg-emerald-500/10 hover:border-emerald-500/40 font-semibold transition-all text-[11.5px] cursor-pointer flex items-center justify-center gap-1.5"
+                        className="flex-1 py-2.5 rounded-[var(--radius-md)] border border-emerald-500/25 bg-emerald-500/5 text-emerald-600 dark:text-emerald-400 hover:bg-emerald-500/10 hover:border-emerald-500/40 font-semibold active:scale-[0.97] transition-all text-[11.5px] cursor-pointer flex items-center justify-center gap-1.5"
                       >
                         <RefreshCw className="h-3.5 w-3.5 animate-none" />
                         <span>Restore Student</span>
-                      </motion.button>
-                      <motion.button
-                        whileTap={{ scale: 0.97 }}
+                      </button>
+                      <button
                         onClick={() => handlePermanentDeleteStudent(student.id, student.full_name)}
-                        className="flex-1 py-2.5 rounded-[var(--radius-md)] border border-red-500/40 bg-red-500/10 hover:bg-red-500/20 text-red-600 font-bold transition-all text-[11.5px] cursor-pointer flex items-center justify-center gap-1.5 shadow-xs"
+                        className="flex-1 py-2.5 rounded-[var(--radius-md)] border border-red-500/40 bg-red-500/10 hover:bg-red-500/20 text-red-600 font-bold active:scale-[0.97] transition-all text-[11.5px] cursor-pointer flex items-center justify-center gap-1.5 shadow-xs"
                       >
                         <Trash2 className="h-3.5 w-3.5 text-red-500" />
                         <span>Permanently Delete</span>
-                      </motion.button>
+                      </button>
                     </>
                   ) : (
                     <>
-                      <motion.button
-                        whileTap={{ scale: 0.97 }}
+                      <button
                         onClick={() => handleClearFlagsAndColor(student.id)}
-                        className="flex-1 py-2.5 rounded-[var(--radius-md)] border border-red-500/25 bg-red-500/5 text-red-500 hover:bg-red-500/10 hover:border-red-500/40 font-semibold transition-all text-[11.5px] cursor-pointer"
+                        className="flex-1 py-2.5 rounded-[var(--radius-md)] border border-red-500/25 bg-red-500/5 text-red-500 hover:bg-red-500/10 hover:border-red-500/40 font-semibold active:scale-[0.97] transition-all text-[11.5px] cursor-pointer"
                       >
                         Clear All Color & Tags
-                      </motion.button>
-                      <motion.button
-                        whileTap={{ scale: 0.97 }}
+                      </button>
+                      <button
                         onClick={() => handleDeleteStudent(student.id, student.full_name)}
-                        className="flex-1 py-2.5 rounded-[var(--radius-md)] border border-red-500/40 bg-red-500/10 hover:bg-red-500/20 text-red-600 font-bold transition-all text-[11.5px] cursor-pointer flex items-center justify-center gap-1.5 shadow-xs"
+                        className="flex-1 py-2.5 rounded-[var(--radius-md)] border border-red-500/40 bg-red-500/10 hover:bg-red-500/20 text-red-600 font-bold active:scale-[0.97] transition-all text-[11.5px] cursor-pointer flex items-center justify-center gap-1.5 shadow-xs"
                       >
                         <Trash2 className="h-3.5 w-3.5 text-red-500" />
                         <span>Delete Student</span>
-                      </motion.button>
+                      </button>
                     </>
                   )}
                 </div>
-              </motion.div>
+              </div>
             </div>
           )
-        })()}
-      </AnimatePresence>
+      })()}
       {/* Folder Add Students Modal */}
-      <AnimatePresence>
-        {isFolderAddModalOpen && (() => {
+      {folderAddTransition.shouldRender && (() => {
           const folderName = foldersOptions.find(f => f.id === activeFolder)?.name || 'Folder'
           // All active students not already in this folder
           const pickableStudents = students.filter(s =>
@@ -2354,19 +2243,20 @@ export function StudentDashboardClient() {
           const allSelected = filtered.length > 0 && filtered.every(s => folderAddSelectedIds.includes(s.id))
           return (
             <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-              <motion.div
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                exit={{ opacity: 0 }}
+              <div
                 onClick={() => setIsFolderAddModalOpen(false)}
-                className="absolute inset-0 bg-black/40 backdrop-blur-sm"
+                className={cn(
+                  'absolute inset-0 bg-black/50 transition-opacity duration-220 ease-out',
+                  folderAddTransition.isVisible ? 'opacity-100' : 'opacity-0'
+                )}
               />
-              <motion.div
-                initial={{ opacity: 0, scale: 0.95, y: 15 }}
-                animate={{ opacity: 1, scale: 1, y: 0 }}
-                exit={{ opacity: 0, scale: 0.95, y: 15 }}
-                className="relative w-full max-w-lg rounded-[var(--radius-lg)] border border-[var(--border)] bg-[var(--surface-elevated)] shadow-[var(--shadow-lg)] z-10 flex flex-col max-h-[80vh]"
-                onClick={e => e.stopPropagation()}
+              <div
+                className={cn(
+                  'relative w-full max-w-lg rounded-[var(--radius-lg)] border border-[var(--border)] bg-[var(--surface-elevated)] shadow-[var(--shadow-lg)] z-10 flex flex-col max-h-[80vh]',
+                  'transition-all duration-220 ease-[cubic-bezier(0.25,0.46,0.45,0.94)]',
+                  folderAddTransition.isVisible ? 'opacity-100 scale-100 translate-y-0' : 'opacity-0 scale-95 translate-y-[15px]'
+                )}
+                onClick={(e: React.MouseEvent) => e.stopPropagation()}
               >
                 {/* Header */}
                 <div className="flex items-center justify-between px-6 py-5 border-b border-[var(--border)] shrink-0">
@@ -2488,31 +2378,30 @@ export function StudentDashboardClient() {
                     </button>
                   </div>
                 </div>
-              </motion.div>
+              </div>
             </div>
           )
-        })()}
-      </AnimatePresence>
+      })()}
 
       {/* Export to Excel Modal */}
-      <AnimatePresence>
-        {isExcelModalOpen && (
+      {excelModalTransition.shouldRender && (
           <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
             {/* Backdrop Overlay */}
-            <motion.div
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
+            <div
               onClick={() => setIsExcelModalOpen(false)}
-              className="fixed inset-0 bg-black/60 backdrop-blur-sm"
+              className={cn(
+                'fixed inset-0 bg-black/50 transition-opacity duration-220 ease-out',
+                excelModalTransition.isVisible ? 'opacity-100' : 'opacity-0'
+              )}
             />
 
             {/* Modal Panel */}
-            <motion.div
-              initial={{ opacity: 0, scale: 0.95, y: 15 }}
-              animate={{ opacity: 1, scale: 1, y: 0 }}
-              exit={{ opacity: 0, scale: 0.95, y: 15 }}
-              className="relative w-full max-w-5xl overflow-hidden rounded-[var(--radius-lg)] border border-[var(--border)] bg-[var(--surface-elevated)] p-6 shadow-[var(--shadow-lg)] z-10 flex flex-col max-h-[90vh]"
+            <div
+              className={cn(
+                'relative w-full max-w-5xl overflow-hidden rounded-[var(--radius-lg)] border border-[var(--border)] bg-[var(--surface-elevated)] p-6 shadow-[var(--shadow-lg)] z-10 flex flex-col max-h-[90vh]',
+                'transition-all duration-220 ease-[cubic-bezier(0.25,0.46,0.45,0.94)]',
+                excelModalTransition.isVisible ? 'opacity-100 scale-100 translate-y-0' : 'opacity-0 scale-95 translate-y-[15px]'
+              )}
             >
               {/* Close Button */}
               <button
@@ -3283,10 +3172,9 @@ export function StudentDashboardClient() {
                   </button>
                 </div>
               </div>
-            </motion.div>
+            </div>
           </div>
-        )}
-      </AnimatePresence>
+      )}
 
     </PageShell>
   )

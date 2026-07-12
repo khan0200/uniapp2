@@ -250,6 +250,57 @@ button, a, [role="button"] {
   100% { transform: scale(2.6); opacity: 0; }
 }
 
+/* ── Route page-enter animation (replaces framer-motion page transition) ── */
+@keyframes page-fade-in {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.animate-page-in {
+  animation: page-fade-in 0.22s cubic-bezier(0.25, 0.46, 0.45, 0.94) both;
+}
+
+/* ── Shared enter/exit animation utilities (replace framer-motion) ──
+   Used with useCssTransition: apply the "-in" class when visible, the
+   "-out" class while the exit transition plays before unmount. ──────── */
+
+/* Simple opacity fade — backdrops, toasts */
+@keyframes fade-in { from { opacity: 0; } to { opacity: 1; } }
+@keyframes fade-out { from { opacity: 1; } to { opacity: 0; } }
+.animate-fade-in { animation: fade-in 0.2s ease-out both; }
+.animate-fade-out { animation: fade-out 0.2s ease-out both; }
+
+/* Modal / dialog panel — fade + scale + rise */
+@keyframes panel-in {
+  from { opacity: 0; transform: scale(0.95) translateY(15px); }
+  to { opacity: 1; transform: scale(1) translateY(0); }
+}
+@keyframes panel-out {
+  from { opacity: 1; transform: scale(1) translateY(0); }
+  to { opacity: 0; transform: scale(0.95) translateY(15px); }
+}
+.animate-panel-in { animation: panel-in 0.22s cubic-bezier(0.25, 0.46, 0.45, 0.94) both; }
+.animate-panel-out { animation: panel-out 0.22s cubic-bezier(0.25, 0.46, 0.45, 0.94) both; }
+
+/* Dropdown / popover menu — fade + scale, faster */
+@keyframes dropdown-in {
+  from { opacity: 0; transform: scale(0.96) translateY(-4px); }
+  to { opacity: 1; transform: scale(1) translateY(0); }
+}
+@keyframes dropdown-out {
+  from { opacity: 1; transform: scale(1) translateY(0); }
+  to { opacity: 0; transform: scale(0.96) translateY(-4px); }
+}
+.animate-dropdown-in { animation: dropdown-in 0.15s ease-out both; }
+.animate-dropdown-out { animation: dropdown-out 0.15s ease-out both; }
+
+/* Content swap (tab/category switch) — subtle horizontal slide, enter-only */
+@keyframes content-swap-in {
+  from { opacity: 0; transform: translateX(6px); }
+  to { opacity: 1; transform: translateX(0); }
+}
+.animate-content-swap-in { animation: content-swap-in 0.15s ease-out both; }
+
 .wave-dot {
   position: relative;
 }
