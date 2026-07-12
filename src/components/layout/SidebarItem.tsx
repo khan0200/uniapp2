@@ -33,11 +33,6 @@ export function SidebarItem({
       className="group flex flex-col items-center justify-center w-full py-2.5 px-1 relative focus:outline-none select-none"
       aria-current={isActive ? 'page' : undefined}
     >
-      {/* Active Indicator Bar */}
-      {isActive && (
-        <span className="absolute left-0 top-3 bottom-3 w-1 rounded-r bg-blue-500 dark:bg-blue-400" />
-      )}
-
       {/* Icon Wrapper (Rounded Square matching Canva) */}
       <div
         className={cn(
