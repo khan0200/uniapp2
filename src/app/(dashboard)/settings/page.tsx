@@ -553,28 +553,28 @@ export default function SettingsPage() {
       animate={{ opacity: 1, y: 0 }}
       exit={{ opacity: 0, scale: 0.95 }}
       key={item.id}
-      className="group flex items-center justify-between gap-3 p-4 bg-surface border border-border hover:border-blue-400 dark:hover:border-blue-500/50 rounded-lg shadow-sm hover:shadow transition-all duration-200"
+      className="group flex items-center justify-between gap-3 p-2 px-3.5 bg-surface border border-border hover:border-blue-400 dark:hover:border-blue-500/50 rounded-lg shadow-sm hover:shadow transition-all duration-200"
     >
       <div className="min-w-0">
         <div className="text-xs font-bold text-foreground uppercase tracking-wide truncate">{item.name}</div>
-        <div className="inline-flex items-center gap-1 mt-1 text-[10px] font-bold px-2 py-0.5 bg-blue-50 dark:bg-blue-950/40 text-blue-500 dark:text-blue-400 rounded">
+        <div className="inline-flex items-center gap-1 mt-0.5 text-[9.5px] font-bold px-1.5 py-0.5 bg-blue-50 dark:bg-blue-950/40 text-blue-500 dark:text-blue-400 rounded">
           {formatCurrency(item.price)}
         </div>
       </div>
-      <div className="flex items-center gap-1.5 shrink-0 opacity-90 sm:opacity-0 group-hover:opacity-100 transition-opacity duration-200">
+      <div className="flex items-center gap-1 shrink-0 opacity-90 sm:opacity-0 group-hover:opacity-100 transition-opacity duration-200">
         <button
           onClick={() => handleOpenEdit('tariff', item)}
-          className="w-8 h-8 flex items-center justify-center border border-border hover:bg-surface-hover rounded-md text-blue-500 hover:text-blue-600 transition-all cursor-pointer bg-transparent"
+          className="w-7 h-7 flex items-center justify-center border border-border hover:bg-surface-hover rounded-md text-blue-500 hover:text-blue-650 transition-all cursor-pointer bg-transparent"
           title="Edit"
         >
-          <Pencil className="h-3.5 w-3.5" />
+          <Pencil className="h-3 w-3" />
         </button>
         <button
           onClick={() => handleDelete('tariff', item.id, item.name)}
-          className="w-8 h-8 flex items-center justify-center border border-border hover:bg-surface-hover rounded-md text-red-500 hover:text-red-650 transition-all cursor-pointer bg-transparent"
+          className="w-7 h-7 flex items-center justify-center border border-border hover:bg-surface-hover rounded-md text-red-500 hover:text-red-655 transition-all cursor-pointer bg-transparent"
           title="Delete"
         >
-          <Trash2 className="h-3.5 w-3.5" />
+          <Trash2 className="h-3 w-3" />
         </button>
       </div>
     </motion.div>
@@ -589,30 +589,30 @@ export default function SettingsPage() {
         animate={{ opacity: 1, y: 0 }}
         exit={{ opacity: 0, scale: 0.95 }}
         key={item.id}
-        className="group flex items-center justify-between gap-3 p-4 bg-surface border border-border hover:border-accent/40 rounded-lg shadow-sm hover:shadow transition-all duration-200"
+        className="group flex items-center justify-between gap-3 p-2 px-3.5 bg-surface border border-border hover:border-accent/40 rounded-lg shadow-sm hover:shadow transition-all duration-200"
       >
-        <div className="min-w-0 flex items-center gap-3">
-          <div className={`w-8 h-8 rounded-lg flex items-center justify-center shrink-0 border border-transparent ${config.colorClass}`}>
-            <config.icon className="h-4 w-4" />
+        <div className="min-w-0 flex items-center gap-2.5">
+          <div className={`w-7 h-7 rounded-md flex items-center justify-center shrink-0 border border-transparent ${config.colorClass}`}>
+            <config.icon className="h-3.5 w-3.5" />
           </div>
           <div className={`text-xs font-bold text-foreground truncate ${type !== 'lead' && type !== 'coordinator' ? 'uppercase tracking-wide' : ''}`}>
             {item.name}
           </div>
         </div>
-        <div className="flex items-center gap-1.5 shrink-0 opacity-90 sm:opacity-0 group-hover:opacity-100 transition-opacity duration-200">
+        <div className="flex items-center gap-1 shrink-0 opacity-90 sm:opacity-0 group-hover:opacity-100 transition-opacity duration-200">
           <button
             onClick={() => handleOpenEdit(type, item)}
-            className="w-8 h-8 flex items-center justify-center border border-border hover:bg-surface-hover rounded-md text-blue-500 hover:text-blue-600 transition-all cursor-pointer bg-transparent"
+            className="w-7 h-7 flex items-center justify-center border border-border hover:bg-surface-hover rounded-md text-blue-500 hover:text-blue-650 transition-all cursor-pointer bg-transparent"
             title="Edit"
           >
-            <Pencil className="h-3.5 w-3.5" />
+            <Pencil className="h-3 w-3" />
           </button>
           <button
             onClick={() => handleDelete(type, item.id, item.name)}
-            className="w-8 h-8 flex items-center justify-center border border-border hover:bg-surface-hover rounded-md text-red-500 hover:text-red-650 transition-all cursor-pointer bg-transparent"
+            className="w-7 h-7 flex items-center justify-center border border-border hover:bg-surface-hover rounded-md text-red-500 hover:text-red-655 transition-all cursor-pointer bg-transparent"
             title="Delete"
           >
-            <Trash2 className="h-3.5 w-3.5" />
+            <Trash2 className="h-3 w-3" />
           </button>
         </div>
       </motion.div>
@@ -626,28 +626,28 @@ export default function SettingsPage() {
       animate={{ opacity: 1, y: 0 }}
       exit={{ opacity: 0, scale: 0.95 }}
       key={tag.name}
-      className="group flex items-center justify-between gap-3 p-4 bg-surface border border-border hover:border-indigo-400 dark:hover:border-indigo-500/50 rounded-lg shadow-sm hover:shadow transition-all duration-200"
+      className="group flex items-center justify-between gap-3 p-2 px-3.5 bg-surface border border-border hover:border-indigo-400 dark:hover:border-indigo-500/50 rounded-lg shadow-sm hover:shadow transition-all duration-200"
     >
-      <div className="flex items-center gap-3 min-w-0">
-        <div className="w-9 h-9 rounded-lg bg-indigo-50 dark:bg-indigo-950/20 border border-indigo-100 dark:border-indigo-900/30 flex items-center justify-center text-xl shrink-0 leading-none">
+      <div className="flex items-center gap-2.5 min-w-0">
+        <div className="w-7 h-7 rounded-md bg-indigo-50 dark:bg-indigo-950/20 border border-indigo-100 dark:border-indigo-900/30 flex items-center justify-center text-base shrink-0 leading-none">
           {tag.icon}
         </div>
         <span className="text-xs font-bold text-foreground truncate">{tag.name}</span>
       </div>
-      <div className="flex items-center gap-1.5 shrink-0 opacity-90 sm:opacity-0 group-hover:opacity-100 transition-opacity duration-200">
+      <div className="flex items-center gap-1 shrink-0 opacity-90 sm:opacity-0 group-hover:opacity-100 transition-opacity duration-200">
         <button
           onClick={() => handleOpenEditTag(tag)}
-          className="w-8 h-8 flex items-center justify-center border border-border hover:bg-surface-hover rounded-md text-blue-500 hover:text-blue-600 transition-all cursor-pointer bg-transparent"
+          className="w-7 h-7 flex items-center justify-center border border-border hover:bg-surface-hover rounded-md text-blue-500 hover:text-blue-650 transition-all cursor-pointer bg-transparent"
           title="Edit"
         >
-          <Pencil className="h-3.5 w-3.5" />
+          <Pencil className="h-3 w-3" />
         </button>
         <button
           onClick={() => handleDeleteTag(tag.name)}
-          className="w-8 h-8 flex items-center justify-center border border-border hover:bg-surface-hover rounded-md text-red-500 hover:text-red-650 transition-all cursor-pointer bg-transparent"
+          className="w-7 h-7 flex items-center justify-center border border-border hover:bg-surface-hover rounded-md text-red-500 hover:text-red-655 transition-all cursor-pointer bg-transparent"
           title="Delete globally"
         >
-          <Trash2 className="h-3.5 w-3.5" />
+          <Trash2 className="h-3 w-3" />
         </button>
       </div>
     </motion.div>
@@ -660,30 +660,30 @@ export default function SettingsPage() {
       animate={{ opacity: 1, y: 0 }}
       exit={{ opacity: 0, scale: 0.95 }}
       key={item.id}
-      className="group flex items-center justify-between gap-3 p-4 bg-surface border border-border hover:border-sky-400 dark:hover:border-sky-500/50 rounded-lg shadow-sm hover:shadow transition-all duration-200"
+      className="group flex items-center justify-between gap-3 p-2 px-3.5 bg-surface border border-border hover:border-sky-400 dark:hover:border-sky-500/50 rounded-lg shadow-sm hover:shadow transition-all duration-200"
     >
-      <div className="flex items-center gap-3 min-w-0">
-        <div className="w-9 h-9 rounded-lg bg-sky-50 dark:bg-sky-950/20 border border-sky-100 dark:border-sky-900/30 flex items-center justify-center text-sky-500 shrink-0">
-          <School className="h-4.5 w-4.5" />
+      <div className="flex items-center gap-2.5 min-w-0">
+        <div className="w-7 h-7 rounded-md bg-sky-50 dark:bg-sky-950/20 border border-sky-100 dark:border-sky-900/30 flex items-center justify-center text-sky-500 shrink-0">
+          <School className="h-3.5 w-3.5" />
         </div>
         <div className="text-xs font-bold text-foreground uppercase truncate tracking-wide" title={item.name}>
           {item.name}
         </div>
       </div>
-      <div className="flex items-center gap-1.5 shrink-0 opacity-90 sm:opacity-0 group-hover:opacity-100 transition-opacity duration-200">
+      <div className="flex items-center gap-1 shrink-0 opacity-90 sm:opacity-0 group-hover:opacity-100 transition-opacity duration-200">
         <button
           onClick={() => handleOpenEdit('university', item)}
-          className="w-8 h-8 flex items-center justify-center border border-border hover:bg-surface-hover rounded-md text-blue-500 hover:text-blue-600 transition-all cursor-pointer bg-transparent"
+          className="w-7 h-7 flex items-center justify-center border border-border hover:bg-surface-hover rounded-md text-blue-500 hover:text-blue-650 transition-all cursor-pointer bg-transparent"
           title="Edit"
         >
-          <Pencil className="h-3.5 w-3.5" />
+          <Pencil className="h-3 w-3" />
         </button>
         <button
           onClick={() => handleDelete('university', item.id, item.name)}
-          className="w-8 h-8 flex items-center justify-center border border-border hover:bg-surface-hover rounded-md text-red-500 hover:text-red-650 transition-all cursor-pointer bg-transparent"
+          className="w-7 h-7 flex items-center justify-center border border-border hover:bg-surface-hover rounded-md text-red-500 hover:text-red-655 transition-all cursor-pointer bg-transparent"
           title="Delete"
         >
-          <Trash2 className="h-3.5 w-3.5" />
+          <Trash2 className="h-3 w-3" />
         </button>
       </div>
     </motion.div>
@@ -696,10 +696,10 @@ export default function SettingsPage() {
       animate={{ opacity: 1, y: 0 }}
       exit={{ opacity: 0, scale: 0.95 }}
       key={item.id}
-      className="group flex items-center justify-between gap-3 p-4 bg-surface border border-border hover:border-pink-400 dark:hover:border-pink-500/50 rounded-lg shadow-sm hover:shadow transition-all duration-200"
+      className="group flex items-center justify-between gap-3 p-2 px-3.5 bg-surface border border-border hover:border-pink-400 dark:hover:border-pink-500/50 rounded-lg shadow-sm hover:shadow transition-all duration-200"
     >
-      <div className="flex items-center gap-3 min-w-0">
-        <span className={`h-2.5 w-2.5 rounded-full bg-current shrink-0 ${item.color_class || 'text-blue-500'}`} />
+      <div className="flex items-center gap-2.5 min-w-0">
+        <span className={`h-2 w-2 rounded-full bg-current shrink-0 ${item.color_class || 'text-blue-500'}`} />
         <div className="text-xs font-bold text-foreground truncate uppercase tracking-wide">
           {item.name}
         </div>
@@ -707,17 +707,17 @@ export default function SettingsPage() {
       <div className="flex items-center gap-1.5 shrink-0 opacity-90 sm:opacity-0 group-hover:opacity-100 transition-opacity duration-200">
         <button
           onClick={() => handleOpenEdit('university_status', item)}
-          className="w-8 h-8 flex items-center justify-center border border-border hover:bg-surface-hover rounded-md text-blue-500 hover:text-blue-600 transition-all cursor-pointer bg-transparent"
+          className="w-7 h-7 flex items-center justify-center border border-border hover:bg-surface-hover rounded-md text-blue-500 hover:text-blue-650 transition-all cursor-pointer bg-transparent"
           title="Edit"
         >
-          <Pencil className="h-3.5 w-3.5" />
+          <Pencil className="h-3 w-3" />
         </button>
         <button
           onClick={() => handleDelete('university_status', item.id, item.name)}
-          className="w-8 h-8 flex items-center justify-center border border-border hover:bg-surface-hover rounded-md text-red-500 hover:text-red-650 transition-all cursor-pointer bg-transparent"
+          className="w-7 h-7 flex items-center justify-center border border-border hover:bg-surface-hover rounded-md text-red-500 hover:text-red-655 transition-all cursor-pointer bg-transparent"
           title="Delete"
         >
-          <Trash2 className="h-3.5 w-3.5" />
+          <Trash2 className="h-3 w-3" />
         </button>
       </div>
     </motion.div>
@@ -969,7 +969,7 @@ export default function SettingsPage() {
               <div className="flex flex-col h-full justify-between">
                 <motion.div
                   layout
-                  className={`grid gap-3 ${['university', 'tariff', 'lead', 'tag', 'folder', 'office', 'university_status'].includes(activeTab) ? 'grid-cols-1 md:grid-cols-2' : 'grid-cols-1'}`}
+                  className={`grid gap-2 ${['university', 'tariff', 'lead', 'tag', 'folder', 'office', 'university_status'].includes(activeTab) ? 'grid-cols-1 md:grid-cols-2' : 'grid-cols-1'}`}
                 >
                   {activeTab === 'tariff' && filteredTariffs.map(item => renderTariffRow(item))}
                   {activeTab === 'level' && filteredLevels.map(item => renderGeneralRow(item, 'level'))}
