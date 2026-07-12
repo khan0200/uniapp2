@@ -1042,13 +1042,13 @@ export default function SettingsPage() {
           <div className="grid grid-cols-1 lg:grid-cols-4 gap-6 items-start">
             
             {/* Sidebar Navigation - Sticky on desktop */}
-            <div className="lg:col-span-1 flex flex-col gap-1.5 bg-surface-elevated border border-border rounded-xl p-3 shadow-sm lg:sticky lg:top-4 overflow-hidden">
-              <div className="px-2.5 py-2 mb-1.5">
-                <span className="text-[9px] font-bold uppercase tracking-wider text-foreground-subtle">Configuration Settings</span>
+            <div className="lg:col-span-1 flex flex-col gap-1 bg-surface-elevated border border-border rounded-xl p-2.5 shadow-sm lg:sticky lg:top-4 overflow-hidden">
+              <div className="px-2 py-1 mb-1">
+                <span className="text-[9px] font-bold uppercase tracking-wider text-blue-900/60 dark:text-blue-200/50">Configuration Settings</span>
               </div>
               
               {/* Sidebar Tabs List */}
-              <div className="flex flex-row lg:flex-col overflow-x-auto lg:overflow-x-visible pb-2.5 lg:pb-0 gap-1 scrollbar-none">
+              <div className="flex flex-row lg:flex-col overflow-x-auto lg:overflow-x-visible pb-2 lg:pb-0 gap-0.5 scrollbar-none">
                 {Object.values(TABS_CONFIG).map((tab) => {
                   const isActive = activeTab === tab.id
                   const Icon = tab.icon
@@ -1059,20 +1059,20 @@ export default function SettingsPage() {
                         setActiveTab(tab.id as TabType)
                         setSearchQuery('')
                       }}
-                      className={`flex items-center gap-3 text-left px-3 py-2.5 rounded-lg transition-all cursor-pointer select-none shrink-0 lg:shrink border ${
+                      className={`flex items-center gap-2.5 text-left px-2.5 py-1.5 rounded-lg transition-all cursor-pointer select-none shrink-0 lg:shrink border ${
                         isActive
-                          ? 'bg-surface-interactive border-accent/20 text-accent font-semibold shadow-sm'
-                          : 'hover:bg-surface-hover text-foreground-muted hover:text-foreground border-transparent'
+                          ? 'bg-surface-interactive border-accent/20 text-accent font-bold shadow-sm'
+                          : 'hover:bg-surface-hover text-blue-900/80 dark:text-blue-200/80 hover:text-blue-600 dark:hover:text-blue-400 border-transparent'
                       }`}
                     >
-                      <div className={`p-1.5 rounded-md shrink-0 transition-colors ${
-                        isActive ? tab.activeColorClass : 'bg-border-subtle text-foreground-subtle'
+                      <div className={`p-1 rounded-md shrink-0 transition-colors ${
+                        isActive ? tab.activeColorClass : 'bg-border-subtle text-blue-950/45 dark:text-blue-300/40'
                       }`}>
-                        <Icon className="h-4 w-4" />
+                        <Icon className="h-3.5 w-3.5" />
                       </div>
                       <div className="min-w-0 pr-1 hidden sm:block lg:block">
-                        <div className="text-xs font-bold leading-none">{tab.label}</div>
-                        <div className="text-[9px] text-foreground-subtle leading-none mt-1 truncate max-w-[130px]">{tab.subLabel}</div>
+                        <div className={`text-xs font-bold leading-none ${isActive ? 'text-blue-600 dark:text-blue-400' : 'text-blue-900/85 dark:text-blue-200/85'}`}>{tab.label}</div>
+                        <div className="text-[9px] text-blue-950/50 dark:text-blue-300/40 leading-none mt-1 truncate max-w-[130px]">{tab.subLabel}</div>
                       </div>
                       <div className="sm:hidden text-xs font-bold shrink-0">{tab.label}</div>
                     </button>
