@@ -4,7 +4,7 @@ import { useState, useEffect, useMemo, useRef } from 'react'
 import dynamic from 'next/dynamic'
 import {
   Plus, Users, X, Search, AlertCircle, CheckCircle2,
-  Tag, Layers, Award, Bookmark, UserCheck,
+  Tag, Layers, Award, Bookmark, UserCheck, Folder,
   FileSpreadsheet, ChevronDown, ChevronLeft, ChevronRight, ChevronUp,
   Copy, Trash2, Hash, Check, RefreshCw
 } from 'lucide-react'
@@ -198,6 +198,7 @@ export function StudentDashboardClient() {
 
   const [excelSearchQuery, setExcelSearchQuery] = useState('')
   const [excelSearchType, setExcelSearchType] = useState<'all' | 'id' | 'name' | 'phone' | 'university'>('all')
+  const [excelSelectedFolders, setExcelSelectedFolders] = useState<string[]>([])
   const [excelSelectedTariffs, setExcelSelectedTariffs] = useState<string[]>([])
   const [excelSelectedLevels, setExcelSelectedLevels] = useState<string[]>([])
   const [excelSelectedGroups, setExcelSelectedGroups] = useState<string[]>([])
@@ -207,6 +208,7 @@ export function StudentDashboardClient() {
   const [excelSelectedLeads, setExcelSelectedLeads] = useState<string[]>([])
 
   // Toggle states for excel filter dropdowns
+  const [isExcelFolderDropdownOpen, setIsExcelFolderDropdownOpen] = useState(false)
   const [isExcelTariffDropdownOpen, setIsExcelTariffDropdownOpen] = useState(false)
   const [isExcelLevelDropdownOpen, setIsExcelLevelDropdownOpen] = useState(false)
   const [isExcelGroupDropdownOpen, setIsExcelGroupDropdownOpen] = useState(false)
@@ -248,6 +250,20 @@ export function StudentDashboardClient() {
   }, [excelActiveCertForScore])
 
   const excelFilteredStudents = students.filter(student => {
+    // 0. Folder filtering
+    if (excelSelectedFolders.length > 0) {
+      let matchesFolder = false
+      if (excelSelectedFolders.includes('NO_FOLDER')) {
+        if (!student.folder_ids || student.folder_ids.length === 0) {
+          matchesFolder = true
+        }
+      }
+      if (student.folder_ids && student.folder_ids.some(fid => excelSelectedFolders.includes(fid))) {
+        matchesFolder = true
+      }
+      if (!matchesFolder) return false
+    }
+
     // 1. Deleted Students handling
     const showDeleted = excelSelectedLevels.includes('DELETED')
     if (showDeleted) {
@@ -784,8 +800,15 @@ export function StudentDashboardClient() {
   // Reset select checklist to empty ONLY when the modal transitions from closed to open (unchecked by default)
   useEffect(() => {
     if (isExcelModalOpen) {
+      setExcelSelectedFolders(
+        activeFolder === 'all' || activeFolder === 'deleted'
+          ? []
+          : activeFolder === 'except'
+            ? ['NO_FOLDER']
+            : [activeFolder]
+      )
       setExcelSelectedTariffs(selectedTariffs)
-      setExcelSelectedLevels(selectedLevels)
+      setExcelSelectedLevels(activeFolder === 'deleted' ? ['DELETED'] : selectedLevels)
       setExcelSelectedGroups(selectedGroups)
       setExcelSelectedCerts(selectedCerts)
       setExcelSelectedScores(selectedScores)
@@ -2422,7 +2445,7 @@ export function StudentDashboardClient() {
               {/* ── Search and Filter Controls Row ────────────────── */}
               <div className="mb-4 space-y-3 bg-[var(--surface)] border border-[var(--border)] rounded-[var(--radius-md)] p-4 shadow-inner">
                 {/* Click Away Overlay to dismiss open filter dropdowns inside modal */}
-                {(isExcelTariffDropdownOpen || isExcelLevelDropdownOpen || isExcelGroupDropdownOpen || isExcelCertDropdownOpen || isExcelScoreDropdownOpen || isExcelTagDropdownOpen || isExcelLeadDropdownOpen) && (
+                {(isExcelTariffDropdownOpen || isExcelLevelDropdownOpen || isExcelGroupDropdownOpen || isExcelCertDropdownOpen || isExcelScoreDropdownOpen || isExcelTagDropdownOpen || isExcelLeadDropdownOpen || isExcelFolderDropdownOpen) && (
                   <div
                     className="fixed inset-0 z-30 bg-transparent cursor-default"
                     onClick={() => {
@@ -2433,6 +2456,7 @@ export function StudentDashboardClient() {
                       setIsExcelScoreDropdownOpen(false)
                       setIsExcelTagDropdownOpen(false)
                       setIsExcelLeadDropdownOpen(false)
+                      setIsExcelFolderDropdownOpen(false)
                     }}
                   />
                 )}
@@ -2474,8 +2498,87 @@ export function StudentDashboardClient() {
                     </div>
                   </div>
 
+                  {/* Folder */}
+                  <div className="w-full md:w-48 relative">
+                    <label className="block text-[10px] font-bold uppercase tracking-wider text-[var(--foreground-muted)] mb-1">
+                      Folder
+                    </label>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setIsExcelFolderDropdownOpen(prev => !prev)
+                        setIsExcelTariffDropdownOpen(false)
+                        setIsExcelLevelDropdownOpen(false)
+                        setIsExcelGroupDropdownOpen(false)
+                        setIsExcelCertDropdownOpen(false)
+                        setIsExcelScoreDropdownOpen(false)
+                        setIsExcelTagDropdownOpen(false)
+                        setIsExcelLeadDropdownOpen(false)
+                      }}
+                      className="w-full pl-9 pr-7 py-2 border border-[var(--border)] rounded-[var(--radius-sm)] bg-[var(--surface-elevated)] text-[var(--foreground)] focus:outline-none hover:border-blue-400 transition-all text-xs font-semibold cursor-pointer flex items-center justify-between text-left h-[34px] relative"
+                    >
+                      <Folder className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[var(--foreground-muted)] pointer-events-none" />
+                      <span className="truncate select-none pr-1">
+                        {excelSelectedFolders.length === 0
+                          ? 'All Folders'
+                          : excelSelectedFolders.length === (foldersOptions.length + 1)
+                            ? 'All Folders'
+                            : excelSelectedFolders.map(fid => fid === 'NO_FOLDER' ? 'No Folder' : (foldersOptions.find(f => f.id === fid)?.name || fid)).join(', ')}
+                      </span>
+                      <ChevronDown className="absolute right-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-[var(--foreground-subtle)] pointer-events-none" />
+                    </button>
+
+                    {isExcelFolderDropdownOpen && (
+                      <div className="absolute left-0 mt-1 w-56 rounded-[var(--radius-md)] border border-[var(--border)] bg-[var(--surface-elevated)]/95 backdrop-blur-md shadow-lg py-1.5 z-40 max-h-72 overflow-y-auto">
+                        <div
+                          className="px-3 py-1.5 flex items-center gap-2 cursor-pointer hover:bg-[var(--border-subtle)] transition-colors select-none text-[11px] font-bold text-[var(--foreground)]"
+                          onClick={() => setExcelSelectedFolders(prev => prev.length === (foldersOptions.length + 1) ? [] : ['NO_FOLDER', ...foldersOptions.map(f => f.id)])}
+                        >
+                          <input
+                            type="checkbox"
+                            checked={excelSelectedFolders.length === (foldersOptions.length + 1)}
+                            readOnly
+                            className="h-3.5 w-3.5 rounded border-[var(--border)] text-blue-600 focus:ring-blue-500 cursor-pointer"
+                          />
+                          <span>Select All</span>
+                        </div>
+                        <div className="h-px bg-[var(--border)] my-1" />
+                        <div
+                          onClick={() => setExcelSelectedFolders(prev => prev.includes('NO_FOLDER') ? prev.filter(f => f !== 'NO_FOLDER') : [...prev, 'NO_FOLDER'])}
+                          className="px-3 py-1.5 flex items-center gap-2 cursor-pointer hover:bg-[var(--border-subtle)] transition-colors select-none text-[11px] font-medium text-[var(--foreground)]"
+                        >
+                          <input
+                            type="checkbox"
+                            checked={excelSelectedFolders.includes('NO_FOLDER')}
+                            readOnly
+                            className="h-3.5 w-3.5 rounded border-[var(--border)] text-blue-600 focus:ring-blue-500 cursor-pointer"
+                          />
+                          <span>No Folder</span>
+                        </div>
+                        {foldersOptions.map(f => {
+                          const isChecked = excelSelectedFolders.includes(f.id)
+                          return (
+                            <div
+                              key={f.id}
+                              onClick={() => setExcelSelectedFolders(prev => prev.includes(f.id) ? prev.filter(fid => fid !== f.id) : [...prev, f.id])}
+                              className="px-3 py-1.5 flex items-center gap-2 cursor-pointer hover:bg-[var(--border-subtle)] transition-colors select-none text-[11px] font-medium text-[var(--foreground)]"
+                            >
+                              <input
+                                type="checkbox"
+                                checked={isChecked}
+                                readOnly
+                                className="h-3.5 w-3.5 rounded border-[var(--border)] text-blue-600 focus:ring-blue-500 cursor-pointer"
+                              />
+                              <span>{f.name}</span>
+                            </div>
+                          )
+                        })}
+                      </div>
+                    )}
+                  </div>
+
                   {/* Tariff */}
-                  <div className="w-full md:w-56 relative">
+                  <div className="w-full md:w-48 relative">
                     <label className="block text-[10px] font-bold uppercase tracking-wider text-[var(--foreground-muted)] mb-1">
                       Tariff
                     </label>
@@ -2483,6 +2586,7 @@ export function StudentDashboardClient() {
                       type="button"
                       onClick={() => {
                         setIsExcelTariffDropdownOpen(prev => !prev)
+                        setIsExcelFolderDropdownOpen(false)
                         setIsExcelLevelDropdownOpen(false)
                         setIsExcelGroupDropdownOpen(false)
                         setIsExcelCertDropdownOpen(false)
