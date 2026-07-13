@@ -1,7 +1,7 @@
 'use client'
 
 import { usePathname } from 'next/navigation'
-import { Bell, Search, Plus, FileText, RefreshCw, Trash2, Loader2, Filter, FileSpreadsheet } from 'lucide-react'
+import { Search, Plus, FileText, RefreshCw, Trash2, Loader2, Filter, FileSpreadsheet } from 'lucide-react'
 import { useUser } from '@/contexts/UserContext'
 import { cn } from '@/lib/utils'
 import { useStudentDashboard } from '@/contexts/StudentDashboardContext'
@@ -196,14 +196,6 @@ export function Header() {
             <span className="hidden sm:inline">Fill By Document</span>
           </button>
           <button
-            onClick={detailPageActions.onReload}
-            className="inline-flex items-center gap-1.5 text-[var(--foreground-muted)] hover:text-[var(--foreground)] px-3 py-1.5 bg-[var(--surface-elevated)] hover:bg-[var(--border-subtle)] border border-[var(--border)] rounded-[var(--radius-md)] text-[13.5px] font-semibold transition-all shadow-[var(--shadow-sm)] cursor-pointer"
-            title="Reload student data"
-          >
-            <RefreshCw className="h-3.5 w-3.5 text-[var(--accent)]" />
-            <span className="hidden sm:inline">Reload</span>
-          </button>
-          <button
             disabled={detailPageActions.isDeleting}
             onClick={detailPageActions.onDelete}
             className={cn(
@@ -261,48 +253,7 @@ export function Header() {
         </button>
       )}
 
-      {/* Notifications */}
-      <button
-        id="header-notifications-btn"
-        className={cn(
-          'relative flex h-9 w-9 items-center justify-center rounded-[var(--radius-md)]',
-          'text-[var(--foreground-muted)] hover:text-[var(--foreground)]',
-          'hover:bg-[var(--background)] border border-[var(--border)]',
-          'transition-all duration-150'
-        )}
-        aria-label="Notifications"
-      >
-        <Bell className="h-4 w-4" />
-        {/* Notification dot */}
-        <span className="absolute right-1.5 top-1.5 h-2 w-2 rounded-full bg-[var(--accent)] ring-2 ring-[var(--surface)]" />
-      </button>
 
-      {/* Role badge */}
-      {profile?.role && (
-        <div
-          className={cn(
-            'hidden sm:flex items-center gap-1.5 rounded-full px-3 py-1',
-            'border text-xs font-semibold',
-            profile.role === 'Head Manager'
-              ? 'border-amber-200 bg-amber-50 text-amber-700 dark:border-amber-800/40 dark:bg-amber-950/40 dark:text-amber-400'
-              : profile.role === 'Manager'
-                ? 'border-blue-200 bg-blue-50 text-blue-700 dark:border-blue-800/40 dark:bg-blue-950/40 dark:text-blue-400'
-                : 'border-purple-200 bg-purple-50 text-purple-700 dark:border-purple-800/40 dark:bg-purple-950/40 dark:text-purple-400'
-          )}
-        >
-          <span
-            className={cn(
-              'h-1.5 w-1.5 rounded-full',
-              profile.role === 'Head Manager'
-                ? 'bg-amber-500'
-                : profile.role === 'Manager'
-                  ? 'bg-blue-500'
-                  : 'bg-purple-500'
-            )}
-          />
-          {profile.role}
-        </div>
-      )}
     </header>
   )
 }

@@ -1832,7 +1832,7 @@ export function StudentDashboardClient() {
                       </td>
 
                       {/* Phone Numbers Column */}
-                      <td className="px-6 py-2.5 font-mono text-xs text-[var(--foreground-muted)] whitespace-nowrap">
+                      <td className="px-6 py-2.5 font-mono text-xs text-slate-700 dark:text-slate-300 whitespace-nowrap">
                         <div className="flex items-center justify-start gap-3">
                           <div>
                             <div>{student.phone1 || '—'}</div>

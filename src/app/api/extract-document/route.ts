@@ -48,6 +48,7 @@ ${extraInstructions}
   - "SEX" (value must be exactly "M" or "F")
 - If the document is a graduation/educational document (e.g. Shahodatnoma, Diploma, Certificate, Transcript):
   - Generate ONLY the primary educational fields available on the document, such as: "GRADUATION_DATE", "YEAR_OF_ISSUE", "NAME_OF_SCHOOL_OR_EDUCATIONAL_INSTITUTION", "MAJOR_OR_SPECIALTY", "DEPARTMENT".
+  - If the document is a secondary school certificate or diploma (e.g. 'Shahodatnoma' or 'Certificate of General Secondary Education'), the 'MAJOR_OR_SPECIALTY' field MUST be set to exactly 'GENERAL SECONDARY EDUCATION'.
   - The "NAME_OF_SCHOOL_OR_EDUCATIONAL_INSTITUTION" field MUST be translated into English and formatted in all UPPERCASE (e.g. "SPECIALIZED SCHOOL NO. 72 OF MARHAMAT DISTRICT" or "TASHKENT STATE UNIVERSITY").
 - If the document contains contact information (e.g. a screenshot of a chat, message, or Telegram conversation showing an email, phone numbers, or address):
   - Set document_type to "CONTACT INFO".

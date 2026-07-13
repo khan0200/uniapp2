@@ -39,7 +39,12 @@ const FIELD_MAPPING: Record<string, keyof Student> = {
   "NAME OF SCHOOL OR EDUCATIONAL INSTITUTION": "educational_background",
   "NAME OF SCHOOL": "educational_background",
   "EDUCATIONAL INSTITUTION": "educational_background",
-  "SCHOOL NAME": "educational_background"
+  "SCHOOL NAME": "educational_background",
+  "MAJOR OR SPECIALTY": "major",
+  "MAJOR OR SPECIALITY": "major",
+  "MAJOR": "major",
+  "SPECIALTY": "major",
+  "SPECIALITY": "major"
 }
 
 const KNOWN_GEMINI_MODELS = [
@@ -374,6 +379,22 @@ export function ExtractClient({ studentId }: ExtractClientProps) {
       }
 
       // Success! Set data
+      // Check if it is a secondary school certificate (Shahodatnoma)
+      const typeStr = String(data.document_type || '').toUpperCase()
+      const ocrStr = String(data.ocr_text || '').toUpperCase()
+      const isShahodatnoma = typeStr.includes('SHAHODATNOMA') || 
+                             typeStr.includes('SECONDARY') ||
+                             ocrStr.includes('SHAHODATNOMA') || 
+                             ocrStr.includes('UMUMIY O\'RTA') || 
+                             ocrStr.includes('O\'RTA TA\'LIM') ||
+                             ocrStr.includes('GENERAL SECONDARY') ||
+                             ocrStr.includes('SECONDARY GENERAL')
+
+      if (isShahodatnoma) {
+        if (!data.fields) data.fields = {}
+        data.fields.MAJOR_OR_SPECIALTY = 'GENERAL SECONDARY EDUCATION'
+      }
+
       setExtractedData(data)
       showToast('Document analyzed successfully!', 'success')
 
@@ -439,7 +460,24 @@ export function ExtractClient({ studentId }: ExtractClientProps) {
   // Database Save Field logic
   const handleSaveFieldToProfile = async (fieldLabel: string, value: string) => {
     const cleanLabel = fieldLabel.replace(/_/g, ' ').toUpperCase().trim()
-    const dbField = FIELD_MAPPING[cleanLabel]
+    let dbField: keyof Student | undefined = FIELD_MAPPING[cleanLabel]
+
+    // Simple parent passport logic
+    const isPassport = extractedData?.document_type?.toUpperCase() === 'PASSPORT' || extractedData?.document_type?.toUpperCase() === 'ID CARD'
+    const studentBirthday = selectedStudent?.birthday
+    const extractedBirthday = extractedData?.fields?.DATE_OF_BIRTH
+
+    const isParentPassport = isPassport && !!studentBirthday && !!extractedBirthday && (extractedBirthday < studentBirthday)
+
+    if (isParentPassport) {
+      if (cleanLabel === 'FULL NAME') {
+        const extractedSex = extractedData?.fields?.SEX || ''
+        const isMale = extractedSex.toUpperCase().startsWith('M')
+        dbField = isMale ? 'father_name' : 'mother_name'
+      } else {
+        dbField = undefined
+      }
+    }
 
     if (!dbField) {
       showToast(`No database mapping found for field: ${fieldLabel}`, 'danger')
@@ -480,8 +518,30 @@ export function ExtractClient({ studentId }: ExtractClientProps) {
         }
       }
 
+      if ((dbField === 'phone1' || dbField === 'phone2') && finalValue) {
+        const cleanDigits = finalValue.replace(/\D/g, '')
+        let digits = cleanDigits
+        if (digits.startsWith('998') && digits.length === 12) {
+          digits = digits.slice(3)
+        } else if (digits.length > 9) {
+          digits = digits.slice(-9)
+        }
+        
+        const first = digits.slice(0, 2)
+        const second = digits.slice(2, 5)
+        const third = digits.slice(5, 7)
+        const fourth = digits.slice(7, 9)
+        finalValue = [first, second, third, fourth].filter(Boolean).join('-')
+
+        const phonePattern = /^[0-9]{2}-[0-9]{3}-[0-9]{2}-[0-9]{2}$/
+        if (!phonePattern.test(finalValue)) {
+          alert('Phone number must be exactly 9 digits (local format, e.g. 99-992-92-46) or follow the format XX-XXX-XX-XX.')
+          return
+        }
+      }
+
       // Convert other standard strings to uppercase if needed
-      if (['full_name', 'address', 'educational_background'].includes(dbField as string)) {
+      if (['full_name', 'address', 'educational_background', 'major', 'father_name', 'mother_name'].includes(dbField as string)) {
         finalValue = finalValue.toUpperCase()
       }
 
@@ -734,6 +794,31 @@ export function ExtractClient({ studentId }: ExtractClientProps) {
               )}
             </div>
 
+            {/* API Key Input */}
+            <div className="flex flex-col gap-2 md:col-span-2">
+              <label className="text-[11px] uppercase font-bold tracking-wider text-[var(--foreground-muted)]">
+                {tempSettings.provider === 'openai' ? 'OpenAI API Key' : 'Gemini API Key'}
+              </label>
+              <input
+                type="password"
+                value={tempSettings.provider === 'openai' ? tempSettings.openaiApiKey : tempSettings.apiKey}
+                onChange={(e) => {
+                  const val = e.target.value
+                  setTempSettings(prev => 
+                    tempSettings.provider === 'openai' 
+                      ? { ...prev, openaiApiKey: val }
+                      : { ...prev, apiKey: val }
+                  )
+                }}
+                placeholder={
+                  tempSettings.provider === 'openai'
+                    ? (serverKeys.openai ? 'Using server key (env). Enter key to override...' : 'Enter your OpenAI API key (sk-proj-...)...')
+                    : (serverKeys.gemini ? 'Using server key (env). Enter key to override...' : 'Enter your Gemini API key (AIzaSy...)...')
+                }
+                className="bg-[var(--surface-elevated)] border border-[var(--border)] text-xs text-[var(--foreground)] p-2.5 rounded-xl focus:outline-none focus:border-[var(--accent)] w-full shadow-sm h-10"
+              />
+            </div>
+
 
             {/* Config Checkboxes - Styled as native iOS switches */}
             <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3.5 md:col-span-2 mt-2">
@@ -969,7 +1054,25 @@ export function ExtractClient({ studentId }: ExtractClientProps) {
               <div className="flex flex-col gap-3 transition-all duration-300 animate-in fade-in">
                 {extractedFieldsList.map((field, idx) => {
                   const cleanKey = field.key.replace(/_/g, ' ').toUpperCase().trim()
-                  const dbField = FIELD_MAPPING[cleanKey]
+                  let dbField: keyof Student | undefined = FIELD_MAPPING[cleanKey]
+
+                  // Simple parent passport logic
+                  const isPassport = extractedData?.document_type?.toUpperCase() === 'PASSPORT' || extractedData?.document_type?.toUpperCase() === 'ID CARD'
+                  const studentBirthday = selectedStudent?.birthday
+                  const extractedBirthday = extractedData?.fields?.DATE_OF_BIRTH
+                  
+                  const isParentPassport = isPassport && !!studentBirthday && !!extractedBirthday && (extractedBirthday < studentBirthday)
+
+                  if (isParentPassport) {
+                    if (cleanKey === 'FULL NAME') {
+                      const extractedSex = extractedData?.fields?.SEX || ''
+                      const isMale = extractedSex.toUpperCase().startsWith('M')
+                      dbField = isMale ? 'father_name' : 'mother_name'
+                    } else {
+                      dbField = undefined
+                    }
+                  }
+
                   const isSaved = savedFields[field.key]
                   
                   // Pre-check if current record already matches the extracted value
@@ -990,6 +1093,11 @@ export function ExtractClient({ studentId }: ExtractClientProps) {
                     isAlreadyMatching = formattedDbVal === formattedNewVal && formattedNewVal !== ''
                   }
 
+                  let displayKey = field.key.replace(/_/g, ' ')
+                  if (isParentPassport && cleanKey === 'FULL NAME') {
+                    displayKey = dbField === 'father_name' ? 'FATHER FULLNAME' : 'MOTHER FULLNAME'
+                  }
+
                   return (
                     <div 
                       key={idx}
@@ -1001,7 +1109,7 @@ export function ExtractClient({ studentId }: ExtractClientProps) {
                     >
                       <div className="min-w-0 flex-1">
                         <span className="text-[10px] font-extrabold text-[var(--accent)] uppercase tracking-wider block">
-                          {field.key.replace(/_/g, ' ')}
+                          {displayKey}
                         </span>
                         <span className="text-xs font-bold text-[var(--foreground)] mt-1 block truncate max-w-xs" title={field.value}>
                           {field.value}
