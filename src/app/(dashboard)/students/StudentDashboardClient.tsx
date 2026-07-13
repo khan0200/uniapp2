@@ -1115,11 +1115,38 @@ export function StudentDashboardClient() {
     }
 
     try {
+      // Auto-translate name to Korean on creation
+      let translatedKoreanName: string | null = null
+      try {
+        let aiSettings: any = null
+        try {
+          const stored = localStorage.getItem('ai_settings')
+          if (stored) aiSettings = JSON.parse(stored)
+        } catch {}
+        
+        const provider = aiSettings?.provider || 'gemini'
+        const apiKey = (provider === 'openai' ? aiSettings?.openaiApiKey : aiSettings?.apiKey) || ''
+        const model = provider === 'openai' ? aiSettings?.openaiModel : aiSettings?.model
+
+        const response = await fetch('/api/translate-name', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ names: [fullName.trim()], provider, apiKey, model }),
+        })
+        const data = await response.json()
+        if (response.ok && data.results && data.results[0]) {
+          translatedKoreanName = String(data.results[0]).toUpperCase()
+        }
+      } catch (translateErr) {
+        console.warn('Auto name translation failed on creation:', translateErr)
+      }
+
       const { error: insertError } = await supabase
         .from('students')
         .insert({
           id: studentId.trim().toUpperCase(),
           full_name: fullName.trim().toUpperCase(),
+          korean_name: translatedKoreanName,
           office: office,
           // Explicitly set default fields to avoid RLS/constraint issue
           university_1_status: 'Chosen',
