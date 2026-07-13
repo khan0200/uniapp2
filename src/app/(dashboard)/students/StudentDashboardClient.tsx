@@ -1124,9 +1124,9 @@ export function StudentDashboardClient() {
           if (stored) aiSettings = JSON.parse(stored)
         } catch {}
         
-        const provider = aiSettings?.provider || 'gemini'
+        const provider = aiSettings?.provider || 'openai'
         const apiKey = (provider === 'openai' ? aiSettings?.openaiApiKey : aiSettings?.apiKey) || ''
-        const model = provider === 'openai' ? aiSettings?.openaiModel : aiSettings?.model
+        const model = provider === 'openai' ? (aiSettings?.openaiModel || 'gpt-4o') : (aiSettings?.model || 'gemini-2.5-flash')
 
         const response = await fetch('/api/translate-name', {
           method: 'POST',

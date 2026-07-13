@@ -8,7 +8,7 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: 'Missing names array' }, { status: 400 })
     }
 
-    const finalProvider = provider || 'gemini'
+    const finalProvider = provider || 'openai'
     const isGemini = finalProvider === 'gemini'
 
     const finalApiKey = apiKey || (isGemini ? process.env.GEMINI_API_KEY : process.env.OPENAI_API_KEY)
@@ -18,7 +18,7 @@ export async function POST(req: Request) {
       }, { status: 400 })
     }
 
-    const finalModel = model || (isGemini ? 'gemini-2.5-flash' : 'gpt-4o-mini')
+    const finalModel = model || (isGemini ? 'gemini-2.5-flash' : 'gpt-4o')
 
     const promptText = `You transliterate foreign personal names into Korean Hangul, the way Korean university and visa application forms expect (a phonetic approximation of how the name sounds, not a translation of its meaning).
 
