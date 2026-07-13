@@ -171,6 +171,15 @@ export function StudentDetailClient({ studentId }: StudentDetailClientProps) {
     setTimeout(() => setCopiedField(null), 1200)
   }
 
+  const splitTranslatedFullName = (translatedFull: string) => {
+    const parts = translatedFull.split(' ').filter(Boolean)
+    return {
+      full: translatedFull,
+      family: parts[0] || '',
+      given: parts.slice(1).join(' '),
+    }
+  }
+
   // Fetch an AI-powered Korean transliteration of the Full Name only.
   // Family/Given Name are derived by splitting the translated full name,
   // mirroring how the English versions split selectedStudent.full_name.
@@ -178,15 +187,6 @@ export function StudentDetailClient({ studentId }: StudentDetailClientProps) {
   const handleShowKorean = async () => {
     if (!selectedStudent) return
     setNameLanguage('KR')
-
-    const splitTranslatedFullName = (translatedFull: string) => {
-      const parts = translatedFull.split(' ').filter(Boolean)
-      return {
-        full: translatedFull,
-        family: parts[0] || '',
-        given: parts.slice(1).join(' '),
-      }
-    }
 
     if (selectedStudent.korean_name) {
       setKoreanNames(splitTranslatedFullName(selectedStudent.korean_name))
@@ -237,6 +237,34 @@ export function StudentDetailClient({ studentId }: StudentDetailClientProps) {
       setTranslateError(err.message || 'AI translation failed. Please check your API key and try again.')
     } finally {
       setIsTranslatingNames(false)
+    }
+  }
+
+  const getKoreanTranslation = async (name: string): Promise<string | null> => {
+    let aiSettings: any = null
+    try {
+      const stored = localStorage.getItem('ai_settings')
+      if (stored) aiSettings = JSON.parse(stored)
+    } catch {
+      aiSettings = null
+    }
+
+    const provider = aiSettings?.provider || 'gemini'
+    const apiKey = (provider === 'openai' ? aiSettings?.openaiApiKey : aiSettings?.apiKey) || ''
+    const model = provider === 'openai' ? (aiSettings?.openaiModel || 'gpt-4o') : (aiSettings?.model || 'gemini-3.5-flash')
+
+    try {
+      const response = await fetch('/api/translate-name', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ names: [name], provider, apiKey, model }),
+      })
+      const data = await response.json()
+      if (!response.ok) throw new Error(data.error || 'Translation failed')
+      return data.results?.[0] || null
+    } catch (err) {
+      console.warn('Auto name translation on edit failed:', err)
+      return null
     }
   }
 
@@ -318,7 +346,9 @@ export function StudentDetailClient({ studentId }: StudentDetailClientProps) {
           return
         }
 
-        const updateData: any = { full_name: newFullName, korean_name: null }
+        // Auto re-translate name on family_name/given_name edit
+        const translated = await getKoreanTranslation(newFullName)
+        const updateData: any = { full_name: newFullName, korean_name: translated ? translated.toUpperCase() : null }
         const nextStudent = { ...selectedStudent, ...updateData }
         updateData.pick_needed = syncMissingDocuments(nextStudent)
         const { error: updateError } = await (supabase
@@ -330,7 +360,7 @@ export function StudentDetailClient({ studentId }: StudentDetailClientProps) {
 
         const updatedStudent = { ...selectedStudent, ...updateData }
         setSelectedStudent(updatedStudent)
-        setKoreanNames(null)
+        setKoreanNames(updateData.korean_name ? splitTranslatedFullName(updateData.korean_name) : null)
         setEditingField(null)
         return
       }
@@ -406,7 +436,8 @@ export function StudentDetailClient({ studentId }: StudentDetailClientProps) {
       const updateData: any = { [field]: valToSave }
 
       if (field === 'full_name') {
-        updateData.korean_name = null
+        const translated = await getKoreanTranslation(valToSave || '')
+        updateData.korean_name = translated ? translated.toUpperCase() : null
       }
 
       // Recalculate balance when tariff or language certificate changes
@@ -441,7 +472,7 @@ export function StudentDetailClient({ studentId }: StudentDetailClientProps) {
 
       const updatedStudent = { ...selectedStudent, ...updateData }
       if (field === 'full_name') {
-        setKoreanNames(null)
+        setKoreanNames(updateData.korean_name ? splitTranslatedFullName(updateData.korean_name) : null)
       } else if (field === 'korean_name') {
         if (valToSave) {
           const parts = valToSave.split(' ').filter(Boolean)
