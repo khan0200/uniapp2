@@ -178,21 +178,8 @@ export function StudentDashboardClient() {
     return score
   }
 
-  // Clear score filter only when the active certificate genuinely changes to a
-  // different value (not on initial mount). This preserves the selectedScores
-  // state when navigating back to the list page with the same cert selected.
-  const prevActiveCertRef = useRef<string | null>(undefined as any)
-  useEffect(() => {
-    const prev = prevActiveCertRef.current
-    prevActiveCertRef.current = activeCertForScore
-    // Skip the very first render (undefined → any)
-    if (prev === undefined) return
-    // Only reset when the cert actually switches to a different cert (or away)
-    if (prev !== activeCertForScore) {
-      setSelectedScores([])
-    }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [activeCertForScore])
+  // Score filter clearing is managed directly inside the FilterPanel modal (during draft updates)
+  // and when clearing the certificate chip in the main view.
 
   // Excel Export Modal States
 
@@ -1516,7 +1503,10 @@ export function StudentDashboardClient() {
             <span>Cert: {c}</span>
             <button 
               type="button" 
-              onClick={() => setSelectedCerts(prev => prev.filter(x => x !== c))}
+              onClick={() => {
+                setSelectedCerts(prev => prev.filter(x => x !== c))
+                setSelectedScores([])
+              }}
               className="text-[var(--foreground-muted)] hover:text-red-500 rounded-full hover:bg-red-500/10 h-4 w-4 flex items-center justify-center cursor-pointer transition-colors"
             >
               <X className="h-3 w-3" />

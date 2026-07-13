@@ -361,8 +361,27 @@ export function FilterPanel() {
   }, [students, searchQuery, draftTariffs, draftLevels, draftGroups, draftCerts, draftScores, draftTags, draftLeads])
 
   // Category selection helpers
-  const toggleDraftSelection = (list: string[], setList: React.Dispatch<React.SetStateAction<string[]>>, val: string) => {
-    setList(prev => prev.includes(val) ? prev.filter(x => x !== val) : [...prev, val])
+  const handleToggleDraftOption = (catId: string, val: string) => {
+    if (catId === 'cert') {
+      setDraftCerts(prev => {
+        const next = prev.includes(val) ? prev.filter(x => x !== val) : [...prev, val]
+        const prevShowScoreFilter = prev.length === 1 && (prev[0] === 'TOPIK' || prev[0] === 'IELTS')
+        const prevActiveCert = prevShowScoreFilter ? prev[0] : null
+        
+        const nextShowScoreFilter = next.length === 1 && (next[0] === 'TOPIK' || next[0] === 'IELTS')
+        const nextActiveCert = nextShowScoreFilter ? next[0] : null
+        
+        if (prevActiveCert !== nextActiveCert) {
+          setDraftScores([])
+        }
+        return next
+      })
+    } else {
+      const cat = categories.find(c => c.id === catId)
+      if (cat) {
+        cat.setDrafts(prev => prev.includes(val) ? prev.filter(x => x !== val) : [...prev, val])
+      }
+    }
   }
 
   // Handle Apply / Show
@@ -533,9 +552,8 @@ export function FilterPanel() {
                           <button
                             type="button"
                             onClick={() =>
-                              toggleDraftSelection(
-                                currentCategory.drafts,
-                                currentCategory.setDrafts,
+                              handleToggleDraftOption(
+                                currentCategory.id,
                                 val
                               )
                             }
@@ -566,9 +584,8 @@ export function FilterPanel() {
                               type="checkbox"
                               checked={isChecked}
                               onChange={() =>
-                                toggleDraftSelection(
-                                  currentCategory.drafts,
-                                  currentCategory.setDrafts,
+                                handleToggleDraftOption(
+                                  currentCategory.id,
                                   opt
                                 )
                               }
