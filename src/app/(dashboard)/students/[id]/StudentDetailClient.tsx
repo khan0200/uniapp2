@@ -346,9 +346,8 @@ export function StudentDetailClient({ studentId }: StudentDetailClientProps) {
           return
         }
 
-        // Auto re-translate name on family_name/given_name edit
-        const translated = await getKoreanTranslation(newFullName)
-        const updateData: any = { full_name: newFullName, korean_name: translated ? translated.toUpperCase() : null }
+        // Save immediately, clearing old Korean name to prevent mismatch
+        const updateData: any = { full_name: newFullName, korean_name: null }
         const nextStudent = { ...selectedStudent, ...updateData }
         updateData.pick_needed = syncMissingDocuments(nextStudent)
         const { error: updateError } = await (supabase
@@ -360,8 +359,30 @@ export function StudentDetailClient({ studentId }: StudentDetailClientProps) {
 
         const updatedStudent = { ...selectedStudent, ...updateData }
         setSelectedStudent(updatedStudent)
-        setKoreanNames(updateData.korean_name ? splitTranslatedFullName(updateData.korean_name) : null)
+        setKoreanNames(null)
         setEditingField(null)
+
+        // Translate in the background and update database when done
+        const targetStudentId = selectedStudent.id
+        getKoreanTranslation(newFullName).then(async (translated) => {
+          if (translated) {
+            const finalTranslated = translated.toUpperCase()
+            const { error: bgError } = await (supabase
+              .from('students') as any)
+              .update({ korean_name: finalTranslated })
+              .eq('id', targetStudentId)
+            if (!bgError) {
+              setSelectedStudent(prev => {
+                if (prev && prev.id === targetStudentId) {
+                  return { ...prev, korean_name: finalTranslated }
+                }
+                return prev
+              })
+              setKoreanNames(splitTranslatedFullName(finalTranslated))
+            }
+          }
+        }).catch(err => console.warn('Background translation error:', err))
+
         return
       }
 
@@ -436,8 +457,7 @@ export function StudentDetailClient({ studentId }: StudentDetailClientProps) {
       const updateData: any = { [field]: valToSave }
 
       if (field === 'full_name') {
-        const translated = await getKoreanTranslation(valToSave || '')
-        updateData.korean_name = translated ? translated.toUpperCase() : null
+        updateData.korean_name = null
       }
 
       // Recalculate balance when tariff or language certificate changes
@@ -472,7 +492,28 @@ export function StudentDetailClient({ studentId }: StudentDetailClientProps) {
 
       const updatedStudent = { ...selectedStudent, ...updateData }
       if (field === 'full_name') {
-        setKoreanNames(updateData.korean_name ? splitTranslatedFullName(updateData.korean_name) : null)
+        setKoreanNames(null)
+
+        // Translate in the background and update database when done
+        const targetStudentId = selectedStudent.id
+        getKoreanTranslation(valToSave || '').then(async (translated) => {
+          if (translated) {
+            const finalTranslated = translated.toUpperCase()
+            const { error: bgError } = await (supabase
+              .from('students') as any)
+              .update({ korean_name: finalTranslated })
+              .eq('id', targetStudentId)
+            if (!bgError) {
+              setSelectedStudent(prev => {
+                if (prev && prev.id === targetStudentId) {
+                  return { ...prev, korean_name: finalTranslated }
+                }
+                return prev
+              })
+              setKoreanNames(splitTranslatedFullName(finalTranslated))
+            }
+          }
+        }).catch(err => console.warn('Background translation error:', err))
       } else if (field === 'korean_name') {
         if (valToSave) {
           const parts = valToSave.split(' ').filter(Boolean)
