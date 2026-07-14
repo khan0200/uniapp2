@@ -125,12 +125,33 @@ export function StudentDetailClient({ studentId }: StudentDetailClientProps) {
 
     try {
       const [studentRes, paymentsRes] = await Promise.all([
-        supabase.from('students').select('*, creator:created_by(id, full_name, email)').eq('id', studentId).single(),
+        supabase.from('students').select('*').eq('id', studentId).single(),
         supabase.from('payments').select('*').eq('student_id', studentId).order('created_at', { ascending: false })
       ])
 
       if (studentRes.error) throw studentRes.error
       const fetchedStudent = studentRes.data as Student
+
+      // Fetch creator details separately to avoid missing relation constraint error
+      if (fetchedStudent.created_by) {
+        try {
+          const { data: creatorData } = await supabase
+            .from('profiles')
+            .select('id, full_name, email')
+            .eq('id', fetchedStudent.created_by)
+            .single()
+          if (creatorData) {
+            const creator = creatorData as any
+            fetchedStudent.creator = {
+              id: creator.id,
+              full_name: creator.full_name,
+              email: creator.email
+            }
+          }
+        } catch (creatorErr) {
+          console.error('Error fetching creator details:', creatorErr)
+        }
+      }
 
       // Auto-validate missing documents on load. Apply the corrected value
       // locally right away and persist it in the background (fire-and-forget)
