@@ -1165,6 +1165,8 @@ export function StudentDashboardClient() {
           full_name: fullName.trim().toUpperCase(),
           korean_name: translatedKoreanName,
           office: office,
+          tenant_id: loggedInProfile?.tenant_id,
+          created_by: loggedInProfile?.id,
           // Explicitly set default fields to avoid RLS/constraint issue
           university_1_status: 'Chosen',
           balance: 0,

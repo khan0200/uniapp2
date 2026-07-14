@@ -517,6 +517,9 @@ export default function SettingsPage() {
       }
 
       if (modalMode === 'add') {
+        if (modalType !== 'university' && loggedInProfile?.tenant_id) {
+          payload.tenant_id = loggedInProfile.tenant_id
+        }
         const { error: insertError } = await (supabase
           .from(table) as any)
           .insert(payload)
