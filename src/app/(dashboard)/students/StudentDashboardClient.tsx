@@ -13,6 +13,7 @@ import { cn } from '@/lib/utils'
 import { type Student, type StudentLevel } from '@/types/database'
 import { PageShell } from '@/components/ui/PageShell'
 import { useStudentDashboard } from '@/contexts/StudentDashboardContext'
+import { useUser } from '@/contexts/UserContext'
 import { sendTelegramNotification } from '@/lib/telegram'
 import { syncMissingDocuments } from '@/lib/validation'
 import { useCssTransition } from '@/hooks/useCssTransition'
@@ -161,6 +162,8 @@ export function StudentDashboardClient() {
     setActiveFolder,
     officeOptions
   } = useStudentDashboard()
+
+  const { profile: loggedInProfile } = useUser()
 
   const excelModalTransition = useCssTransition(isExcelModalOpen, 220)
 
@@ -903,19 +906,32 @@ export function StudentDashboardClient() {
   }, [loading, students, getScrollPosition])
 
   useEffect(() => {
-    const saved = localStorage.getItem('customTagsRegistry')
+    if (!loggedInProfile) return
+    const key = `customTagsRegistry_${loggedInProfile.tenant_id || 'unibridge'}`
+    const saved = localStorage.getItem(key)
     if (saved) {
       try {
         setCustomTagsRegistry(JSON.parse(saved))
       } catch (e) {
         console.error('Failed to parse customTagsRegistry:', e)
       }
+    } else {
+      const oldSaved = localStorage.getItem('customTagsRegistry')
+      if (oldSaved && (loggedInProfile.tenant_id === 'unibridge' || !loggedInProfile.tenant_id)) {
+        try {
+          setCustomTagsRegistry(JSON.parse(oldSaved))
+          localStorage.setItem(key, oldSaved)
+        } catch (e) {
+          console.error('Failed to migrate customTagsRegistry:', e)
+        }
+      } else {
+        setCustomTagsRegistry([])
+      }
     }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [])
+  }, [loggedInProfile])
 
   useEffect(() => {
-    if (students.length === 0) return
+    if (students.length === 0 || !loggedInProfile) return
     const allTags = Array.from(new Set(students.flatMap(s => s.task_tags || []).filter(Boolean))) as string[]
     const predefined = ['Call', 'Apply', 'Documents', 'Payment']
     const customTags = allTags.filter(t => !predefined.includes(t))
@@ -930,13 +946,14 @@ export function StudentDashboardClient() {
         }
       })
       if (changed) {
-        localStorage.setItem('customTagsRegistry', JSON.stringify(updated))
+        const key = `customTagsRegistry_${loggedInProfile.tenant_id || 'unibridge'}`
+        localStorage.setItem(key, JSON.stringify(updated))
         return updated
       }
       return prev
     })
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [students])
+  }, [students, loggedInProfile])
 
   // Reset pagination when search query or filter values change
   useEffect(() => {

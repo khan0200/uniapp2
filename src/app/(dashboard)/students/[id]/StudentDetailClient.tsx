@@ -10,8 +10,9 @@ import {
   Mail, Calendar, MapPin, User, CheckSquare, GraduationCap, Hourglass, X
 } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
-import { type Student, type StudentLevel, type StudentTariff } from '@/types/database'
+import { type Student, type StudentLevel, type StudentTariff, type Profile } from '@/types/database'
 import { PageShell } from '@/components/ui/PageShell'
+import { useUser } from '@/contexts/UserContext'
 import { cn } from '@/lib/utils'
 import { useStudentDashboard } from '@/contexts/StudentDashboardContext'
 import { syncMissingDocuments } from '@/lib/validation'
@@ -59,6 +60,30 @@ export function StudentDetailClient({ studentId }: StudentDetailClientProps) {
   // universities/coordinators are specific to this page and fetched below.
   const [universityOptions, setUniversityOptions] = useState<string[]>([])
   const [coordinatorOptions, setCoordinatorOptions] = useState<string[]>([])
+  const [agentOptions, setAgentOptions] = useState<{ id: string; name: string }[]>([])
+  const { profile: loggedInProfile } = useUser()
+
+  useEffect(() => {
+    const fetchAgents = async () => {
+      if (loggedInProfile && (loggedInProfile.role === 'Manager' || loggedInProfile.role === 'Head Manager')) {
+        try {
+          const { data, error } = await supabase
+            .from('profiles')
+            .select('id, full_name, email')
+            .order('full_name')
+          if (data) {
+            setAgentOptions((data as Profile[]).map(p => ({
+              id: p.id,
+              name: p.full_name || p.email
+            })))
+          }
+        } catch (err) {
+          console.error('Error fetching profiles for agent options:', err)
+        }
+      }
+    }
+    fetchAgents()
+  }, [loggedInProfile, supabase])
 
   // Fetch settings filter options not already covered by the shared context
   const fetchFilterOptions = async () => {
@@ -100,7 +125,7 @@ export function StudentDetailClient({ studentId }: StudentDetailClientProps) {
 
     try {
       const [studentRes, paymentsRes] = await Promise.all([
-        supabase.from('students').select('*').eq('id', studentId).single(),
+        supabase.from('students').select('*, creator:created_by(id, full_name, email)').eq('id', studentId).single(),
         supabase.from('payments').select('*').eq('student_id', studentId).order('created_at', { ascending: false })
       ])
 
@@ -327,6 +352,35 @@ export function StudentDetailClient({ studentId }: StudentDetailClientProps) {
     if (!selectedStudent) return
     try {
       let valToSave = editValue
+
+      if (field === 'created_by') {
+        const selectedAgentName = editValue === 'Not assigned' ? null : editValue
+        const selectedAgent = agentOptions.find(a => a.name === selectedAgentName)
+        const agentId = selectedAgent ? selectedAgent.id : null
+
+        const { error: updateError } = await (supabase
+          .from('students') as any)
+          .update({ created_by: agentId })
+          .eq('id', selectedStudent.id)
+
+        if (updateError) throw updateError
+
+        const updatedStudent = {
+          ...selectedStudent,
+          created_by: agentId,
+          creator: selectedAgent ? {
+            id: selectedAgent.id,
+            full_name: selectedAgent.name.includes('@') ? null : selectedAgent.name,
+            email: selectedAgent.name.includes('@') ? selectedAgent.name : ''
+          } : null
+        } as unknown as Student
+        setSelectedStudent(updatedStudent)
+        setEditingField(null)
+        
+        // Background refresh to sync any other server modifications
+        fetchStudent(updatedStudent)
+        return
+      }
 
       // Handle virtual / computed fields
       if (field === 'family_name' || field === 'given_name') {
@@ -1833,6 +1887,19 @@ export function StudentDetailClient({ studentId }: StudentDetailClientProps) {
                   badgeColor: 'bg-[#ff5630] text-white',
                   titleColor: 'text-[var(--accent)]'
                 })}
+
+                {renderDetailCard(
+                  'Responsible Agent',
+                  'created_by' as any,
+                  selectedStudent.creator ? (selectedStudent.creator.full_name || selectedStudent.creator.email) : 'Not assigned',
+                  {
+                    type: 'select',
+                    selectOptions: ['Not assigned', ...agentOptions.map(a => a.name)],
+                    editable: !!(loggedInProfile && (loggedInProfile.role === 'Manager' || loggedInProfile.role === 'Head Manager')),
+                    badgeColor: 'bg-[#36b37e] text-white',
+                    titleColor: 'text-[var(--accent)]'
+                  }
+                )}
               </div>
             </div>
           </div>

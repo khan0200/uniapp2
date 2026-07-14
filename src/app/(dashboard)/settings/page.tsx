@@ -9,6 +9,7 @@ import {
 } from 'lucide-react'
 import { CUSTOM_TAG_ICONS, type CustomTag } from '@/app/(dashboard)/students/StudentDashboardClient'
 import { useStudentDashboard } from '@/contexts/StudentDashboardContext'
+import { useUser } from '@/contexts/UserContext'
 import { cn } from '@/lib/utils'
 import { useCssTransition } from '@/hooks/useCssTransition'
 
@@ -202,6 +203,8 @@ export default function SettingsPage() {
   const [submitting, setSubmitting] = useState(false)
   const [modalError, setModalError] = useState<string | null>(null)
 
+  const { profile: loggedInProfile } = useUser()
+
   // ── Custom Tags State ────────────────────────────────────────────────────
   const [customTagsRegistry, setCustomTagsRegistry] = useState<CustomTag[]>([])
   const [isTagModalOpen, setIsTagModalOpen] = useState(false)
@@ -216,17 +219,30 @@ export default function SettingsPage() {
 
   // ── Custom Tags: load / save via localStorage ───────────────────────────
   useEffect(() => {
+    if (!loggedInProfile) return
     try {
-      const saved = localStorage.getItem('customTagsRegistry')
-      if (saved) setCustomTagsRegistry(JSON.parse(saved))
+      const key = `customTagsRegistry_${loggedInProfile.tenant_id || 'unibridge'}`
+      const saved = localStorage.getItem(key)
+      if (saved) {
+        setCustomTagsRegistry(JSON.parse(saved))
+      } else {
+        const oldSaved = localStorage.getItem('customTagsRegistry')
+        if (oldSaved && (loggedInProfile.tenant_id === 'unibridge' || !loggedInProfile.tenant_id)) {
+          setCustomTagsRegistry(JSON.parse(oldSaved))
+          localStorage.setItem(key, oldSaved)
+        } else {
+          setCustomTagsRegistry([])
+        }
+      }
     } catch (e) {
       console.error('Failed to parse customTagsRegistry:', e)
     }
-  }, [])
+  }, [loggedInProfile])
 
   const persistTagRegistry = (updated: CustomTag[]) => {
     setCustomTagsRegistry(updated)
-    localStorage.setItem('customTagsRegistry', JSON.stringify(updated))
+    const key = `customTagsRegistry_${(loggedInProfile && loggedInProfile.tenant_id) || 'unibridge'}`
+    localStorage.setItem(key, JSON.stringify(updated))
   }
 
   const handleOpenAddTag = () => {

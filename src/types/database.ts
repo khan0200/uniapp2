@@ -6,6 +6,7 @@ export interface Profile {
   email: string
   role: UserRole
   avatar_url: string | null
+  tenant_id: string
   created_at: string
   updated_at: string
 }
@@ -84,6 +85,9 @@ export interface Student {
   status_row_color: string | null
   task_tags: string[]
   folder_ids: string[]
+  tenant_id: string
+  created_by: string | null
+  creator?: { id: string; full_name: string | null; email: string } | null
 }
 
 export type PaymentMethod = 'Karta J.A' | 'Karta Abdulaziz' | 'Naqd' | 'Karta M.A' | 'Bank' | 'Discount' | 'Withdrawal'
@@ -99,6 +103,8 @@ export interface Payment {
   is_withdrawal: boolean
   student_id: string | null
   student_name: string | null
+  tenant_id: string
+  created_by: string | null
   created_at: string
   updated_at: string
 }
