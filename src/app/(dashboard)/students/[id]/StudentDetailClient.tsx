@@ -7,7 +7,8 @@ import {
   Plus, Pencil, Loader2, AlertCircle, CheckCircle2, 
   Building2, Landmark, Tag, Layers, 
   ChevronDown, Copy, ArrowLeft,
-  Mail, Calendar, MapPin, User, CheckSquare, GraduationCap, Hourglass, X
+  Mail, Calendar, MapPin, User, CheckSquare, GraduationCap, Hourglass, X,
+  FileText, RefreshCw, Trash2
 } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import { type Student, type StudentLevel, type StudentTariff, type Profile } from '@/types/database'
@@ -19,11 +20,11 @@ import { syncMissingDocuments } from '@/lib/validation'
 
 interface StudentDetailClientProps {
   studentId: string
+  onClose?: () => void
+  onStudentIdChange?: (newId: string) => void
 }
 
-
-
-export function StudentDetailClient({ studentId }: StudentDetailClientProps) {
+export function StudentDetailClient({ studentId, onClose, onStudentIdChange }: StudentDetailClientProps) {
   const supabase = createClient()
   const router = useRouter()
   const {
@@ -36,6 +37,7 @@ export function StudentDetailClient({ studentId }: StudentDetailClientProps) {
     levelOptions,
     groupOptions,
     leadByOptions,
+    fetchStudents,
   } = useStudentDashboard()
 
   // State for student details
@@ -385,6 +387,7 @@ export function StudentDetailClient({ studentId }: StudentDetailClientProps) {
           .eq('id', selectedStudent.id)
 
         if (updateError) throw updateError
+        fetchStudents(true)
 
         const updatedStudent = {
           ...selectedStudent,
@@ -431,6 +434,7 @@ export function StudentDetailClient({ studentId }: StudentDetailClientProps) {
           .eq('id', selectedStudent.id)
 
         if (updateError) throw updateError
+        fetchStudents(true)
 
         const updatedStudent = { ...selectedStudent, ...updateData }
         setSelectedStudent(updatedStudent)
@@ -447,6 +451,7 @@ export function StudentDetailClient({ studentId }: StudentDetailClientProps) {
               .update({ korean_name: finalTranslated })
               .eq('id', targetStudentId)
             if (!bgError) {
+              fetchStudents(true)
               setSelectedStudent(prev => {
                 if (prev && prev.id === targetStudentId) {
                   return { ...prev, korean_name: finalTranslated }
@@ -478,6 +483,7 @@ export function StudentDetailClient({ studentId }: StudentDetailClientProps) {
           .eq('id', selectedStudent.id)
   
         if (updateError) throw updateError
+        fetchStudents(true)
   
         const updatedStudent = { ...selectedStudent, ...updateData }
         setSelectedStudent(updatedStudent)
@@ -564,6 +570,7 @@ export function StudentDetailClient({ studentId }: StudentDetailClientProps) {
         .eq('id', selectedStudent.id)
 
       if (updateError) throw updateError
+      fetchStudents(true)
 
       const updatedStudent = { ...selectedStudent, ...updateData }
       if (field === 'full_name') {
@@ -579,6 +586,7 @@ export function StudentDetailClient({ studentId }: StudentDetailClientProps) {
               .update({ korean_name: finalTranslated })
               .eq('id', targetStudentId)
             if (!bgError) {
+              fetchStudents(true)
               setSelectedStudent(prev => {
                 if (prev && prev.id === targetStudentId) {
                   return { ...prev, korean_name: finalTranslated }
@@ -605,7 +613,11 @@ export function StudentDetailClient({ studentId }: StudentDetailClientProps) {
       setEditingField(null)
 
       if (field === 'id') {
-        router.replace(`/students/${valToSave}`)
+        if (onStudentIdChange) {
+          onStudentIdChange(valToSave)
+        } else {
+          router.replace(`/students/${valToSave}`)
+        }
       }
     } catch (err: any) {
       console.error('Error updating field details:', err)
@@ -634,7 +646,12 @@ export function StudentDetailClient({ studentId }: StudentDetailClientProps) {
       if (deleteError) throw deleteError
 
       alert('Student profile deleted successfully.')
-      router.push('/students')
+      fetchStudents(true)
+      if (onClose) {
+        onClose()
+      } else {
+        router.push('/students')
+      }
     } catch (err: any) {
       console.error('Error soft-deleting student:', err)
       alert(err.message || 'Failed to delete student.')
@@ -657,6 +674,7 @@ export function StudentDetailClient({ studentId }: StudentDetailClientProps) {
       if (restoreError) throw restoreError
 
       alert('Student profile restored successfully.')
+      fetchStudents(true)
       await fetchStudent()
     } catch (err: any) {
       console.error('Error restoring student:', err)
@@ -680,7 +698,12 @@ export function StudentDetailClient({ studentId }: StudentDetailClientProps) {
       if (deleteError) throw deleteError
 
       alert('Student profile permanently deleted successfully.')
-      router.push('/students')
+      fetchStudents(true)
+      if (onClose) {
+        onClose()
+      } else {
+        router.push('/students')
+      }
     } catch (err: any) {
       console.error('Error permanently deleting student:', err)
       alert(err.message || 'Failed to permanently delete student.')
@@ -1394,7 +1417,7 @@ export function StudentDetailClient({ studentId }: StudentDetailClientProps) {
 
   if (loading) {
     return (
-      <div className="flex h-screen items-center justify-center bg-background text-foreground">
+      <div className="flex h-full items-center justify-center text-foreground">
         <div className="flex flex-col items-center gap-3">
           <Loader2 className="h-8 w-8 animate-spin text-[var(--accent)]" />
           <p className="text-[15.5px] font-medium text-[var(--foreground-muted)]">Loading student details...</p>
@@ -1405,18 +1428,28 @@ export function StudentDetailClient({ studentId }: StudentDetailClientProps) {
 
   if (error || !selectedStudent) {
     return (
-      <div className="flex h-screen items-center justify-center bg-background text-foreground p-6">
+      <div className="flex h-full items-center justify-center text-foreground p-6">
         <div className="max-w-md w-full bg-[var(--surface)] border border-[var(--border)] rounded-[var(--radius-lg)] p-6 text-center shadow-[var(--shadow-md)]">
           <AlertCircle className="h-12 w-12 text-[var(--danger)] mx-auto mb-4" />
           <h2 className="text-[20.5px] font-bold text-[var(--foreground)] mb-2">Error Loading Profile</h2>
           <p className="text-[15.5px] text-[var(--foreground-muted)] mb-6">{error || 'Student not found or has been deleted.'}</p>
-          <Link
-            href="/students"
-            className="inline-flex items-center gap-2 px-5 py-2.5 bg-[var(--accent)] hover:bg-[var(--accent-hover)] text-white rounded-[var(--radius-md)] text-[15.5px] font-semibold transition-all shadow-sm active:scale-95"
-          >
-            <ArrowLeft className="h-4 w-4" />
-            Back to Students
-          </Link>
+          {onClose ? (
+            <button
+              onClick={onClose}
+              className="inline-flex items-center gap-2 px-5 py-2.5 bg-[var(--accent)] hover:bg-[var(--accent-hover)] text-white rounded-[var(--radius-md)] text-[15.5px] font-semibold transition-all shadow-sm active:scale-95 cursor-pointer"
+            >
+              <ArrowLeft className="h-4 w-4" />
+              Close
+            </button>
+          ) : (
+            <Link
+              href="/students"
+              className="inline-flex items-center gap-2 px-5 py-2.5 bg-[var(--accent)] hover:bg-[var(--accent-hover)] text-white rounded-[var(--radius-md)] text-[15.5px] font-semibold transition-all shadow-sm active:scale-95"
+            >
+              <ArrowLeft className="h-4 w-4" />
+              Back to Students
+            </Link>
+          )}
         </div>
       </div>
     )
@@ -1427,13 +1460,23 @@ export function StudentDetailClient({ studentId }: StudentDetailClientProps) {
       <div className="bg-transparent text-[var(--foreground)] transition-colors flex flex-col gap-2.5">
         {/* Student Header Identifier Banner (Extremely compact) */}
         <div className="py-2.5 px-3 bg-[var(--surface)] border border-[var(--border)] rounded-[var(--radius-md)] flex items-center gap-3 shadow-[var(--shadow-sm)] transition-colors flex-shrink-0">
-          <Link
-            href="/students"
-            className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-[var(--surface-elevated)] hover:bg-[var(--border-subtle)] border border-[var(--border)] rounded-[var(--radius-md)] text-[13.5px] font-semibold text-[var(--foreground)] transition-all shadow-[var(--shadow-sm)] shrink-0 active:scale-95"
-          >
-            <ArrowLeft className="h-3.5 w-3.5 text-[var(--accent)]" />
-            Back
-          </Link>
+          {onClose ? (
+            <button
+              onClick={onClose}
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-[var(--surface-elevated)] hover:bg-[var(--border-subtle)] border border-[var(--border)] rounded-[var(--radius-md)] text-[13.5px] font-semibold text-[var(--foreground)] transition-all shadow-[var(--shadow-sm)] shrink-0 active:scale-95 cursor-pointer"
+            >
+              <ArrowLeft className="h-3.5 w-3.5 text-[var(--accent)]" />
+              Close
+            </button>
+          ) : (
+            <Link
+              href="/students"
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-[var(--surface-elevated)] hover:bg-[var(--border-subtle)] border border-[var(--border)] rounded-[var(--radius-md)] text-[13.5px] font-semibold text-[var(--foreground)] transition-all shadow-[var(--shadow-sm)] shrink-0 active:scale-95"
+            >
+              <ArrowLeft className="h-3.5 w-3.5 text-[var(--accent)]" />
+              Back
+            </Link>
+          )}
           <div className="w-11 h-11 bg-[var(--accent)] rounded-full flex items-center justify-center font-bold text-white text-sm select-none shadow-[var(--shadow-sm)]">
             {getInitials(selectedStudent.full_name)}
           </div>
@@ -1461,6 +1504,61 @@ export function StudentDetailClient({ studentId }: StudentDetailClientProps) {
               )}
             </div>
           </div>
+          {onClose && (
+            <div className="flex items-center gap-1.5 ml-auto flex-shrink-0">
+              <button
+                onClick={() => router.push(`/students/${selectedStudent.id}/extract`)}
+                className="inline-flex items-center gap-1.5 text-[var(--foreground-muted)] hover:text-[var(--foreground)] px-2.5 py-1.5 bg-[var(--surface-elevated)] hover:bg-[var(--border-subtle)] border border-[var(--border)] rounded-[var(--radius-md)] text-[12.5px] font-semibold transition-all shadow-[var(--shadow-sm)] cursor-pointer"
+                title="Fill student details from a document using AI"
+              >
+                <FileText className="h-3.5 w-3.5 text-[var(--accent)]" />
+                <span className="hidden sm:inline">Fill By Document</span>
+              </button>
+              <button
+                disabled={isDeleting}
+                onClick={selectedStudent.is_deleted ? handleRestoreStudent : handleDeleteStudent}
+                className={cn(
+                  'inline-flex items-center gap-1.5 px-2.5 py-1.5 bg-[var(--surface-elevated)] border border-[var(--border)] rounded-[var(--radius-md)] text-[12.5px] font-semibold transition-all shadow-[var(--shadow-sm)] cursor-pointer disabled:opacity-50',
+                  selectedStudent.is_deleted
+                    ? 'text-emerald-600 dark:text-emerald-400 hover:bg-[var(--border-subtle)]'
+                    : 'text-[var(--danger)] hover:bg-[var(--border-subtle)] hover:text-red-600'
+                )}
+                title={selectedStudent.is_deleted ? 'Restore student profile' : 'Delete student profile'}
+              >
+                {isDeleting ? (
+                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                ) : selectedStudent.is_deleted ? (
+                  <RefreshCw className="h-3.5 w-3.5 text-emerald-600 dark:text-emerald-400" />
+                ) : (
+                  <Trash2 className="h-3.5 w-3.5" />
+                )}
+                <span className="hidden sm:inline">{selectedStudent.is_deleted ? 'Restore' : 'Delete'}</span>
+              </button>
+              {selectedStudent.is_deleted && (
+                <button
+                  disabled={isDeleting}
+                  onClick={handlePermanentDeleteStudent}
+                  className="inline-flex items-center gap-1.5 px-2.5 py-1.5 bg-[var(--surface-elevated)] border border-[var(--border)] rounded-[var(--radius-md)] text-[12.5px] font-semibold transition-all shadow-[var(--shadow-sm)] cursor-pointer disabled:opacity-50 text-[var(--danger)] hover:bg-[var(--border-subtle)] hover:text-red-600"
+                  title="Permanently delete student profile"
+                >
+                  {isDeleting ? (
+                    <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                  ) : (
+                    <Trash2 className="h-3.5 w-3.5" />
+                  )}
+                  <span className="hidden sm:inline">Permanently Delete</span>
+                </button>
+              )}
+              <span className="h-5 w-[1px] bg-[var(--border)] mx-1" />
+              <button
+                onClick={onClose}
+                className="p-1.5 hover:bg-[var(--border-subtle)] rounded-full text-[var(--foreground-muted)] hover:text-[var(--foreground)] transition-all cursor-pointer"
+                title="Close Profile Details"
+              >
+                <X className="h-4.5 w-4.5" />
+              </button>
+            </div>
+          )}
         </div>
 
         {/* Main Dashboard Layout (3-Column Grid) */}

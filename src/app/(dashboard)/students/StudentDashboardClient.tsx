@@ -19,6 +19,7 @@ import { syncMissingDocuments } from '@/lib/validation'
 import { useCssTransition } from '@/hooks/useCssTransition'
 
 const AddStudentModal = dynamic(() => import('./AddStudentModal'), { ssr: false })
+import { StudentDetailClient } from './[id]/StudentDetailClient'
 
 export const ROW_COLOR_MAP: Record<string, { bg: string; ball: string; name: string }> = {
   BLUE: { bg: 'rgba(37, 99, 235, 0.45)', ball: '#2563EB', name: 'Blue' },
@@ -115,6 +116,47 @@ export function StudentDashboardClient() {
   const [activeTooltip, setActiveTooltip] = useState<{ studentId: string; tagKey: string } | null>(null)
   const [copiedId, setCopiedId] = useState<string | null>(null)
   const [copiedPhoneId, setCopiedPhoneId] = useState<string | null>(null)
+
+  // Drawer state for displaying student details sliding in from the right
+  const [activeDetailStudentId, setActiveDetailStudentId] = useState<string | null>(null)
+  const [cachedDetailStudentId, setCachedDetailStudentId] = useState<string | null>(null)
+  const drawerRef = useRef<HTMLDivElement>(null)
+
+  useEffect(() => {
+    if (activeDetailStudentId) {
+      setCachedDetailStudentId(activeDetailStudentId)
+    }
+  }, [activeDetailStudentId])
+
+  // Outside click listener to close the drawer panel when clicking on background empty space
+  useEffect(() => {
+    const handleOutsideClick = (e: MouseEvent) => {
+      if (!activeDetailStudentId) return
+
+      const target = e.target as HTMLElement
+      // If click is inside the drawer panel, do nothing
+      if (drawerRef.current && drawerRef.current.contains(target)) {
+        return
+      }
+
+      // If click is on a table row, let the table row's onClick handle it
+      if (target.closest('tr')) {
+        return
+      }
+
+      // If click is on other dialog overlays/popups, do nothing
+      const isOtherModal = target.closest('.z-50') && (!drawerRef.current || !drawerRef.current.contains(target))
+      if (isOtherModal || target.closest('.flatpickr-calendar')) {
+        return
+      }
+
+      setActiveDetailStudentId(null)
+    }
+
+    document.addEventListener('click', handleOutsideClick, true)
+    return () => document.removeEventListener('click', handleOutsideClick, true)
+  }, [activeDetailStudentId])
+
   // Gates the dynamic import of AddStudentModal so its chunk isn't fetched
   // until the user opens it for the first time; stays true afterward so the
   // modal can play its CSS exit animation on subsequent closes.
@@ -1810,7 +1852,13 @@ export function StudentDashboardClient() {
                   return (
                     <tr
                       key={student.id}
-                      onClick={() => window.open(`/students/${student.id}`, '_blank')}
+                      onClick={(e) => {
+                        if (e.metaKey || e.ctrlKey) {
+                          window.open(`/students/${student.id}`, '_blank')
+                        } else {
+                          setActiveDetailStudentId(student.id)
+                        }
+                      }}
                       className={`group cursor-pointer transition-colors text-sm text-[var(--foreground)] ${bgObj.className}`}
                       style={bgObj.style}
                     >
@@ -3314,6 +3362,42 @@ export function StudentDashboardClient() {
               </div>
             </div>
           </div>
+      )}
+
+      {/* Student Details Drawer */}
+      {cachedDetailStudentId && (
+        <div className="fixed inset-y-0 right-0 z-50 pointer-events-none flex justify-end">
+          {/* Backdrop Overlay (Visual only, pointer-events-none) */}
+          <div
+            className={cn(
+              'fixed inset-0 bg-black/30 transition-opacity ease-out pointer-events-none z-0',
+              activeDetailStudentId ? 'opacity-100' : 'opacity-0'
+            )}
+            style={{ transitionDuration: '380ms' }}
+          />
+
+          {/* Drawer Panel */}
+          <div
+            ref={drawerRef}
+            className={cn(
+              'relative w-full max-w-[98vw] md:max-w-[95vw] lg:max-w-[90vw] xl:max-w-[80vw] h-full bg-[var(--background)] border-l border-[var(--border)] shadow-[var(--shadow-lg)] z-10 flex flex-col overflow-hidden pointer-events-auto',
+              'transition-transform ease-[cubic-bezier(0.16,1,0.3,1)]',
+              activeDetailStudentId ? 'translate-x-0' : 'translate-x-full'
+            )}
+            style={{ transitionDuration: '380ms' }}
+          >
+            {/* Drawer Body Scroll Container */}
+            <div className="flex-1 overflow-y-auto min-h-0 bg-transparent">
+              <StudentDetailClient
+                studentId={cachedDetailStudentId}
+                onClose={() => setActiveDetailStudentId(null)}
+                onStudentIdChange={(newId) => {
+                  setActiveDetailStudentId(newId)
+                }}
+              />
+            </div>
+          </div>
+        </div>
       )}
 
     </PageShell>
