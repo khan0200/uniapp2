@@ -3366,7 +3366,7 @@ export function StudentDashboardClient() {
 
       {/* Student Details Drawer */}
       {cachedDetailStudentId && (
-        <div className="fixed inset-y-0 right-0 z-50 pointer-events-none flex justify-end">
+        <div className="fixed inset-y-0 right-0 z-50 pointer-events-none flex justify-end p-2 md:p-2.5">
           {/* Backdrop Overlay (Visual only, pointer-events-none) */}
           <div
             className={cn(
@@ -3380,7 +3380,7 @@ export function StudentDashboardClient() {
           <div
             ref={drawerRef}
             className={cn(
-              'relative w-full max-w-[98vw] md:max-w-[95vw] lg:max-w-[90vw] xl:max-w-[80vw] h-full bg-[var(--background)] border-l border-[var(--border)] shadow-[var(--shadow-lg)] z-10 flex flex-col overflow-hidden pointer-events-auto',
+              'relative w-full max-w-[calc(98vw+20px)] md:max-w-[calc(95vw+20px)] lg:max-w-[calc(90vw+20px)] xl:max-w-[calc(80vw+20px)] h-full bg-[var(--background)] border border-[var(--border)] rounded-2xl shadow-[var(--shadow-lg)] z-10 flex flex-col overflow-hidden pointer-events-auto',
               'transition-transform ease-[cubic-bezier(0.16,1,0.3,1)]',
               activeDetailStudentId ? 'translate-x-0' : 'translate-x-full'
             )}

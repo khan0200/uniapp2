@@ -41,7 +41,8 @@ export function StudentDetailClient({ studentId, onClose, onStudentIdChange }: S
   } = useStudentDashboard()
 
   // State for student details
-  const [selectedStudent, setSelectedStudent] = useState<Student | null>(null)
+  const [selectedStudentState, setSelectedStudent] = useState<Student | null>(null)
+  const selectedStudent = selectedStudentState || ({} as any)
   const [payments, setPayments] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -62,30 +63,7 @@ export function StudentDetailClient({ studentId, onClose, onStudentIdChange }: S
   // universities/coordinators are specific to this page and fetched below.
   const [universityOptions, setUniversityOptions] = useState<string[]>([])
   const [coordinatorOptions, setCoordinatorOptions] = useState<string[]>([])
-  const [agentOptions, setAgentOptions] = useState<{ id: string; name: string }[]>([])
   const { profile: loggedInProfile } = useUser()
-
-  useEffect(() => {
-    const fetchAgents = async () => {
-      if (loggedInProfile && (loggedInProfile.role === 'Manager' || loggedInProfile.role === 'Head Manager')) {
-        try {
-          const { data, error } = await supabase
-            .from('profiles')
-            .select('id, full_name, email')
-            .order('full_name')
-          if (data) {
-            setAgentOptions((data as Profile[]).map(p => ({
-              id: p.id,
-              name: p.full_name || p.email
-            })))
-          }
-        } catch (err) {
-          console.error('Error fetching profiles for agent options:', err)
-        }
-      }
-    }
-    fetchAgents()
-  }, [loggedInProfile, supabase])
 
   // Fetch settings filter options not already covered by the shared context
   const fetchFilterOptions = async () => {
@@ -134,26 +112,7 @@ export function StudentDetailClient({ studentId, onClose, onStudentIdChange }: S
       if (studentRes.error) throw studentRes.error
       const fetchedStudent = studentRes.data as Student
 
-      // Fetch creator details separately to avoid missing relation constraint error
-      if (fetchedStudent.created_by) {
-        try {
-          const { data: creatorData } = await supabase
-            .from('profiles')
-            .select('id, full_name, email')
-            .eq('id', fetchedStudent.created_by)
-            .single()
-          if (creatorData) {
-            const creator = creatorData as any
-            fetchedStudent.creator = {
-              id: creator.id,
-              full_name: creator.full_name,
-              email: creator.email
-            }
-          }
-        } catch (creatorErr) {
-          console.error('Error fetching creator details:', creatorErr)
-        }
-      }
+
 
       // Auto-validate missing documents on load. Apply the corrected value
       // locally right away and persist it in the background (fire-and-forget)
@@ -233,7 +192,7 @@ export function StudentDetailClient({ studentId, onClose, onStudentIdChange }: S
   // mirroring how the English versions split selectedStudent.full_name.
   // Requires an AI API key — no local fallback. Never writes anything to Supabase.
   const handleShowKorean = async () => {
-    if (!selectedStudent) return
+    if (!selectedStudentState) return
     setNameLanguage('KR')
 
     if (selectedStudent.korean_name) {
@@ -372,39 +331,11 @@ export function StudentDetailClient({ studentId, onClose, onStudentIdChange }: S
 
   // Save inline edits to Supabase
   const handleSaveField = async (field: any) => {
-    if (!selectedStudent) return
+    if (!selectedStudentState) return
     try {
       let valToSave = editValue
 
-      if (field === 'created_by') {
-        const selectedAgentName = editValue === 'Not assigned' ? null : editValue
-        const selectedAgent = agentOptions.find(a => a.name === selectedAgentName)
-        const agentId = selectedAgent ? selectedAgent.id : null
 
-        const { error: updateError } = await (supabase
-          .from('students') as any)
-          .update({ created_by: agentId })
-          .eq('id', selectedStudent.id)
-
-        if (updateError) throw updateError
-        fetchStudents(true)
-
-        const updatedStudent = {
-          ...selectedStudent,
-          created_by: agentId,
-          creator: selectedAgent ? {
-            id: selectedAgent.id,
-            full_name: selectedAgent.name.includes('@') ? null : selectedAgent.name,
-            email: selectedAgent.name.includes('@') ? selectedAgent.name : ''
-          } : null
-        } as unknown as Student
-        setSelectedStudent(updatedStudent)
-        setEditingField(null)
-        
-        // Background refresh to sync any other server modifications
-        fetchStudent(updatedStudent)
-        return
-      }
 
       // Handle virtual / computed fields
       if (field === 'family_name' || field === 'given_name') {
@@ -634,7 +565,7 @@ export function StudentDetailClient({ studentId, onClose, onStudentIdChange }: S
 
   // Soft Delete student
   const handleDeleteStudent = async () => {
-    if (!selectedStudent) return
+    if (!selectedStudentState) return
     if (!confirm(`Are you sure you want to delete student profile "${selectedStudent.full_name}"?`)) return
     setIsDeleting(true)
     try {
@@ -662,7 +593,7 @@ export function StudentDetailClient({ studentId, onClose, onStudentIdChange }: S
 
   // Restore student
   const handleRestoreStudent = async () => {
-    if (!selectedStudent) return
+    if (!selectedStudentState) return
     if (!confirm(`Are you sure you want to restore student profile "${selectedStudent.full_name}"?`)) return
     setIsDeleting(true)
     try {
@@ -686,7 +617,7 @@ export function StudentDetailClient({ studentId, onClose, onStudentIdChange }: S
 
   // Permanent Delete student
   const handlePermanentDeleteStudent = async () => {
-    if (!selectedStudent) return
+    if (!selectedStudentState) return
     if (!confirm(`WARNING: Are you sure you want to PERMANENTLY delete student profile "${selectedStudent.full_name}"? This action CANNOT be undone and will delete all their data.`)) return
     setIsDeleting(true)
     try {
@@ -715,7 +646,7 @@ export function StudentDetailClient({ studentId, onClose, onStudentIdChange }: S
   // Register this page's action buttons (Fill By Document / Reload / Delete)
   // so the shared Header component can render them in the top bar.
   useEffect(() => {
-    if (!selectedStudent) return
+    if (!selectedStudentState) return
     setDetailPageActions({
       onFillByDocument: () => router.push(`/students/${selectedStudent.id}/extract`),
       onReload: fetchStudent,
@@ -726,7 +657,7 @@ export function StudentDetailClient({ studentId, onClose, onStudentIdChange }: S
     })
     return () => setDetailPageActions(null)
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [selectedStudent, isDeleting])
+  }, [selectedStudentState, isDeleting])
 
   // Helper to format currency values
   const formatCurrency = (val: number) => {
@@ -758,6 +689,20 @@ export function StudentDetailClient({ studentId, onClose, onStudentIdChange }: S
       compact?: boolean
     } = {}
   ) => {
+    if (loading) {
+      return (
+        <div
+          className={cn(
+            "bg-[var(--surface)] border border-[#E5E7EB] dark:border-[var(--border)] border-l-[3px] border-l-gray-250 dark:border-l-gray-700 rounded-[var(--radius-md)] px-2.5 flex flex-col justify-between animate-pulse",
+            options.compact ? 'min-h-[52px] py-1' : 'min-h-[65px] py-1.5'
+          )}
+        >
+          <div className="h-2.5 w-16 bg-gray-200 dark:bg-gray-700 rounded mt-1" />
+          <div className="h-3.5 w-24 bg-gray-200 dark:bg-gray-700 rounded mb-1" />
+        </div>
+      )
+    }
+
     const isEditing = editingField === field
     const isCopied = copiedField === field
     const isMissing = value === null || value === undefined || (Array.isArray(value) ? value.length === 0 : (String(value).trim() === '' || String(value).trim() === '—'))
@@ -1133,7 +1078,7 @@ export function StudentDetailClient({ studentId, onClose, onStudentIdChange }: S
         }
 
         const handleStatusSelect = async (newStatus: string) => {
-          if (!selectedStudent) return
+          if (!selectedStudentState) return
           try {
             const nextStudent = {
               ...selectedStudent,
@@ -1357,6 +1302,19 @@ export function StudentDetailClient({ studentId, onClose, onStudentIdChange }: S
 
   // Render auto calculated Family/Given Name cards (ReadOnly copyable only)
   const renderAutoNameCard = (label: string, value: string, field: 'family_name' | 'given_name', isLoading: boolean = false) => {
+    if (loading || isLoading) {
+      return (
+        <div
+          className={cn(
+            "bg-[var(--surface)] border border-[#E5E7EB] dark:border-[var(--border)] border-l-[3px] border-l-gray-250 dark:border-l-gray-700 rounded-[var(--radius-md)] px-2.5 py-1.5 flex flex-col justify-between animate-pulse min-h-[65px]"
+          )}
+        >
+          <div className="h-2.5 w-16 bg-gray-200 dark:bg-gray-700 rounded mt-1" />
+          <div className="h-3.5 w-24 bg-gray-200 dark:bg-gray-700 rounded mb-1" />
+        </div>
+      )
+    }
+
     const isCopied = copiedField === field
     const isMissing = !isLoading && (!value || value.trim() === '' || value.trim() === '—')
     return (
@@ -1415,18 +1373,7 @@ export function StudentDetailClient({ studentId, onClose, onStudentIdChange }: S
     )
   }
 
-  if (loading) {
-    return (
-      <div className="flex h-full items-center justify-center text-foreground">
-        <div className="flex flex-col items-center gap-3">
-          <Loader2 className="h-8 w-8 animate-spin text-[var(--accent)]" />
-          <p className="text-[15.5px] font-medium text-[var(--foreground-muted)]">Loading student details...</p>
-        </div>
-      </div>
-    )
-  }
-
-  if (error || !selectedStudent) {
+  if (error || (!selectedStudentState && !loading)) {
     return (
       <div className="flex h-full items-center justify-center text-foreground p-6">
         <div className="max-w-md w-full bg-[var(--surface)] border border-[var(--border)] rounded-[var(--radius-lg)] p-6 text-center shadow-[var(--shadow-md)]">
@@ -1477,79 +1424,95 @@ export function StudentDetailClient({ studentId, onClose, onStudentIdChange }: S
               Back
             </Link>
           )}
-          <div className="w-11 h-11 bg-[var(--accent)] rounded-full flex items-center justify-center font-bold text-white text-sm select-none shadow-[var(--shadow-sm)]">
+          <div className={cn(
+            "w-11 h-11 bg-[var(--accent)] rounded-full flex items-center justify-center font-bold text-white text-sm select-none shadow-[var(--shadow-sm)]",
+            loading && "bg-gray-200 dark:bg-gray-700 animate-pulse text-transparent"
+          )}>
             {getInitials(selectedStudent.full_name)}
           </div>
           <div className="flex-1 min-w-0">
-            <h1 className="text-[17.5px] font-bold uppercase tracking-wide text-[var(--foreground)] truncate">
-              {selectedStudent.full_name}
-            </h1>
-            <div className="flex items-center gap-2 text-[13px] font-semibold text-[var(--foreground-muted)] mt-0.5">
-              <span>ID: <span className="font-mono text-[var(--accent)] font-bold text-[13px]">{selectedStudent.id}</span></span>
-              <span className="h-1 w-1 rounded-full bg-[var(--foreground-subtle)]" />
-              {selectedStudent.is_deleted ? (
-                <span className="bg-rose-500/10 text-rose-600 border border-rose-500/20 px-1.5 py-0.2 rounded-full text-[10.5px] font-extrabold uppercase animate-pulse">
-                  DELETED
-                </span>
-              ) : (
-                <span className="bg-emerald-500/10 text-emerald-600 border border-emerald-500/20 px-1.5 py-0.2 rounded-full text-[10.5px] font-extrabold uppercase">
-                  ACTIVE
-                </span>
-              )}
-              {selectedStudent.student_group && (
-                <>
+            {loading ? (
+              <>
+                <div className="h-5 w-48 bg-gray-200 dark:bg-gray-700 rounded animate-pulse" />
+                <div className="h-3.5 w-32 bg-gray-200 dark:bg-gray-700 rounded animate-pulse mt-2" />
+              </>
+            ) : (
+              <>
+                <h1 className="text-[17.5px] font-bold uppercase tracking-wide text-[var(--foreground)] truncate">
+                  {selectedStudent.full_name}
+                </h1>
+                <div className="flex items-center gap-2 text-[13px] font-semibold text-[var(--foreground-muted)] mt-0.5">
+                  <span>ID: <span className="font-mono text-[var(--accent)] font-bold text-[13px]">{selectedStudent.id}</span></span>
                   <span className="h-1 w-1 rounded-full bg-[var(--foreground-subtle)]" />
-                  <span className="text-[var(--foreground)] uppercase font-bold text-[11.5px]">{selectedStudent.student_group}</span>
-                </>
-              )}
-            </div>
+                  {selectedStudent.is_deleted ? (
+                    <span className="bg-rose-500/10 text-rose-600 border border-rose-500/20 px-1.5 py-0.2 rounded-full text-[10.5px] font-extrabold uppercase animate-pulse">
+                      DELETED
+                    </span>
+                  ) : (
+                    <span className="bg-emerald-500/10 text-emerald-600 border border-emerald-500/20 px-1.5 py-0.2 rounded-full text-[10.5px] font-extrabold uppercase">
+                      ACTIVE
+                    </span>
+                  )}
+                  {selectedStudent.student_group && (
+                    <>
+                      <span className="h-1 w-1 rounded-full bg-[var(--foreground-subtle)]" />
+                      <span className="text-[var(--foreground)] uppercase font-bold text-[11.5px]">{selectedStudent.student_group}</span>
+                    </>
+                  )}
+                </div>
+              </>
+            )}
           </div>
           {onClose && (
             <div className="flex items-center gap-1.5 ml-auto flex-shrink-0">
-              <button
-                onClick={() => router.push(`/students/${selectedStudent.id}/extract`)}
-                className="inline-flex items-center gap-1.5 text-[var(--foreground-muted)] hover:text-[var(--foreground)] px-2.5 py-1.5 bg-[var(--surface-elevated)] hover:bg-[var(--border-subtle)] border border-[var(--border)] rounded-[var(--radius-md)] text-[12.5px] font-semibold transition-all shadow-[var(--shadow-sm)] cursor-pointer"
-                title="Fill student details from a document using AI"
-              >
-                <FileText className="h-3.5 w-3.5 text-[var(--accent)]" />
-                <span className="hidden sm:inline">Fill By Document</span>
-              </button>
-              <button
-                disabled={isDeleting}
-                onClick={selectedStudent.is_deleted ? handleRestoreStudent : handleDeleteStudent}
-                className={cn(
-                  'inline-flex items-center gap-1.5 px-2.5 py-1.5 bg-[var(--surface-elevated)] border border-[var(--border)] rounded-[var(--radius-md)] text-[12.5px] font-semibold transition-all shadow-[var(--shadow-sm)] cursor-pointer disabled:opacity-50',
-                  selectedStudent.is_deleted
-                    ? 'text-emerald-600 dark:text-emerald-400 hover:bg-[var(--border-subtle)]'
-                    : 'text-[var(--danger)] hover:bg-[var(--border-subtle)] hover:text-red-600'
-                )}
-                title={selectedStudent.is_deleted ? 'Restore student profile' : 'Delete student profile'}
-              >
-                {isDeleting ? (
-                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                ) : selectedStudent.is_deleted ? (
-                  <RefreshCw className="h-3.5 w-3.5 text-emerald-600 dark:text-emerald-400" />
-                ) : (
-                  <Trash2 className="h-3.5 w-3.5" />
-                )}
-                <span className="hidden sm:inline">{selectedStudent.is_deleted ? 'Restore' : 'Delete'}</span>
-              </button>
-              {selectedStudent.is_deleted && (
-                <button
-                  disabled={isDeleting}
-                  onClick={handlePermanentDeleteStudent}
-                  className="inline-flex items-center gap-1.5 px-2.5 py-1.5 bg-[var(--surface-elevated)] border border-[var(--border)] rounded-[var(--radius-md)] text-[12.5px] font-semibold transition-all shadow-[var(--shadow-sm)] cursor-pointer disabled:opacity-50 text-[var(--danger)] hover:bg-[var(--border-subtle)] hover:text-red-600"
-                  title="Permanently delete student profile"
-                >
-                  {isDeleting ? (
-                    <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                  ) : (
-                    <Trash2 className="h-3.5 w-3.5" />
+              {!loading && (
+                <>
+                  <button
+                    onClick={() => router.push(`/students/${selectedStudent.id}/extract`)}
+                    className="inline-flex items-center gap-1.5 text-[var(--foreground-muted)] hover:text-[var(--foreground)] px-2.5 py-1.5 bg-[var(--surface-elevated)] hover:bg-[var(--border-subtle)] border border-[var(--border)] rounded-[var(--radius-md)] text-[12.5px] font-semibold transition-all shadow-[var(--shadow-sm)] cursor-pointer"
+                    title="Fill student details from a document using AI"
+                  >
+                    <FileText className="h-3.5 w-3.5 text-[var(--accent)]" />
+                    <span className="hidden sm:inline">Fill By Document</span>
+                  </button>
+                  <button
+                    disabled={isDeleting}
+                    onClick={selectedStudent.is_deleted ? handleRestoreStudent : handleDeleteStudent}
+                    className={cn(
+                      'inline-flex items-center gap-1.5 px-2.5 py-1.5 bg-[var(--surface-elevated)] border border-[var(--border)] rounded-[var(--radius-md)] text-[12.5px] font-semibold transition-all shadow-[var(--shadow-sm)] cursor-pointer disabled:opacity-50',
+                      selectedStudent.is_deleted
+                        ? 'text-emerald-600 dark:text-emerald-400 hover:bg-[var(--border-subtle)]'
+                        : 'text-[var(--danger)] hover:bg-[var(--border-subtle)] hover:text-red-600'
+                    )}
+                    title={selectedStudent.is_deleted ? 'Restore student profile' : 'Delete student profile'}
+                  >
+                    {isDeleting ? (
+                      <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                    ) : selectedStudent.is_deleted ? (
+                      <RefreshCw className="h-3.5 w-3.5 text-emerald-600 dark:text-emerald-400" />
+                    ) : (
+                      <Trash2 className="h-3.5 w-3.5" />
+                    )}
+                    <span className="hidden sm:inline">{selectedStudent.is_deleted ? 'Restore' : 'Delete'}</span>
+                  </button>
+                  {selectedStudent.is_deleted && (
+                    <button
+                      disabled={isDeleting}
+                      onClick={handlePermanentDeleteStudent}
+                      className="inline-flex items-center gap-1.5 px-2.5 py-1.5 bg-[var(--surface-elevated)] border border-[var(--border)] rounded-[var(--radius-md)] text-[12.5px] font-semibold transition-all shadow-[var(--shadow-sm)] cursor-pointer disabled:opacity-50 text-[var(--danger)] hover:bg-[var(--border-subtle)] hover:text-red-600"
+                      title="Permanently delete student profile"
+                    >
+                      {isDeleting ? (
+                        <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                      ) : (
+                        <Trash2 className="h-3.5 w-3.5" />
+                      )}
+                      <span className="hidden sm:inline">Permanently Delete</span>
+                    </button>
                   )}
-                  <span className="hidden sm:inline">Permanently Delete</span>
-                </button>
+                  <span className="h-5 w-[1px] bg-[var(--border)] mx-1" />
+                </>
               )}
-              <span className="h-5 w-[1px] bg-[var(--border)] mx-1" />
               <button
                 onClick={onClose}
                 className="p-1.5 hover:bg-[var(--border-subtle)] rounded-full text-[var(--foreground-muted)] hover:text-[var(--foreground)] transition-all cursor-pointer"
@@ -1628,7 +1591,7 @@ export function StudentDetailClient({ studentId, onClose, onStudentIdChange }: S
                   'Family Name',
                   nameLanguage === 'KR'
                     ? (selectedStudent.korean_name ? selectedStudent.korean_name.split(' ')[0] : (isTranslatingNames ? 'Translating...' : ''))
-                    : (selectedStudent.full_name.split(' ')[0] || ''),
+                    : (selectedStudent.full_name ? (selectedStudent.full_name.split(' ')[0] || '') : ''),
                   'family_name',
                   nameLanguage === 'KR' && isTranslatingNames
                 )}
@@ -1636,7 +1599,7 @@ export function StudentDetailClient({ studentId, onClose, onStudentIdChange }: S
                   'Given Name',
                   nameLanguage === 'KR'
                     ? (selectedStudent.korean_name ? selectedStudent.korean_name.split(' ').slice(1).join(' ') : (isTranslatingNames ? 'Translating...' : ''))
-                    : (selectedStudent.full_name.split(' ').slice(1).join(' ') || ''),
+                    : (selectedStudent.full_name ? (selectedStudent.full_name.split(' ').slice(1).join(' ') || '') : ''),
                   'given_name',
                   nameLanguage === 'KR' && isTranslatingNames
                 )}
@@ -1761,223 +1724,247 @@ export function StudentDetailClient({ studentId, onClose, onStudentIdChange }: S
               </div>
               <div className="grid grid-cols-1 gap-1.5">
                 {/* Office Location Card */}
-                <div 
-                  onDoubleClick={() => {
-                    if (editingField !== 'office') {
-                      handleStartEditing('office', selectedStudent.office)
-                    }
-                  }}
-                  className="bg-blue-500 dark:bg-blue-600 rounded-[var(--radius-md)] p-2.5 text-white flex flex-col justify-between min-h-[62px] shadow-sm cursor-pointer"
-                  title="Double-click to edit. Single-click value to copy."
-                >
-                  <div className="flex items-center justify-between">
-                    <span className="text-[11.5px] uppercase font-bold tracking-wider text-blue-100 flex items-center gap-1">
-                      <Building2 className="h-3 w-3" />
-                      Office
-                    </span>
-                    <div className="flex items-center gap-1">
-                      {selectedStudent.office && editingField !== 'office' && (
+                {/* Office Card */}
+                {loading ? (
+                  <div className="bg-blue-500/20 rounded-[var(--radius-md)] p-2.5 min-h-[62px] animate-pulse flex flex-col justify-between">
+                    <div className="h-2.5 w-12 bg-blue-400/30 rounded" />
+                    <div className="h-3.5 w-24 bg-blue-400/30 rounded" />
+                  </div>
+                ) : (
+                  <div
+                    className="bg-blue-500 dark:bg-blue-600 rounded-[var(--radius-md)] p-2.5 text-white flex flex-col justify-between min-h-[62px] shadow-sm cursor-pointer"
+                    title="Double-click to edit. Single-click value to copy."
+                  >
+                    <div className="flex items-center justify-between">
+                      <span className="text-[11.5px] uppercase font-bold tracking-wider text-blue-100 flex items-center gap-1">
+                        <Building2 className="h-3 w-3" />
+                        Office
+                      </span>
+                      <div className="flex items-center gap-1">
+                        {selectedStudent.office && editingField !== 'office' && (
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleCopy('office', selectedStudent.office || '')
+                            }}
+                            className="p-0.5 hover:bg-blue-600/50 rounded transition-all cursor-pointer text-blue-200 hover:text-white"
+                            title="Copy office location"
+                          >
+                            {copiedField === 'office' ? (
+                              <CheckCircle2 className="h-3 w-3 text-white" />
+                            ) : (
+                              <Copy className="h-3 w-3" />
+                            )}
+                          </button>
+                        )}
+                        {editingField !== 'office' && (
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleStartEditing('office', selectedStudent.office)
+                            }}
+                            className="p-0.5 hover:bg-blue-600/50 rounded transition-all cursor-pointer text-blue-200 hover:text-white"
+                          >
+                            <Pencil className="h-3 w-3" />
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                    <div 
+                      className="mt-0.5 flex items-center min-h-[22px] w-full"
+                      onClick={() => {
+                        if (editingField !== 'office' && selectedStudent.office) {
+                          handleCopy('office', selectedStudent.office)
+                        }
+                      }}
+                    >
+                      {editingField === 'office' ? (
+                        <div 
+                          className="flex items-center gap-1.5 w-full"
+                          onClick={(e) => e.stopPropagation()}
+                          onKeyDown={(e) => {
+                            if (e.key === 'Enter') handleSaveField('office')
+                            else if (e.key === 'Escape') handleCancelEditing()
+                          }}
+                        >
+                          <select
+                            value={editValue}
+                            onChange={(e) => setEditValue(e.target.value)}
+                            className="bg-blue-600 text-[15px] text-white px-2 py-0.5 rounded border border-blue-400 focus:outline-none w-full font-semibold cursor-pointer"
+                          >
+                            {officeOptions.map(opt => (
+                              <option key={opt} value={opt}>{opt}</option>
+                            ))}
+                          </select>
+                          <button
+                            onClick={() => handleSaveField('office')}
+                            className="p-0.5 hover:bg-blue-700 rounded text-emerald-250 cursor-pointer active:scale-[0.85] transition-transform"
+                          >
+                            <CheckCircle2 className="h-4 w-4" />
+                          </button>
+                          <button
+                            onClick={handleCancelEditing}
+                            className="p-0.5 hover:bg-blue-700 rounded text-rose-250 cursor-pointer active:scale-[0.85] transition-transform"
+                          >
+                            <X className="h-4 w-4" />
+                          </button>
+                        </div>
+                      ) : (
+                        copiedField === 'office' ? (
+                          <span className="text-[15px] font-bold text-white animate-pulse">Copied!</span>
+                        ) : (
+                          <span className="text-[15px] font-bold tracking-wide uppercase">{selectedStudent.office || 'Not provided'}</span>
+                        )
+                      )}
+                    </div>
+                  </div>
+                )}
+
+                {/* Student Balance Card */}
+                {loading ? (
+                  <div className="bg-emerald-500/20 rounded-[var(--radius-md)] p-2.5 min-h-[62px] animate-pulse flex flex-col justify-between">
+                    <div className="h-2.5 w-12 bg-emerald-400/30 rounded" />
+                    <div className="h-3.5 w-24 bg-emerald-400/30 rounded" />
+                  </div>
+                ) : (
+                  <div 
+                    className={`rounded-[var(--radius-md)] p-2.5 text-white flex flex-col justify-between min-h-[62px] cursor-pointer ${
+                      selectedStudent.balance < 0 ? 'bg-rose-500 dark:bg-rose-600' : 'bg-emerald-500 dark:bg-emerald-600'
+                    }`}
+                    title="Single-click value to copy."
+                    onClick={() => {
+                      handleCopy('balance', String(selectedStudent.balance))
+                    }}
+                  >
+                    <div className="flex items-center justify-between">
+                      <span className="text-[11.5px] uppercase font-bold tracking-wider text-white opacity-95 flex items-center gap-1">
+                        <Landmark className="h-3 w-3" />
+                        Balance
+                      </span>
+                      <div className="flex items-center gap-1">
                         <button
                           onClick={(e) => {
                             e.stopPropagation();
-                            handleCopy('office', selectedStudent.office || '')
+                            handleCopy('balance', String(selectedStudent.balance))
                           }}
-                          className="p-0.5 hover:bg-blue-600/50 rounded transition-all cursor-pointer text-blue-200 hover:text-white"
-                          title="Copy office location"
+                          className="p-0.5 hover:bg-black/10 rounded transition-all cursor-pointer text-white"
+                          title="Copy balance"
                         >
-                          {copiedField === 'office' ? (
+                          {copiedField === 'balance' ? (
                             <CheckCircle2 className="h-3 w-3 text-white" />
                           ) : (
                             <Copy className="h-3 w-3" />
                           )}
                         </button>
+                      </div>
+                    </div>
+                    <div className="mt-0.5 flex items-center min-h-[22px] w-full">
+                      {copiedField === 'balance' ? (
+                        <span className="text-[15px] font-bold text-white animate-pulse">Copied!</span>
+                      ) : (
+                        <span className="text-[15px] font-bold tracking-wide">
+                          {formatCurrency(selectedStudent.balance)}
+                        </span>
                       )}
-                      {editingField !== 'office' && (
+                    </div>
+                  </div>
+                )}
+
+                {/* Payments Done Card */}
+                {loading ? (
+                  <div className="bg-emerald-500/20 rounded-[var(--radius-md)] p-2.5 min-h-[62px] animate-pulse flex flex-col justify-between">
+                    <div className="h-2.5 w-20 bg-emerald-400/30 rounded" />
+                    <div className="h-3.5 w-24 bg-emerald-400/30 rounded" />
+                  </div>
+                ) : (
+                  <div 
+                    className="bg-emerald-500 dark:bg-emerald-600 rounded-[var(--radius-md)] p-2.5 text-white flex flex-col justify-between min-h-[62px] cursor-pointer"
+                    title="Single-click value to copy."
+                    onClick={() => {
+                      handleCopy('payments_done', String(computedPaymentsDone))
+                    }}
+                  >
+                    <div className="flex items-center justify-between">
+                      <span className="text-[11.5px] uppercase font-bold tracking-wider text-white opacity-95 flex items-center gap-1">
+                        <CheckSquare className="h-3 w-3" />
+                        Payments Done
+                      </span>
+                      <div className="flex items-center gap-1">
                         <button
                           onClick={(e) => {
                             e.stopPropagation();
-                            handleStartEditing('office', selectedStudent.office)
+                            handleCopy('payments_done', String(computedPaymentsDone))
                           }}
-                          className="p-0.5 hover:bg-blue-600/50 rounded transition-all cursor-pointer text-blue-200 hover:text-white"
+                          className="p-0.5 hover:bg-black/10 rounded transition-all cursor-pointer text-white"
+                          title="Copy payments done"
                         >
-                          <Pencil className="h-3 w-3" />
+                          {copiedField === 'payments_done' ? (
+                            <CheckCircle2 className="h-3 w-3 text-white" />
+                          ) : (
+                            <Copy className="h-3 w-3" />
+                          )}
                         </button>
+                      </div>
+                    </div>
+                    <div className="mt-0.5 flex items-center min-h-[22px] w-full">
+                      {copiedField === 'payments_done' ? (
+                        <span className="text-[15px] font-bold text-white animate-pulse">Copied!</span>
+                      ) : (
+                        <span className="text-[15px] font-bold tracking-wide">
+                          {formatCurrency(computedPaymentsDone)}
+                        </span>
                       )}
                     </div>
                   </div>
-                  <div 
-                    className="mt-0.5 flex items-center min-h-[22px] w-full"
-                    onClick={() => {
-                      if (editingField !== 'office' && selectedStudent.office) {
-                        handleCopy('office', selectedStudent.office)
-                      }
-                    }}
-                  >
-                    {editingField === 'office' ? (
-                      <div 
-                        className="flex items-center gap-1.5 w-full"
-                        onClick={(e) => e.stopPropagation()}
-                        onKeyDown={(e) => {
-                          if (e.key === 'Enter') handleSaveField('office')
-                          else if (e.key === 'Escape') handleCancelEditing()
-                        }}
-                      >
-                        <select
-                          value={editValue}
-                          onChange={(e) => setEditValue(e.target.value)}
-                          className="bg-blue-600 text-[15px] text-white px-2 py-0.5 rounded border border-blue-400 focus:outline-none w-full font-semibold cursor-pointer"
-                        >
-                          {officeOptions.map(opt => (
-                            <option key={opt} value={opt}>{opt}</option>
-                          ))}
-                        </select>
-                        <button
-                          onClick={() => handleSaveField('office')}
-                          className="p-0.5 hover:bg-blue-700 rounded text-emerald-250 cursor-pointer active:scale-[0.85] transition-transform"
-                        >
-                          <CheckCircle2 className="h-4 w-4" />
-                        </button>
-                        <button
-                          onClick={handleCancelEditing}
-                          className="p-0.5 hover:bg-blue-700 rounded text-rose-250 cursor-pointer active:scale-[0.85] transition-transform"
-                        >
-                          <X className="h-4 w-4" />
-                        </button>
-                      </div>
-                    ) : (
-                      copiedField === 'office' ? (
-                        <span className="text-[15px] font-bold text-white animate-pulse">Copied!</span>
-                      ) : (
-                        <span className="text-[15px] font-bold tracking-wide uppercase">{selectedStudent.office || 'Not provided'}</span>
-                      )
-                    )}
-                  </div>
-                </div>
-
-                {/* Student Balance Card */}
-                <div 
-                  className={`rounded-[var(--radius-md)] p-2.5 text-white flex flex-col justify-between min-h-[62px] cursor-pointer ${
-                    selectedStudent.balance < 0 ? 'bg-rose-500 dark:bg-rose-600' : 'bg-emerald-500 dark:bg-emerald-600'
-                  }`}
-                  title="Single-click value to copy."
-                  onClick={() => {
-                    handleCopy('balance', String(selectedStudent.balance))
-                  }}
-                >
-                  <div className="flex items-center justify-between">
-                    <span className="text-[11.5px] uppercase font-bold tracking-wider text-white opacity-95 flex items-center gap-1">
-                      <Landmark className="h-3 w-3" />
-                      Balance
-                    </span>
-                    <div className="flex items-center gap-1">
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          handleCopy('balance', String(selectedStudent.balance))
-                        }}
-                        className="p-0.5 hover:bg-black/10 rounded transition-all cursor-pointer text-white"
-                        title="Copy balance"
-                      >
-                        {copiedField === 'balance' ? (
-                          <CheckCircle2 className="h-3 w-3 text-white" />
-                        ) : (
-                          <Copy className="h-3 w-3" />
-                        )}
-                      </button>
-                    </div>
-                  </div>
-                  <div className="mt-0.5 flex items-center min-h-[22px] w-full">
-                    {copiedField === 'balance' ? (
-                      <span className="text-[15px] font-bold text-white animate-pulse">Copied!</span>
-                    ) : (
-                      <span className="text-[15px] font-bold tracking-wide">
-                        {formatCurrency(selectedStudent.balance)}
-                      </span>
-                    )}
-                  </div>
-                </div>
-
-                {/* Payments Done Card */}
-                <div 
-                  className="bg-emerald-500 dark:bg-emerald-600 rounded-[var(--radius-md)] p-2.5 text-white flex flex-col justify-between min-h-[62px] cursor-pointer"
-                  title="Single-click value to copy."
-                  onClick={() => {
-                    handleCopy('payments_done', String(computedPaymentsDone))
-                  }}
-                >
-                  <div className="flex items-center justify-between">
-                    <span className="text-[11.5px] uppercase font-bold tracking-wider text-white opacity-95 flex items-center gap-1">
-                      <CheckSquare className="h-3 w-3" />
-                      Payments Done
-                    </span>
-                    <div className="flex items-center gap-1">
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          handleCopy('payments_done', String(computedPaymentsDone))
-                        }}
-                        className="p-0.5 hover:bg-black/10 rounded transition-all cursor-pointer text-white"
-                        title="Copy payments done"
-                      >
-                        {copiedField === 'payments_done' ? (
-                          <CheckCircle2 className="h-3 w-3 text-white" />
-                        ) : (
-                          <Copy className="h-3 w-3" />
-                        )}
-                      </button>
-                    </div>
-                  </div>
-                  <div className="mt-0.5 flex items-center min-h-[22px] w-full">
-                    {copiedField === 'payments_done' ? (
-                      <span className="text-[15px] font-bold text-white animate-pulse">Copied!</span>
-                    ) : (
-                      <span className="text-[15px] font-bold tracking-wide">
-                        {formatCurrency(computedPaymentsDone)}
-                      </span>
-                    )}
-                  </div>
-                </div>
+                )}
 
                 {/* Discount Card */}
-                <div 
-                  className="bg-orange-500 dark:bg-orange-600 rounded-[var(--radius-md)] p-2.5 text-white flex flex-col justify-between min-h-[62px] cursor-pointer"
-                  title="Single-click value to copy."
-                  onClick={() => {
-                    handleCopy('discount', String(computedDiscount))
-                  }}
-                >
-                  <div className="flex items-center justify-between">
-                    <span className="text-[11.5px] uppercase font-bold tracking-wider text-white opacity-95 flex items-center gap-1">
-                      <Tag className="h-3.5 w-3.5" />
-                      Discount
-                    </span>
-                    <div className="flex items-center gap-1">
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          handleCopy('discount', String(computedDiscount))
-                        }}
-                        className="p-0.5 hover:bg-black/10 rounded transition-all cursor-pointer text-white"
-                        title="Copy discount amount"
-                      >
-                        {copiedField === 'discount' ? (
-                          <CheckCircle2 className="h-3 w-3 text-white" />
-                        ) : (
-                          <Copy className="h-3 w-3" />
-                        )}
-                      </button>
+                {loading ? (
+                  <div className="bg-orange-500/20 rounded-[var(--radius-md)] p-2.5 min-h-[62px] animate-pulse flex flex-col justify-between">
+                    <div className="h-2.5 w-16 bg-orange-400/30 rounded" />
+                    <div className="h-3.5 w-24 bg-orange-400/30 rounded" />
+                  </div>
+                ) : (
+                  <div 
+                    className="bg-orange-500 dark:bg-orange-600 rounded-[var(--radius-md)] p-2.5 text-white flex flex-col justify-between min-h-[62px] cursor-pointer"
+                    title="Single-click value to copy."
+                    onClick={() => {
+                      handleCopy('discount', String(computedDiscount))
+                    }}
+                  >
+                    <div className="flex items-center justify-between">
+                      <span className="text-[11.5px] uppercase font-bold tracking-wider text-white opacity-95 flex items-center gap-1">
+                        <Tag className="h-3.5 w-3.5" />
+                        Discount
+                      </span>
+                      <div className="flex items-center gap-1">
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleCopy('discount', String(computedDiscount))
+                          }}
+                          className="p-0.5 hover:bg-black/10 rounded transition-all cursor-pointer text-white"
+                          title="Copy discount amount"
+                        >
+                          {copiedField === 'discount' ? (
+                            <CheckCircle2 className="h-3 w-3 text-white" />
+                          ) : (
+                            <Copy className="h-3 w-3" />
+                          )}
+                        </button>
+                      </div>
+                    </div>
+                    <div className="mt-0.5 flex items-center min-h-[22px] w-full">
+                      {copiedField === 'discount' ? (
+                        <span className="text-[15px] font-bold text-white animate-pulse">Copied!</span>
+                      ) : (
+                        <span className="text-[15px] font-bold tracking-wide">
+                          {formatCurrency(computedDiscount)}
+                        </span>
+                      )}
                     </div>
                   </div>
-                  <div className="mt-0.5 flex items-center min-h-[22px] w-full">
-                    {copiedField === 'discount' ? (
-                      <span className="text-[15px] font-bold text-white animate-pulse">Copied!</span>
-                    ) : (
-                      <span className="text-[15px] font-bold tracking-wide">
-                        {formatCurrency(computedDiscount)}
-                      </span>
-                    )}
-                  </div>
-                </div>
+                )}
 
                 {renderDetailCard('Group', 'student_group', selectedStudent.student_group, { 
                   type: 'select',
@@ -2007,18 +1994,6 @@ export function StudentDetailClient({ studentId, onClose, onStudentIdChange }: S
                   titleColor: 'text-[var(--accent)]'
                 })}
 
-                {renderDetailCard(
-                  'Responsible Agent',
-                  'created_by' as any,
-                  selectedStudent.creator ? (selectedStudent.creator.full_name || selectedStudent.creator.email) : 'Not assigned',
-                  {
-                    type: 'select',
-                    selectOptions: ['Not assigned', ...agentOptions.map(a => a.name)],
-                    editable: !!(loggedInProfile && (loggedInProfile.role === 'Manager' || loggedInProfile.role === 'Head Manager')),
-                    badgeColor: 'bg-[#36b37e] text-white',
-                    titleColor: 'text-[var(--accent)]'
-                  }
-                )}
               </div>
             </div>
           </div>
