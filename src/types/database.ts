@@ -89,6 +89,11 @@ export interface Student {
   coa: string | null
   embassy: string | null
   invoice_university: string | null
+  embassy_documents: string[] | null
+  status_hidden: boolean | null
+  embassy_father_docs: string[] | null
+  embassy_mother_docs: string[] | null
+  embassy_sponsor_notes: string | null
   tenant_id: string
   created_by: string | null
   creator?: { id: string; full_name: string | null; email: string } | null
@@ -211,6 +216,11 @@ export type Database = {
           coa?: string | null
           embassy?: string | null
           invoice_university?: string | null
+          embassy_documents?: string[] | null
+          status_hidden?: boolean | null
+          embassy_father_docs?: string[] | null
+          embassy_mother_docs?: string[] | null
+          embassy_sponsor_notes?: string | null
         }
         Update: {
           id?: string
@@ -273,6 +283,11 @@ export type Database = {
           coa?: string | null
           embassy?: string | null
           invoice_university?: string | null
+          embassy_documents?: string[] | null
+          status_hidden?: boolean | null
+          embassy_father_docs?: string[] | null
+          embassy_mother_docs?: string[] | null
+          embassy_sponsor_notes?: string | null
         }
       }
     }

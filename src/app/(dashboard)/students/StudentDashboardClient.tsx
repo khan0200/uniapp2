@@ -6,7 +6,7 @@ import {
   Plus, Users, X, Search, AlertCircle, CheckCircle2,
   Tag, Layers, Award, Bookmark, UserCheck, Folder,
   FileSpreadsheet, ChevronDown, ChevronLeft, ChevronRight, ChevronUp,
-  Copy, Trash2, Hash, Check, RefreshCw
+  Copy, Trash2, Hash, Check, RefreshCw, BookOpen, FileText
 } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import { cn } from '@/lib/utils'
@@ -157,6 +157,45 @@ export function StudentDashboardClient({ hidePhone = false }: { hidePhone?: bool
     return () => document.removeEventListener('click', handleOutsideClick, true)
   }, [activeDetailStudentId])
 
+  // Embassy Drawer state for displaying/editing embassy documents on Status page
+  const [activeEmbassyStudentId, setActiveEmbassyStudentId] = useState<string | null>(null)
+  const [cachedEmbassyStudentId, setCachedEmbassyStudentId] = useState<string | null>(null)
+  const embassyDrawerRef = useRef<HTMLDivElement>(null)
+  const [activeEmbassyAccordionSection, setActiveEmbassyAccordionSection] = useState<'father' | 'mother' | 'sponsor' | null>(null)
+
+  useEffect(() => {
+    if (activeEmbassyStudentId) {
+      setCachedEmbassyStudentId(activeEmbassyStudentId)
+      setActiveEmbassyAccordionSection(null) // all closed by default when drawer opens
+    }
+  }, [activeEmbassyStudentId])
+
+  // Outside click listener for embassy drawer
+  useEffect(() => {
+    const handleOutsideClick = (e: MouseEvent) => {
+      if (!activeEmbassyStudentId) return
+
+      const target = e.target as HTMLElement
+      if (embassyDrawerRef.current && embassyDrawerRef.current.contains(target)) {
+        return
+      }
+
+      if (target.closest('tr')) {
+        return
+      }
+
+      const isOtherModal = target.closest('.z-50') && (!embassyDrawerRef.current || !embassyDrawerRef.current.contains(target))
+      if (isOtherModal || target.closest('.flatpickr-calendar')) {
+        return
+      }
+
+      setActiveEmbassyStudentId(null)
+    }
+
+    document.addEventListener('click', handleOutsideClick, true)
+    return () => document.removeEventListener('click', handleOutsideClick, true)
+  }, [activeEmbassyStudentId])
+
   // Gates the dynamic import of AddStudentModal so its chunk isn't fetched
   // until the user opens it for the first time; stays true afterward so the
   // modal can play its CSS exit animation on subsequent closes.
@@ -228,6 +267,19 @@ export function StudentDashboardClient({ hidePhone = false }: { hidePhone?: bool
     setActiveFolder,
     officeOptions
   } = useStudentDashboard()
+
+  const [newFatherDoc, setNewFatherDoc] = useState('')
+  const [newMotherDoc, setNewMotherDoc] = useState('')
+  const [sponsorNotes, setSponsorNotes] = useState('')
+
+  useEffect(() => {
+    if (activeEmbassyStudentId) {
+      const student = students.find(s => s.id === activeEmbassyStudentId)
+      if (student) {
+        setSponsorNotes(student.embassy_sponsor_notes || '')
+      }
+    }
+  }, [activeEmbassyStudentId, students])
 
   const { profile: loggedInProfile } = useUser()
 
@@ -1099,29 +1151,89 @@ export function StudentDashboardClient({ hidePhone = false }: { hidePhone?: bool
     }
   }
 
+  const handleUpdateEmbassyDocuments = async (studentId: string, docs: string[]) => {
+    setStudents(prev => prev.map(s => s.id === studentId ? { ...s, embassy_documents: docs } : s))
+    const { error: updateError } = await (supabase
+      .from('students') as any)
+      .update({ embassy_documents: docs })
+      .eq('id', studentId)
+    if (updateError) {
+      console.error('Error updating student embassy documents:', updateError.message || updateError)
+      fetchStudents(true)
+    }
+  }
+
+  const handleUpdateStatusHidden = async (studentId: string, isHidden: boolean) => {
+    setStudents(prev => prev.map(s => s.id === studentId ? { ...s, status_hidden: isHidden } : s))
+    const { error: updateError } = await (supabase
+      .from('students') as any)
+      .update({ status_hidden: isHidden })
+      .eq('id', studentId)
+    if (updateError) {
+      console.error('Error updating student status_hidden:', updateError.message || updateError)
+      fetchStudents(true)
+    }
+  }
+
+  const handleUpdateEmbassyFatherDocs = async (studentId: string, docs: string[]) => {
+    setStudents(prev => prev.map(s => s.id === studentId ? { ...s, embassy_father_docs: docs } : s))
+    const { error: updateError } = await (supabase
+      .from('students') as any)
+      .update({ embassy_father_docs: docs })
+      .eq('id', studentId)
+    if (updateError) {
+      console.error('Error updating student embassy father documents:', updateError.message || updateError)
+      fetchStudents(true)
+    }
+  }
+
+  const handleUpdateEmbassyMotherDocs = async (studentId: string, docs: string[]) => {
+    setStudents(prev => prev.map(s => s.id === studentId ? { ...s, embassy_mother_docs: docs } : s))
+    const { error: updateError } = await (supabase
+      .from('students') as any)
+      .update({ embassy_mother_docs: docs })
+      .eq('id', studentId)
+    if (updateError) {
+      console.error('Error updating student embassy mother documents:', updateError.message || updateError)
+      fetchStudents(true)
+    }
+  }
+
+  const handleUpdateEmbassySponsorNotes = async (studentId: string, notes: string) => {
+    setStudents(prev => prev.map(s => s.id === studentId ? { ...s, embassy_sponsor_notes: notes } : s))
+    const { error: updateError } = await (supabase
+      .from('students') as any)
+      .update({ embassy_sponsor_notes: notes })
+      .eq('id', studentId)
+    if (updateError) {
+      console.error('Error updating student embassy sponsor notes:', updateError.message || updateError)
+      fetchStudents(true)
+    }
+  }
+
   const getInvoiceBadgeClass = (status: string | null) => {
     const val = status || 'NOT TAKEN'
-    if (val === 'PAID') return 'bg-emerald-50 text-emerald-700 border-emerald-200/50 dark:bg-emerald-950/20 dark:text-emerald-400 dark:border-emerald-800/30 font-bold'
-    if (val === 'NOT PAID') return 'bg-amber-50 text-amber-700 border-amber-200/50 dark:bg-amber-950/20 dark:text-amber-400 dark:border-amber-800/30 font-bold'
-    if (val === 'TAKEN') return 'bg-violet-50 text-violet-700 border-violet-200/50 dark:bg-violet-950/20 dark:text-violet-400 dark:border-violet-800/30 font-bold'
-    if (val === 'CANCELLED') return 'bg-rose-50 text-rose-700 border-rose-200/50 dark:bg-rose-950/20 dark:text-rose-400 dark:border-rose-800/30 font-bold'
-    return 'bg-zinc-100 text-zinc-700 border-zinc-200/50 dark:bg-zinc-800/30 dark:text-zinc-400 dark:border-zinc-700/30 font-semibold'
+    if (val === 'PAID') return 'bg-emerald-600 dark:bg-emerald-500 text-white font-bold border-transparent'
+    if (val === 'NOT PAID') return 'bg-amber-500 text-white font-bold border-transparent'
+    if (val === 'TAKEN') return 'bg-violet-600 dark:bg-violet-500 text-white font-bold border-transparent'
+    if (val === 'CANCELLED') return 'bg-rose-600 dark:bg-rose-500 text-white font-bold border-transparent'
+    return 'bg-zinc-400 dark:bg-zinc-500 text-white font-semibold border-transparent'
   }
 
   const getCoaBadgeClass = (status: string | null) => {
     const val = status || 'NOT TAKEN'
-    if (val === 'TAKEN') return 'bg-emerald-50 text-emerald-700 border-emerald-200/50 dark:bg-emerald-950/20 dark:text-emerald-400 dark:border-emerald-800/30 font-bold'
-    if (val === 'MISTAKE') return 'bg-amber-50 text-amber-700 border-amber-200/50 dark:bg-amber-950/20 dark:text-amber-400 dark:border-amber-800/30 font-bold'
-    if (val === 'CANCELLED') return 'bg-rose-50 text-rose-700 border-rose-200/50 dark:bg-rose-950/20 dark:text-rose-400 dark:border-rose-800/30 font-bold'
-    return 'bg-zinc-100 text-zinc-700 border-zinc-200/50 dark:bg-zinc-800/30 dark:text-zinc-400 dark:border-zinc-700/30 font-semibold'
+    if (val === 'TAKEN') return 'bg-emerald-600 dark:bg-emerald-500 text-white font-bold border-transparent'
+    if (val === 'MISTAKE') return 'bg-amber-500 text-white font-bold border-transparent'
+    if (val === 'CANCELLED') return 'bg-rose-600 dark:bg-rose-500 text-white font-bold border-transparent'
+    return 'bg-zinc-400 dark:bg-zinc-500 text-white font-semibold border-transparent'
   }
 
   const getEmbassyBadgeClass = (status: string | null) => {
     const val = status || 'Not Applied'
-    if (val === 'Approved') return 'bg-emerald-50 text-emerald-700 border-emerald-200/50 dark:bg-emerald-950/20 dark:text-emerald-400 dark:border-emerald-800/30'
-    if (val === 'Applied') return 'bg-blue-50 text-blue-700 border-blue-200/50 dark:bg-blue-950/20 dark:text-blue-400 dark:border-blue-800/30'
-    if (val === 'Rejected') return 'bg-rose-50 text-rose-700 border-rose-200/50 dark:bg-rose-950/20 dark:text-rose-400 dark:border-rose-800/30'
-    return 'bg-zinc-100 text-zinc-700 border-zinc-200/50 dark:bg-zinc-800/30 dark:text-zinc-400 dark:border-zinc-700/30'
+    if (val === 'Approved') return 'bg-emerald-600 dark:bg-emerald-500 text-white font-bold border-transparent'
+    if (val === 'Applied') return 'bg-blue-600 dark:bg-blue-500 text-white font-bold border-transparent'
+    if (val === 'Rejected') return 'bg-rose-600 dark:bg-rose-500 text-white font-bold border-transparent'
+    return 'bg-zinc-400 dark:bg-zinc-500 text-white font-semibold border-transparent'
   }
 
   const handleToggleTag = async (studentId: string, tagName: string) => {
@@ -1389,15 +1501,20 @@ export function StudentDashboardClient({ hidePhone = false }: { hidePhone?: bool
     // 1. Folder filtering
     if (activeFolder === 'deleted') {
       if (student.is_deleted !== true) return false
-    } else if (activeFolder === 'all') {
+    } else if (activeFolder === 'hidden') {
       if (student.is_deleted === true) return false
-    } else if (activeFolder === 'except') {
-      if (student.is_deleted === true) return false
-      if (student.folder_ids && student.folder_ids.length > 0) return false
+      if (student.status_hidden !== true) return false
     } else {
-      // Custom folder selection
       if (student.is_deleted === true) return false
-      if (!(student.folder_ids || []).includes(activeFolder)) return false
+      // Hide status_hidden students on the Status page from normal folders
+      if (hidePhone && student.status_hidden === true) return false
+
+      if (activeFolder === 'except') {
+        if (student.folder_ids && student.folder_ids.length > 0) return false
+      } else if (activeFolder !== 'all') {
+        // Custom folder selection
+        if (!(student.folder_ids || []).includes(activeFolder)) return false
+      }
     }
 
     // 2. Search query matching
@@ -1803,6 +1920,21 @@ export function StudentDashboardClient({ hidePhone = false }: { hidePhone?: bool
           Except
         </button>
 
+        {/* Hidden Folder (Status Page only) */}
+        {hidePhone && (
+          <button
+            onClick={() => setActiveFolder('hidden')}
+            className={cn(
+              "relative text-sm font-semibold transition-all cursor-pointer whitespace-nowrap pb-2 -mb-2.5 border-b-2",
+              activeFolder === 'hidden'
+                ? "text-amber-500 border-amber-500 font-bold animate-none"
+                : "text-[var(--foreground-muted)] border-transparent hover:text-amber-500"
+            )}
+          >
+            Hidden
+          </button>
+        )}
+
         {/* Archive Folder */}
         <button
           onClick={() => setActiveFolder('deleted')}
@@ -1821,9 +1953,17 @@ export function StudentDashboardClient({ hidePhone = false }: { hidePhone?: bool
       <div className="mb-2 flex justify-between items-center text-xs text-[var(--foreground-muted)] italic px-1 font-medium select-none">
         <div>
           {(searchQuery || selectedTariffs.length > 0 || selectedLevels.length > 0 || selectedGroups.length > 0 || selectedCerts.length > 0 || selectedScores.length > 0 || selectedTags.length > 0 || selectedLeads.length > 0) ? (
-            <span>Showing {filteredStudents.length} of {students.filter(s => activeFolder === 'deleted' ? s.is_deleted : activeFolder === 'all' ? !s.is_deleted : activeFolder === 'except' ? (!s.is_deleted && (!s.folder_ids || s.folder_ids.length === 0)) : (!s.is_deleted && (s.folder_ids || []).includes(activeFolder))).length} students</span>
+            <span>Showing {filteredStudents.length} of {students.filter(s => {
+              if (s.is_deleted) return activeFolder === 'deleted'
+              if (activeFolder === 'deleted') return false
+              if (activeFolder === 'hidden') return s.status_hidden === true
+              if (hidePhone && s.status_hidden === true) return false
+              if (activeFolder === 'all') return true
+              if (activeFolder === 'except') return !s.folder_ids || s.folder_ids.length === 0
+              return (s.folder_ids || []).includes(activeFolder)
+            }).length} students</span>
           ) : (
-            <span>Showing all students in {activeFolder === 'all' ? 'All' : activeFolder === 'deleted' ? 'Archive' : activeFolder === 'except' ? 'Except' : (foldersOptions.find(f => f.id === activeFolder)?.name || 'Folder')}</span>
+            <span>Showing all students in {activeFolder === 'all' ? 'All' : activeFolder === 'deleted' ? 'Archive' : activeFolder === 'hidden' ? 'Hidden' : activeFolder === 'except' ? 'Except' : (foldersOptions.find(f => f.id === activeFolder)?.name || 'Folder')}</span>
           )}
         </div>
         <div className="flex items-center gap-3">
@@ -1920,12 +2060,12 @@ export function StudentDashboardClient({ hidePhone = false }: { hidePhone?: bool
                 <col style={{ width: '5rem' }} />
                 <col style={{ width: hidePhone ? '28%' : '27%' }} />
                 {!hidePhone && <col style={{ width: '13%' }} />}
-                <col style={{ width: hidePhone ? '10%' : '11%' }} />
+                <col style={{ width: hidePhone ? '12%' : '11%' }} />
                 {!hidePhone && <col style={{ width: '17%' }} />}
-                {hidePhone && <col style={{ width: '11%' }} />}
-                {hidePhone && <col style={{ width: '10%' }} />}
-                {hidePhone && <col style={{ width: '11%' }} />}
-                <col style={{ width: hidePhone ? '10%' : '12%' }} />
+                {hidePhone && <col style={{ width: '16%' }} />}
+                {hidePhone && <col style={{ width: '14%' }} />}
+                {hidePhone && <col style={{ width: '30%' }} />}
+                {!hidePhone && <col style={{ width: '12%' }} />}
               </colgroup>
               <thead>
                 <tr className="border-b border-[var(--border)] bg-[var(--surface-elevated)] text-[11px] font-bold uppercase tracking-wider text-[var(--foreground-muted)] dark:text-[var(--foreground)] select-none">
@@ -1942,14 +2082,14 @@ export function StudentDashboardClient({ hidePhone = false }: { hidePhone?: bool
                       )}
                     </span>
                   </th>
-                  <th className="px-1 py-2.5 w-[18%]">Full Name</th>
+                  <th className={cn("px-1 py-2.5", hidePhone ? "w-[28%]" : "w-[18%]")}>Full Name</th>
                   {!hidePhone && <th className="px-6 py-2.5 w-[12%]">Phone</th>}
-                  <th className="px-6 py-2.5 w-[10%]">Level</th>
+                  <th className={cn("px-6 py-2.5", hidePhone ? "w-[12%]" : "w-[10%]")}>Level</th>
                   {!hidePhone && <th className="px-6 py-2.5 w-[32%]">University</th>}
-                  {hidePhone && <th className="px-6 py-2.5 w-[11%]">Invoice</th>}
-                  {hidePhone && <th className="px-6 py-2.5 w-[10%]">CoA</th>}
-                  {hidePhone && <th className="px-6 py-2.5 w-[11%]">Embassy</th>}
-                  <th className="px-6 py-2.5 text-left w-[12%]">Actions</th>
+                  {hidePhone && <th className="px-4 py-2.5 w-[16%]">Invoice</th>}
+                  {hidePhone && <th className="px-4 py-2.5 w-[14%]">CoA</th>}
+                  {hidePhone && <th className="px-4 py-2.5 w-[30%]">Embassy</th>}
+                  {!hidePhone && <th className={cn("px-6 py-2.5 text-left w-[12%]")}>Actions</th>}
                 </tr>
               </thead>
               <tbody className="divide-y divide-[var(--border)]">
@@ -1961,6 +2101,8 @@ export function StudentDashboardClient({ hidePhone = false }: { hidePhone?: bool
                       onClick={(e) => {
                         if (e.metaKey || e.ctrlKey) {
                           window.open(`/students/${student.id}`, '_blank')
+                        } else if (hidePhone) {
+                          setActiveEmbassyStudentId(student.id)
                         } else {
                           setActiveDetailStudentId(student.id)
                         }
@@ -2085,7 +2227,7 @@ export function StudentDashboardClient({ hidePhone = false }: { hidePhone?: bool
 
                       {/* Invoice Column */}
                       {hidePhone && (
-                        <td className="px-6 py-2.5 whitespace-nowrap" onClick={(e) => e.stopPropagation()}>
+                        <td className="px-4 py-2.5 whitespace-nowrap" onClick={(e) => e.stopPropagation()}>
                           <div className="flex flex-col items-center justify-center">
                             <select
                               value={student.invoice || 'NOT TAKEN'}
@@ -2112,7 +2254,7 @@ export function StudentDashboardClient({ hidePhone = false }: { hidePhone?: bool
 
                       {/* CoA Column */}
                       {hidePhone && (
-                        <td className="px-6 py-2.5 whitespace-nowrap" onClick={(e) => e.stopPropagation()}>
+                        <td className="px-4 py-2.5 whitespace-nowrap" onClick={(e) => e.stopPropagation()}>
                           <select
                             value={student.coa || 'NOT TAKEN'}
                             onChange={(e) => handleUpdateCoa(student.id, e.target.value)}
@@ -2131,20 +2273,56 @@ export function StudentDashboardClient({ hidePhone = false }: { hidePhone?: bool
 
                       {/* Embassy Column */}
                       {hidePhone && (
-                        <td className="px-6 py-2.5 whitespace-nowrap" onClick={(e) => e.stopPropagation()}>
-                          <select
-                            value={student.embassy || 'Not Applied'}
-                            onChange={(e) => handleUpdateEmbassy(student.id, e.target.value)}
-                            className={cn(
-                              "px-2.5 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider border cursor-pointer focus:outline-none transition-all duration-200 select-none",
-                              getEmbassyBadgeClass(student.embassy)
+                        <td className="px-4 py-2.5 max-w-0" onClick={(e) => {
+                          e.stopPropagation()
+                          setActiveEmbassyStudentId(student.id)
+                        }}>
+                          <div className="flex flex-col gap-1 cursor-pointer hover:opacity-85 transition-all">
+                            {((student.embassy_father_docs && student.embassy_father_docs.length > 0) ||
+                              (student.embassy_mother_docs && student.embassy_mother_docs.length > 0) ||
+                              (student.embassy_sponsor_notes && student.embassy_sponsor_notes.trim().length > 0)) ? (
+                              <>
+                                {student.embassy_father_docs && student.embassy_father_docs.length > 0 && (
+                                  <div className="flex flex-wrap items-center gap-1">
+                                    <span className="text-[9px] font-bold text-blue-500 uppercase tracking-wide mr-1 shrink-0 select-none">Ota:</span>
+                                    {student.embassy_father_docs.map((doc, idx) => (
+                                      <span
+                                        key={idx}
+                                        className="inline-flex items-center px-1.5 py-0.5 rounded-[4px] text-[9.5px] font-bold bg-blue-600 text-white shadow-xs border border-transparent select-none whitespace-nowrap truncate max-w-[100px]"
+                                        title={doc}
+                                      >
+                                        {doc}
+                                      </span>
+                                    ))}
+                                  </div>
+                                )}
+                                {student.embassy_mother_docs && student.embassy_mother_docs.length > 0 && (
+                                  <div className="flex flex-wrap items-center gap-1 mt-0.5">
+                                    <span className="text-[9px] font-bold text-rose-500 uppercase tracking-wide mr-1 shrink-0 select-none">Ona:</span>
+                                    {student.embassy_mother_docs.map((doc, idx) => (
+                                      <span
+                                        key={idx}
+                                        className="inline-flex items-center px-1.5 py-0.5 rounded-[4px] text-[9.5px] font-bold bg-rose-600 text-white shadow-xs border border-transparent select-none whitespace-nowrap truncate max-w-[100px]"
+                                        title={doc}
+                                      >
+                                        {doc}
+                                      </span>
+                                    ))}
+                                  </div>
+                                )}
+                                {student.embassy_sponsor_notes && student.embassy_sponsor_notes.trim().length > 0 && (
+                                  <div className="flex items-center gap-1 mt-0.5 text-[9.5px] text-[var(--foreground-muted)] font-medium truncate max-w-[180px]">
+                                    <span className="font-bold text-amber-500 uppercase tracking-wide shrink-0 select-none">Homiy:</span>
+                                    <span className="truncate italic">"{student.embassy_sponsor_notes}"</span>
+                                  </div>
+                                )}
+                              </>
+                            ) : (
+                              <span className="text-[11px] text-[var(--foreground-muted)] dark:text-zinc-500 italic hover:text-blue-500 font-semibold select-none transition-colors">
+                                Add documents...
+                              </span>
                             )}
-                          >
-                            <option value="Not Applied" className="bg-white dark:bg-zinc-900 text-zinc-800 dark:text-zinc-200">Not Applied</option>
-                            <option value="Applied" className="bg-white dark:bg-zinc-900 text-zinc-800 dark:text-zinc-200">Applied</option>
-                            <option value="Approved" className="bg-white dark:bg-zinc-900 text-zinc-800 dark:text-zinc-200">Approved</option>
-                            <option value="Rejected" className="bg-white dark:bg-zinc-900 text-zinc-800 dark:text-zinc-200">Rejected</option>
-                          </select>
+                          </div>
                         </td>
                       )}
 
@@ -2156,65 +2334,67 @@ export function StudentDashboardClient({ hidePhone = false }: { hidePhone?: bool
                       )}
 
                       {/* Actions Column (Color Ball + Task Tags) */}
-                      <td className="px-6 py-2.5" onClick={(e) => e.stopPropagation()}>
-                        <div className="flex items-center justify-start gap-3 select-none whitespace-nowrap flex-nowrap">
-                          {/* Color Ball Wrapper */}
-                          <div
-                            className="flex items-center justify-center w-6.5 h-6.5 rounded-full border cursor-pointer hover:scale-105 active:scale-95 transition-all shadow-sm relative bg-[var(--surface-elevated)]"
-                            style={{
-                              borderColor: student.row_color ? ROW_COLOR_MAP[student.row_color.toUpperCase()]?.ball : 'var(--border)',
-                            }}
-                            onClick={(e) => {
-                              const rect = e.currentTarget.getBoundingClientRect()
-                              setPopoverAnchor({ studentId: student.id, rect })
-                            }}
-                          >
+                      {!hidePhone && (
+                        <td className="px-6 py-2.5" onClick={(e) => e.stopPropagation()}>
+                          <div className="flex items-center justify-start gap-3 select-none whitespace-nowrap flex-nowrap">
+                            {/* Color Ball Wrapper */}
                             <div
-                              className="w-3.5 h-3.5 rounded-full transition-all"
+                              className="flex items-center justify-center w-6.5 h-6.5 rounded-full border cursor-pointer hover:scale-105 active:scale-95 transition-all shadow-sm relative bg-[var(--surface-elevated)]"
                               style={{
-                                backgroundColor: student.row_color ? ROW_COLOR_MAP[student.row_color.toUpperCase()]?.ball : 'transparent',
-                                border: student.row_color ? 'none' : '2px dashed var(--foreground-subtle)',
+                                borderColor: student.row_color ? ROW_COLOR_MAP[student.row_color.toUpperCase()]?.ball : 'var(--border)',
                               }}
-                            />
-                          </div>
+                              onClick={(e) => {
+                                const rect = e.currentTarget.getBoundingClientRect()
+                                setPopoverAnchor({ studentId: student.id, rect })
+                              }}
+                            >
+                              <div
+                                className="w-3.5 h-3.5 rounded-full transition-all"
+                                style={{
+                                  backgroundColor: student.row_color ? ROW_COLOR_MAP[student.row_color.toUpperCase()]?.ball : 'transparent',
+                                  border: student.row_color ? 'none' : '2px dashed var(--foreground-subtle)',
+                                }}
+                              />
+                            </div>
 
-                          {/* Task Tags Container */}
-                          <div className="flex items-center gap-1.5 flex-nowrap shrink-0">
-                            {(student.task_tags || []).map((tag, tagIdx) => {
-                              const icon = getCustomTagIcon(tag)
-                              return (
-                                <span
-                                  key={tagIdx}
-                                  className="inline-flex items-center justify-center w-6.5 h-6.5 text-[13px] bg-[var(--surface-elevated)] border border-[var(--border)] rounded-[6px] shadow-sm relative cursor-pointer select-none"
-                                  title={tag}
-                                  onClick={(e) => {
-                                    e.stopPropagation()
-                                    if (activeTooltip?.studentId === student.id && activeTooltip?.tagKey === tag) {
-                                      setActiveTooltip(null)
-                                    } else {
-                                      setActiveTooltip({ studentId: student.id, tagKey: tag })
-                                    }
-                                  }}
-                                >
-                                  {icon}
+                            {/* Task Tags Container */}
+                            <div className="flex items-center gap-1.5 flex-nowrap shrink-0">
+                              {(student.task_tags || []).map((tag, tagIdx) => {
+                                const icon = getCustomTagIcon(tag)
+                                return (
+                                  <span
+                                    key={tagIdx}
+                                    className="inline-flex items-center justify-center w-6.5 h-6.5 text-[13px] bg-[var(--surface-elevated)] border border-[var(--border)] rounded-[6px] shadow-sm relative cursor-pointer select-none"
+                                    title={tag}
+                                    onClick={(e) => {
+                                      e.stopPropagation()
+                                      if (activeTooltip?.studentId === student.id && activeTooltip?.tagKey === tag) {
+                                        setActiveTooltip(null)
+                                      } else {
+                                        setActiveTooltip({ studentId: student.id, tagKey: tag })
+                                      }
+                                    }}
+                                  >
+                                    {icon}
 
-                                  {/* iOS-styled Tooltip */}
-                                  {activeTooltip?.studentId === student.id && activeTooltip?.tagKey === tag && (
-                                    <div
-                                      className="animate-dropdown-in absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-2.5 py-1 bg-black/90 dark:bg-zinc-800 border border-white/10 dark:border-zinc-700/50 text-[10px] font-bold text-white rounded-[6px] shadow-[0_4px_12px_rgba(0,0,0,0.15)] whitespace-nowrap z-50 pointer-events-none"
-                                      style={{ transformOrigin: 'bottom center' }}
-                                    >
-                                      {tag}
-                                      {/* Tooltip Triangle Arrow */}
-                                      <div className="absolute top-full left-1/2 -translate-x-1/2 w-0 h-0 border-l-[4px] border-l-transparent border-r-[4px] border-r-transparent border-t-[4.5px] border-t-black/90 dark:border-t-zinc-800" />
-                                    </div>
-                                  )}
-                                </span>
-                              )
-                            })}
+                                    {/* iOS-styled Tooltip */}
+                                    {activeTooltip?.studentId === student.id && activeTooltip?.tagKey === tag && (
+                                      <div
+                                        className="animate-dropdown-in absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-2.5 py-1 bg-black/90 dark:bg-zinc-800 border border-white/10 dark:border-zinc-700/50 text-[10px] font-bold text-white rounded-[6px] shadow-[0_4px_12px_rgba(0,0,0,0.15)] whitespace-nowrap z-50 pointer-events-none"
+                                        style={{ transformOrigin: 'bottom center' }}
+                                      >
+                                        {tag}
+                                        {/* Tooltip Triangle Arrow */}
+                                        <div className="absolute top-full left-1/2 -translate-x-1/2 w-0 h-0 border-l-[4px] border-l-transparent border-r-[4px] border-r-transparent border-t-[4.5px] border-t-black/90 dark:border-t-zinc-800" />
+                                      </div>
+                                    )}
+                                  </span>
+                                )
+                              })}
+                            </div>
                           </div>
-                        </div>
-                      </td>
+                        </td>
+                      )}
                     </tr>
                   )
                 })}
@@ -3673,6 +3853,379 @@ export function StudentDashboardClient({ hidePhone = false }: { hidePhone?: bool
           </div>
         </div>
       )}
+
+      {/* Embassy Documents Drawer */}
+      {cachedEmbassyStudentId && (() => {
+        const student = students.find((s) => s.id === cachedEmbassyStudentId)
+        if (!student) return null
+
+        const fatherDocs = student.embassy_father_docs || []
+        const motherDocs = student.embassy_mother_docs || []
+
+        const handleAddFatherDoc = (docName: string) => {
+          const trimmed = docName.trim()
+          if (!trimmed) return
+          if (fatherDocs.includes(trimmed)) return
+          const updated = [...fatherDocs, trimmed]
+          handleUpdateEmbassyFatherDocs(student.id, updated)
+          setNewFatherDoc('')
+        }
+
+        const handleRemoveFatherDoc = (docName: string) => {
+          const updated = fatherDocs.filter((d) => d !== docName)
+          handleUpdateEmbassyFatherDocs(student.id, updated)
+        }
+
+        const handleAddMotherDoc = (docName: string) => {
+          const trimmed = docName.trim()
+          if (!trimmed) return
+          if (motherDocs.includes(trimmed)) return
+          const updated = [...motherDocs, trimmed]
+          handleUpdateEmbassyMotherDocs(student.id, updated)
+          setNewMotherDoc('')
+        }
+
+        const handleRemoveMotherDoc = (docName: string) => {
+          const updated = motherDocs.filter((d) => d !== docName)
+          handleUpdateEmbassyMotherDocs(student.id, updated)
+        }
+
+        const QUICK_DOCS = [
+          'RASMIY ISH HAQQI',
+          'CHET DAVLATI ISH HAQQI',
+          'KOREADA RASMIY ISH',
+          'KADASTR',
+          'KADASTR X2',
+          'KADASTR X3',
+          'TEX.PASSPORT',
+          'TEX.PASSPORT X2',
+          'TEX.PASSPORT X3',
+          'BANKSHOT',
+          'BOBO PENSIYA',
+          'BUVI PENSIYA',
+          'DO\'KON',
+          'YAKKA TADBIRKOR',
+          'O\'ZINI BAND QILISH'
+        ]
+
+        return (
+          <div className="fixed inset-y-0 right-0 z-50 pointer-events-none flex justify-end p-2 md:p-2.5">
+            {/* Backdrop Overlay */}
+            <div
+              className={cn(
+                'fixed inset-0 bg-black/30 transition-opacity ease-out pointer-events-none z-0',
+                activeEmbassyStudentId ? 'opacity-100' : 'opacity-0'
+              )}
+              style={{ transitionDuration: '380ms' }}
+              onClick={() => setActiveEmbassyStudentId(null)}
+            />
+
+            {/* Drawer Panel */}
+            <div
+              ref={embassyDrawerRef}
+              className={cn(
+                'relative w-full max-w-3xl h-full bg-[var(--background)] border border-[var(--border)] rounded-2xl shadow-[var(--shadow-lg)] z-10 flex flex-col overflow-hidden pointer-events-auto',
+                'transition-transform ease-[cubic-bezier(0.16,1,0.3,1)]',
+                activeEmbassyStudentId ? 'translate-x-0' : 'translate-x-full'
+              )}
+              style={{ transitionDuration: '380ms' }}
+            >
+              {/* Header */}
+              <div className="flex items-center justify-between px-6 py-5 border-b border-[var(--border)] shrink-0 bg-[var(--surface-elevated)]/30">
+                <div>
+                  <h3 className="text-[16px] font-bold text-[var(--foreground)]">Embassy Documents</h3>
+                  <div className="flex items-center gap-2 mt-1">
+                    <span className="text-[11px] font-bold bg-[#007aff] text-white px-1.5 py-0.5 rounded-[4px] shadow-sm">
+                      {student.id}
+                    </span>
+                    <span className="text-[12px] font-semibold text-[var(--foreground-muted)] uppercase tracking-wide truncate max-w-[250px]">
+                      {student.full_name}
+                    </span>
+                  </div>
+                </div>
+                <button
+                  onClick={() => setActiveEmbassyStudentId(null)}
+                  className="rounded-[var(--radius-sm)] p-1.5 text-[var(--foreground-muted)] hover:bg-[var(--border-subtle)] hover:text-[var(--foreground)] transition-all cursor-pointer"
+                >
+                  <X className="h-5 w-5" />
+                </button>
+              </div>
+
+              {/* Body */}
+              <div className="flex-1 overflow-y-auto p-6 flex flex-col gap-8">
+                {/* Hide Student Toggle */}
+                <div className="flex items-center justify-between p-3.5 bg-zinc-50 dark:bg-zinc-800/40 border border-[var(--border)] rounded-[var(--radius-lg)] shadow-xs select-none">
+                  <div className="flex flex-col pr-4">
+                    <span className="text-xs font-bold text-[var(--foreground)]">Hide Student</span>
+                    <span className="text-[10px] text-[var(--foreground-muted)] mt-0.5">
+                      Hide this student from the active Status table view
+                    </span>
+                  </div>
+                  <button
+                    onClick={() => {
+                      const nextVal = !student.status_hidden
+                      handleUpdateStatusHidden(student.id, nextVal)
+                    }}
+                    className={cn(
+                      "relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none",
+                      student.status_hidden ? "bg-amber-500" : "bg-zinc-200 dark:bg-zinc-700"
+                    )}
+                  >
+                    <span
+                      className={cn(
+                        "pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow-sm ring-0 transition duration-200 ease-in-out",
+                        student.status_hidden ? "translate-x-5" : "translate-x-0"
+                      )}
+                    />
+                  </button>
+                </div>
+
+                {/* SECTION 1: FATHER (OTA) */}
+                <div className="border border-[var(--border)] rounded-2xl p-5 bg-[var(--surface-elevated)]/10 flex flex-col shadow-sm transition-all duration-200">
+                  <div
+                    onClick={() => setActiveEmbassyAccordionSection(prev => prev === 'father' ? null : 'father')}
+                    className="flex items-center justify-between cursor-pointer select-none"
+                  >
+                    <h4 className="text-sm font-bold text-blue-600 dark:text-blue-400 uppercase tracking-wider flex items-center gap-1.5">
+                      <div className="w-2.5 h-2.5 rounded-full bg-blue-500 animate-pulse" />
+                      Ota (Father)
+                    </h4>
+                    <div className="flex items-center gap-2">
+                      <span className="text-[10.5px] font-bold text-blue-500 bg-blue-50 dark:bg-blue-950/20 px-2 py-0.5 rounded-full">
+                        {fatherDocs.length} docs
+                      </span>
+                      {activeEmbassyAccordionSection === 'father' ? (
+                        <ChevronUp className="h-4 w-4 text-blue-500" />
+                      ) : (
+                        <ChevronDown className="h-4 w-4 text-blue-500" />
+                      )}
+                    </div>
+                  </div>
+
+                  {activeEmbassyAccordionSection === 'father' && (
+                    <div className="animate-dropdown-in flex flex-col gap-4 mt-4">
+                      {/* Add Father Custom Doc */}
+                      <form
+                        onSubmit={(e) => {
+                          e.preventDefault()
+                          handleAddFatherDoc(newFatherDoc)
+                        }}
+                        className="flex gap-2"
+                      >
+                        <input
+                          type="text"
+                          placeholder="Custom ota hujjati..."
+                          value={newFatherDoc}
+                          onChange={(e) => setNewFatherDoc(e.target.value)}
+                          className="flex-1 px-3.5 py-1.5 text-xs border border-[var(--border)] bg-[var(--surface)] rounded-[var(--radius-md)] focus:outline-none focus:border-blue-500 text-[var(--foreground)] placeholder:text-[var(--foreground-subtle)] font-semibold shadow-2xs"
+                        />
+                        <button
+                          type="submit"
+                          className="px-3.5 py-1.5 bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold rounded-[var(--radius-md)] transition-all cursor-pointer inline-flex items-center gap-1 shrink-0"
+                        >
+                          <Plus className="h-3.5 w-3.5" />
+                          Add
+                        </button>
+                      </form>
+
+                      {/* Quick Add Grid */}
+                      <div className="flex flex-col gap-1.5">
+                        <label className="text-[9.5px] font-bold uppercase tracking-wider text-[var(--foreground-muted)]">
+                          Quick Add
+                        </label>
+                        <div className="grid grid-cols-3 gap-1.5">
+                          {QUICK_DOCS.map((doc) => {
+                            const isAdded = fatherDocs.includes(doc)
+                            return (
+                              <button
+                                key={doc}
+                                disabled={isAdded}
+                                onClick={() => handleAddFatherDoc(doc)}
+                                className={cn(
+                                  "px-2.5 py-2 rounded-md text-[12px] font-bold border transition-all cursor-pointer text-center select-none truncate",
+                                  isAdded
+                                    ? "bg-[var(--border-subtle)] text-[var(--foreground-muted)] border-transparent opacity-60 cursor-not-allowed"
+                                    : "bg-[var(--surface)] border-[var(--border)] text-[var(--foreground)] hover:bg-blue-50 hover:text-blue-600 hover:border-blue-200 dark:hover:bg-blue-950/20 dark:hover:text-blue-400 dark:hover:border-blue-800/40"
+                                )}
+                                title={doc}
+                              >
+                                {doc}
+                              </button>
+                            )
+                          })}
+                        </div>
+                      </div>
+
+                      {/* Father Docs List */}
+                      {fatherDocs.length > 0 && (
+                        <div className="flex flex-wrap gap-1.5 bg-[var(--surface)] border border-[var(--border)] p-3 rounded-xl shadow-2xs">
+                          {fatherDocs.map((doc) => (
+                            <span
+                              key={doc}
+                              className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-[6px] text-[10.5px] font-bold bg-blue-600 text-white shadow-xs border border-transparent select-none"
+                            >
+                              {doc}
+                              <button
+                                onClick={() => handleRemoveFatherDoc(doc)}
+                                className="text-white/80 hover:text-white cursor-pointer transition-colors"
+                              >
+                                <X className="h-3.5 w-3.5" />
+                              </button>
+                            </span>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
+
+                {/* SECTION 2: MOTHER (ONA) */}
+                <div className="border border-[var(--border)] rounded-2xl p-5 bg-[var(--surface-elevated)]/10 flex flex-col shadow-sm transition-all duration-200">
+                  <div
+                    onClick={() => setActiveEmbassyAccordionSection(prev => prev === 'mother' ? null : 'mother')}
+                    className="flex items-center justify-between cursor-pointer select-none"
+                  >
+                    <h4 className="text-sm font-bold text-rose-600 dark:text-rose-400 uppercase tracking-wider flex items-center gap-1.5">
+                      <div className="w-2.5 h-2.5 rounded-full bg-rose-500 animate-pulse" />
+                      Ona (Mother)
+                    </h4>
+                    <div className="flex items-center gap-2">
+                      <span className="text-[10.5px] font-bold text-rose-500 bg-rose-50 dark:bg-rose-950/20 px-2 py-0.5 rounded-full">
+                        {motherDocs.length} docs
+                      </span>
+                      {activeEmbassyAccordionSection === 'mother' ? (
+                        <ChevronUp className="h-4 w-4 text-rose-500" />
+                      ) : (
+                        <ChevronDown className="h-4 w-4 text-rose-500" />
+                      )}
+                    </div>
+                  </div>
+
+                  {activeEmbassyAccordionSection === 'mother' && (
+                    <div className="animate-dropdown-in flex flex-col gap-4 mt-4">
+                      {/* Add Mother Custom Doc */}
+                      <form
+                        onSubmit={(e) => {
+                          e.preventDefault()
+                          handleAddMotherDoc(newMotherDoc)
+                        }}
+                        className="flex gap-2"
+                      >
+                        <input
+                          type="text"
+                          placeholder="Custom ona hujjati..."
+                          value={newMotherDoc}
+                          onChange={(e) => setNewMotherDoc(e.target.value)}
+                          className="flex-1 px-3.5 py-1.5 text-xs border border-[var(--border)] bg-[var(--surface)] rounded-[var(--radius-md)] focus:outline-none focus:border-blue-500 text-[var(--foreground)] placeholder:text-[var(--foreground-subtle)] font-semibold shadow-2xs"
+                        />
+                        <button
+                          type="submit"
+                          className="px-3.5 py-1.5 bg-rose-600 hover:bg-rose-700 text-white text-xs font-bold rounded-[var(--radius-md)] transition-all cursor-pointer inline-flex items-center gap-1 shrink-0"
+                        >
+                          <Plus className="h-3.5 w-3.5" />
+                          Add
+                        </button>
+                      </form>
+
+                      {/* Quick Add Grid */}
+                      <div className="flex flex-col gap-1.5">
+                        <label className="text-[9.5px] font-bold uppercase tracking-wider text-[var(--foreground-muted)]">
+                          Quick Add
+                        </label>
+                        <div className="grid grid-cols-3 gap-1.5">
+                          {QUICK_DOCS.map((doc) => {
+                            const isAdded = motherDocs.includes(doc)
+                            return (
+                              <button
+                                key={doc}
+                                disabled={isAdded}
+                                onClick={() => handleAddMotherDoc(doc)}
+                                className={cn(
+                                  "px-2.5 py-2 rounded-md text-[12px] font-bold border transition-all cursor-pointer text-center select-none truncate",
+                                  isAdded
+                                    ? "bg-[var(--border-subtle)] text-[var(--foreground-muted)] border-transparent opacity-60 cursor-not-allowed"
+                                    : "bg-[var(--surface)] border-[var(--border)] text-[var(--foreground)] hover:bg-rose-50 hover:text-rose-600 hover:border-rose-200 dark:hover:bg-rose-950/20 dark:hover:text-rose-400 dark:hover:border-rose-800/40"
+                                )}
+                                title={doc}
+                              >
+                                {doc}
+                              </button>
+                            )
+                          })}
+                        </div>
+                      </div>
+
+                      {/* Mother Docs List */}
+                      {motherDocs.length > 0 && (
+                        <div className="flex flex-wrap gap-1.5 bg-[var(--surface)] border border-[var(--border)] p-3 rounded-xl shadow-2xs">
+                          {motherDocs.map((doc) => (
+                            <span
+                              key={doc}
+                              className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-[6px] text-[10.5px] font-bold bg-rose-600 text-white shadow-xs border border-transparent select-none"
+                            >
+                              {doc}
+                              <button
+                                onClick={() => handleRemoveMotherDoc(doc)}
+                                className="text-white/80 hover:text-white cursor-pointer transition-colors"
+                              >
+                                <X className="h-3.5 w-3.5" />
+                              </button>
+                            </span>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
+
+                {/* SECTION 3: SPONSOR (HOMIY) */}
+                <div className="border border-[var(--border)] rounded-2xl p-5 bg-[var(--surface-elevated)]/10 flex flex-col shadow-sm transition-all duration-200">
+                  <div
+                    onClick={() => setActiveEmbassyAccordionSection(prev => prev === 'sponsor' ? null : 'sponsor')}
+                    className="flex items-center justify-between cursor-pointer select-none"
+                  >
+                    <h4 className="text-sm font-bold text-amber-600 dark:text-amber-400 uppercase tracking-wider flex items-center gap-1.5">
+                      <div className="w-2.5 h-2.5 rounded-full bg-amber-500 animate-pulse" />
+                      Homiy (Sponsor Notes)
+                    </h4>
+                    <div className="flex items-center gap-2">
+                      {activeEmbassyAccordionSection === 'sponsor' ? (
+                        <ChevronUp className="h-4 w-4 text-amber-500" />
+                      ) : (
+                        <ChevronDown className="h-4 w-4 text-amber-500" />
+                      )}
+                    </div>
+                  </div>
+
+                  {activeEmbassyAccordionSection === 'sponsor' && (
+                    <div className="animate-dropdown-in flex flex-col gap-3 mt-4">
+                      <textarea
+                        placeholder="Homiy haqida ma'lumot kiriting (Sponsor notes)..."
+                        value={sponsorNotes}
+                        onChange={(e) => setSponsorNotes(e.target.value)}
+                        onBlur={() => handleUpdateEmbassySponsorNotes(student.id, sponsorNotes)}
+                        rows={4}
+                        className="w-full px-3.5 py-2.5 text-xs border border-[var(--border)] bg-[var(--surface)] rounded-[var(--radius-lg)] focus:outline-none focus:border-amber-500 text-[var(--foreground)] placeholder:text-[var(--foreground-subtle)] font-medium shadow-2xs resize-none"
+                      />
+                      <div className="flex justify-end">
+                        <button
+                          type="button"
+                          onClick={() => handleUpdateEmbassySponsorNotes(student.id, sponsorNotes)}
+                          className="px-4 py-2 bg-amber-500 hover:bg-amber-600 text-white text-xs font-bold rounded-[var(--radius-md)] transition-all cursor-pointer flex items-center gap-1.5 shadow-xs"
+                        >
+                          <Check className="h-4 w-4" />
+                          Save Sponsor Notes
+                        </button>
+                      </div>
+                    </div>
+                  )}
+                </div>
+
+              </div>
+            </div>
+          </div>
+        )
+      })()}
 
     </PageShell>
   )
