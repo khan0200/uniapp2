@@ -108,7 +108,7 @@ const compareStudentIds = (a: Student, b: Student, order: 'asc' | 'desc' = 'asc'
   return order === 'asc' ? idA.localeCompare(idB) : idB.localeCompare(idA)
 }
 
-export function StudentDashboardClient() {
+export function StudentDashboardClient({ hidePhone = false }: { hidePhone?: boolean } = {}) {
   const supabase = createClient()
 
   const [activeTooltip, setActiveTooltip] = useState<{ studentId: string; tagKey: string } | null>(null)
@@ -118,6 +118,30 @@ export function StudentDashboardClient() {
   // until the user opens it for the first time; stays true afterward so the
   // modal can play its CSS exit animation on subsequent closes.
   const [hasOpenedAddModal, setHasOpenedAddModal] = useState(false)
+
+  // Choose University states for Invoice
+  const [activeInvoiceStudentId, setActiveInvoiceStudentId] = useState<string | null>(null)
+  const [invoicePendingStatus, setInvoicePendingStatus] = useState<string | null>(null)
+  const [uniSearchQuery, setUniSearchQuery] = useState('')
+  const [isChooseUniModalOpen, setIsChooseUniModalOpen] = useState(false)
+  const [universityOptions, setUniversityOptions] = useState<string[]>([])
+
+  useEffect(() => {
+    const fetchUniversities = async () => {
+      try {
+        const { data, error } = await supabase
+          .from('universities')
+          .select('name')
+          .order('name')
+        if (data) {
+          setUniversityOptions(data.map(u => u.name))
+        }
+      } catch (err) {
+        console.error('Error fetching universities:', err)
+      }
+    }
+    fetchUniversities()
+  }, [])
 
   // Context shared state
   const {
@@ -965,6 +989,82 @@ export function StudentDashboardClient() {
     }
   }
 
+  const handleUpdateInvoice = async (studentId: string, status: string | null, university: string | null = null) => {
+    setStudents(prev => prev.map(s => s.id === studentId ? { ...s, invoice: status, invoice_university: university } : s))
+    const { error: updateError } = await (supabase
+      .from('students') as any)
+      .update({ invoice: status, invoice_university: university })
+      .eq('id', studentId)
+    if (updateError) {
+      console.error('Error updating student invoice status:', updateError.message || updateError)
+      fetchStudents(true)
+    }
+  }
+
+  const handleInvoiceChange = (studentId: string, currentStatus: string | null, newStatus: string) => {
+    const isFirstAssign = (!currentStatus || currentStatus === 'NOT TAKEN') && newStatus !== 'NOT TAKEN'
+    
+    if (isFirstAssign) {
+      setActiveInvoiceStudentId(studentId)
+      setInvoicePendingStatus(newStatus)
+      setUniSearchQuery('')
+      setIsChooseUniModalOpen(true)
+    } else {
+      const student = students.find(s => s.id === studentId)
+      const uniToKeep = newStatus === 'NOT TAKEN' ? null : (student?.invoice_university || null)
+      handleUpdateInvoice(studentId, newStatus, uniToKeep)
+    }
+  }
+
+  const handleUpdateCoa = async (studentId: string, status: string | null) => {
+    setStudents(prev => prev.map(s => s.id === studentId ? { ...s, coa: status } : s))
+    const { error: updateError } = await (supabase
+      .from('students') as any)
+      .update({ coa: status })
+      .eq('id', studentId)
+    if (updateError) {
+      console.error('Error updating student CoA status:', updateError.message || updateError)
+      fetchStudents(true)
+    }
+  }
+
+  const handleUpdateEmbassy = async (studentId: string, status: string | null) => {
+    setStudents(prev => prev.map(s => s.id === studentId ? { ...s, embassy: status } : s))
+    const { error: updateError } = await (supabase
+      .from('students') as any)
+      .update({ embassy: status })
+      .eq('id', studentId)
+    if (updateError) {
+      console.error('Error updating student embassy status:', updateError.message || updateError)
+      fetchStudents(true)
+    }
+  }
+
+  const getInvoiceBadgeClass = (status: string | null) => {
+    const val = status || 'NOT TAKEN'
+    if (val === 'PAID') return 'bg-emerald-50 text-emerald-700 border-emerald-200/50 dark:bg-emerald-950/20 dark:text-emerald-400 dark:border-emerald-800/30 font-bold'
+    if (val === 'NOT PAID') return 'bg-amber-50 text-amber-700 border-amber-200/50 dark:bg-amber-950/20 dark:text-amber-400 dark:border-amber-800/30 font-bold'
+    if (val === 'TAKEN') return 'bg-violet-50 text-violet-700 border-violet-200/50 dark:bg-violet-950/20 dark:text-violet-400 dark:border-violet-800/30 font-bold'
+    if (val === 'CANCELLED') return 'bg-rose-50 text-rose-700 border-rose-200/50 dark:bg-rose-950/20 dark:text-rose-400 dark:border-rose-800/30 font-bold'
+    return 'bg-zinc-100 text-zinc-700 border-zinc-200/50 dark:bg-zinc-800/30 dark:text-zinc-400 dark:border-zinc-700/30 font-semibold'
+  }
+
+  const getCoaBadgeClass = (status: string | null) => {
+    const val = status || 'NOT TAKEN'
+    if (val === 'TAKEN') return 'bg-emerald-50 text-emerald-700 border-emerald-200/50 dark:bg-emerald-950/20 dark:text-emerald-400 dark:border-emerald-800/30 font-bold'
+    if (val === 'MISTAKE') return 'bg-amber-50 text-amber-700 border-amber-200/50 dark:bg-amber-950/20 dark:text-amber-400 dark:border-amber-800/30 font-bold'
+    if (val === 'CANCELLED') return 'bg-rose-50 text-rose-700 border-rose-200/50 dark:bg-rose-950/20 dark:text-rose-400 dark:border-rose-800/30 font-bold'
+    return 'bg-zinc-100 text-zinc-700 border-zinc-200/50 dark:bg-zinc-800/30 dark:text-zinc-400 dark:border-zinc-700/30 font-semibold'
+  }
+
+  const getEmbassyBadgeClass = (status: string | null) => {
+    const val = status || 'Not Applied'
+    if (val === 'Approved') return 'bg-emerald-50 text-emerald-700 border-emerald-200/50 dark:bg-emerald-950/20 dark:text-emerald-400 dark:border-emerald-800/30'
+    if (val === 'Applied') return 'bg-blue-50 text-blue-700 border-blue-200/50 dark:bg-blue-950/20 dark:text-blue-400 dark:border-blue-800/30'
+    if (val === 'Rejected') return 'bg-rose-50 text-rose-700 border-rose-200/50 dark:bg-rose-950/20 dark:text-rose-400 dark:border-rose-800/30'
+    return 'bg-zinc-100 text-zinc-700 border-zinc-200/50 dark:bg-zinc-800/30 dark:text-zinc-400 dark:border-zinc-700/30'
+  }
+
   const handleToggleTag = async (studentId: string, tagName: string) => {
     const student = students.find(s => s.id === studentId)
     if (!student) return
@@ -1756,12 +1856,15 @@ export function StudentDashboardClient() {
           <div className="overflow-x-auto">
             <table className="w-full table-fixed border-collapse text-left">
               <colgroup>
-                <col style={{ width: '2rem' }} />
-                <col style={{ width: '27%' }} />
-                <col style={{ width: '13%' }} />
-                <col style={{ width: '11%' }} />
-                <col style={{ width: '17%' }} />
-                <col style={{ width: '12%' }} />
+                <col style={{ width: '5rem' }} />
+                <col style={{ width: hidePhone ? '28%' : '27%' }} />
+                {!hidePhone && <col style={{ width: '13%' }} />}
+                <col style={{ width: hidePhone ? '10%' : '11%' }} />
+                {!hidePhone && <col style={{ width: '17%' }} />}
+                {hidePhone && <col style={{ width: '11%' }} />}
+                {hidePhone && <col style={{ width: '10%' }} />}
+                {hidePhone && <col style={{ width: '11%' }} />}
+                <col style={{ width: hidePhone ? '10%' : '12%' }} />
               </colgroup>
               <thead>
                 <tr className="border-b border-[var(--border)] bg-[var(--surface-elevated)] text-[11px] font-bold uppercase tracking-wider text-[var(--foreground-muted)] dark:text-[var(--foreground)] select-none">
@@ -1779,9 +1882,12 @@ export function StudentDashboardClient() {
                     </span>
                   </th>
                   <th className="px-1 py-2.5 w-[18%]">Full Name</th>
-                  <th className="px-6 py-2.5 w-[12%]">Phone</th>
+                  {!hidePhone && <th className="px-6 py-2.5 w-[12%]">Phone</th>}
                   <th className="px-6 py-2.5 w-[10%]">Level</th>
-                  <th className="px-6 py-2.5 w-[32%]">University</th>
+                  {!hidePhone && <th className="px-6 py-2.5 w-[32%]">University</th>}
+                  {hidePhone && <th className="px-6 py-2.5 w-[11%]">Invoice</th>}
+                  {hidePhone && <th className="px-6 py-2.5 w-[10%]">CoA</th>}
+                  {hidePhone && <th className="px-6 py-2.5 w-[11%]">Embassy</th>}
                   <th className="px-6 py-2.5 text-left w-[12%]">Actions</th>
                 </tr>
               </thead>
@@ -1859,35 +1965,37 @@ export function StudentDashboardClient() {
                       </td>
 
                       {/* Phone Numbers Column */}
-                      <td className="px-6 py-2.5 font-mono text-xs text-slate-700 dark:text-slate-300 whitespace-nowrap">
-                        <div className="flex items-center justify-start gap-3">
-                          <div>
-                            <div>{student.phone1 || '—'}</div>
-                            {student.phone2 && <div className="mt-0.5">{student.phone2}</div>}
+                      {!hidePhone && (
+                        <td className="px-6 py-2.5 font-mono text-xs text-slate-700 dark:text-slate-300 whitespace-nowrap">
+                          <div className="flex items-center justify-start gap-3">
+                            <div>
+                              <div>{student.phone1 || '—'}</div>
+                              {student.phone2 && <div className="mt-0.5">{student.phone2}</div>}
+                            </div>
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation()
+                                const lines = [
+                                  `${student.id}  ${student.full_name}`,
+                                  student.phone1,
+                                  student.phone2
+                                ].filter(Boolean)
+                                navigator.clipboard.writeText(lines.join('\n'))
+                                setCopiedPhoneId(student.id)
+                                setTimeout(() => setCopiedPhoneId(null), 2000)
+                              }}
+                              className="inline-flex items-center justify-center p-1 rounded hover:bg-black/10 dark:hover:bg-white/10 text-[var(--foreground-muted)] hover:text-[var(--foreground)] transition-all opacity-0 group-hover:opacity-100 cursor-pointer"
+                              title="Copy ID, name, and phone numbers"
+                            >
+                              {copiedPhoneId === student.id ? (
+                                <Check className="h-3.5 w-3.5 text-emerald-500" />
+                              ) : (
+                                <Copy className="h-3.5 w-3.5" />
+                              )}
+                            </button>
                           </div>
-                          <button
-                            onClick={(e) => {
-                              e.stopPropagation()
-                              const lines = [
-                                `${student.id}  ${student.full_name}`,
-                                student.phone1,
-                                student.phone2
-                              ].filter(Boolean)
-                              navigator.clipboard.writeText(lines.join('\n'))
-                              setCopiedPhoneId(student.id)
-                              setTimeout(() => setCopiedPhoneId(null), 2000)
-                            }}
-                            className="inline-flex items-center justify-center p-1 rounded hover:bg-black/10 dark:hover:bg-white/10 text-[var(--foreground-muted)] hover:text-[var(--foreground)] transition-all opacity-0 group-hover:opacity-100 cursor-pointer"
-                            title="Copy ID, name, and phone numbers"
-                          >
-                            {copiedPhoneId === student.id ? (
-                              <Check className="h-3.5 w-3.5 text-emerald-500" />
-                            ) : (
-                              <Copy className="h-3.5 w-3.5" />
-                            )}
-                          </button>
-                        </div>
-                      </td>
+                        </td>
+                      )}
 
                       {/* Levels & Languages Column */}
                       <td className="px-6 py-2.5 whitespace-nowrap">
@@ -1908,10 +2016,77 @@ export function StudentDashboardClient() {
                         {renderCertificatePills(student)}
                       </td>
 
+                      {/* Invoice Column */}
+                      {hidePhone && (
+                        <td className="px-6 py-2.5 whitespace-nowrap" onClick={(e) => e.stopPropagation()}>
+                          <div className="flex flex-col items-center justify-center">
+                            <select
+                              value={student.invoice || 'NOT TAKEN'}
+                              onChange={(e) => handleInvoiceChange(student.id, student.invoice, e.target.value)}
+                              className={cn(
+                                "px-2.5 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider border cursor-pointer focus:outline-none transition-all duration-200 select-none",
+                                getInvoiceBadgeClass(student.invoice)
+                              )}
+                            >
+                              <option value="NOT TAKEN" className="bg-white dark:bg-zinc-900 text-zinc-800 dark:text-zinc-200">Not Taken</option>
+                              <option value="TAKEN" className="bg-white dark:bg-zinc-900 text-zinc-800 dark:text-zinc-200">Taken</option>
+                              <option value="NOT PAID" className="bg-white dark:bg-zinc-900 text-zinc-800 dark:text-zinc-200">Not Paid</option>
+                              <option value="PAID" className="bg-white dark:bg-zinc-900 text-zinc-800 dark:text-zinc-200">Paid</option>
+                              <option value="CANCELLED" className="bg-white dark:bg-zinc-900 text-zinc-800 dark:text-zinc-200">Cancelled</option>
+                            </select>
+                            {student.invoice_university && (
+                              <span className="text-[10px] text-zinc-400 dark:text-zinc-500 font-semibold mt-1 block truncate max-w-[110px]" title={student.invoice_university}>
+                                {student.invoice_university}
+                              </span>
+                            )}
+                          </div>
+                        </td>
+                      )}
+
+                      {/* CoA Column */}
+                      {hidePhone && (
+                        <td className="px-6 py-2.5 whitespace-nowrap" onClick={(e) => e.stopPropagation()}>
+                          <select
+                            value={student.coa || 'NOT TAKEN'}
+                            onChange={(e) => handleUpdateCoa(student.id, e.target.value)}
+                            className={cn(
+                              "px-2.5 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider border cursor-pointer focus:outline-none transition-all duration-200 select-none",
+                              getCoaBadgeClass(student.coa)
+                            )}
+                          >
+                            <option value="NOT TAKEN" className="bg-white dark:bg-zinc-900 text-zinc-800 dark:text-zinc-200">Not Taken</option>
+                            <option value="TAKEN" className="bg-white dark:bg-zinc-900 text-zinc-800 dark:text-zinc-200">Taken</option>
+                            <option value="MISTAKE" className="bg-white dark:bg-zinc-900 text-zinc-800 dark:text-zinc-200">Mistake</option>
+                            <option value="CANCELLED" className="bg-white dark:bg-zinc-900 text-zinc-800 dark:text-zinc-200">Cancelled</option>
+                          </select>
+                        </td>
+                      )}
+
+                      {/* Embassy Column */}
+                      {hidePhone && (
+                        <td className="px-6 py-2.5 whitespace-nowrap" onClick={(e) => e.stopPropagation()}>
+                          <select
+                            value={student.embassy || 'Not Applied'}
+                            onChange={(e) => handleUpdateEmbassy(student.id, e.target.value)}
+                            className={cn(
+                              "px-2.5 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider border cursor-pointer focus:outline-none transition-all duration-200 select-none",
+                              getEmbassyBadgeClass(student.embassy)
+                            )}
+                          >
+                            <option value="Not Applied" className="bg-white dark:bg-zinc-900 text-zinc-800 dark:text-zinc-200">Not Applied</option>
+                            <option value="Applied" className="bg-white dark:bg-zinc-900 text-zinc-800 dark:text-zinc-200">Applied</option>
+                            <option value="Approved" className="bg-white dark:bg-zinc-900 text-zinc-800 dark:text-zinc-200">Approved</option>
+                            <option value="Rejected" className="bg-white dark:bg-zinc-900 text-zinc-800 dark:text-zinc-200">Rejected</option>
+                          </select>
+                        </td>
+                      )}
+
                       {/* Universities List Column */}
-                      <td className="px-6 py-2.5 max-w-0">
-                        {renderUniversities(student)}
-                      </td>
+                      {!hidePhone && (
+                        <td className="px-6 py-2.5 max-w-0">
+                          {renderUniversities(student)}
+                        </td>
+                      )}
 
                       {/* Actions Column (Color Ball + Task Tags) */}
                       <td className="px-6 py-2.5" onClick={(e) => e.stopPropagation()}>
@@ -2422,6 +2597,105 @@ export function StudentDashboardClient() {
             </div>
           )
       })()}
+
+      {/* Choose University Modal for Invoice */}
+      {isChooseUniModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          {/* Backdrop Overlay */}
+          <div
+            onClick={() => {
+              setIsChooseUniModalOpen(false)
+              setActiveInvoiceStudentId(null)
+              setInvoicePendingStatus(null)
+            }}
+            className="fixed inset-0 bg-black/50 transition-opacity duration-220 ease-out"
+          />
+
+          {/* Modal Panel */}
+          <div className="relative w-full max-w-md overflow-hidden rounded-[var(--radius-lg)] border border-[var(--border)] bg-[var(--surface-elevated)] p-6 shadow-[var(--shadow-lg)] z-10 flex flex-col max-h-[80vh]">
+            {/* Close Button */}
+            <button
+              onClick={() => {
+                setIsChooseUniModalOpen(false)
+                setActiveInvoiceStudentId(null)
+                setInvoicePendingStatus(null)
+              }}
+              className="absolute right-4 top-4 rounded-[var(--radius-sm)] p-1.5 text-[var(--foreground-muted)] hover:bg-[var(--border-subtle)] hover:text-[var(--foreground)] transition-all cursor-pointer"
+            >
+              <X className="h-5 w-5" />
+            </button>
+
+            <h3 className="text-[16px] font-bold text-[var(--foreground)] mb-1">
+              Select University for Invoice
+            </h3>
+            <p className="text-[11px] text-[var(--foreground-muted)] mb-4">
+              Please identify which university issued this invoice.
+            </p>
+
+            {/* Search Input */}
+            <div className="relative mb-3.5">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-[var(--foreground-subtle)] pointer-events-none" />
+              <input
+                type="text"
+                placeholder="Search university..."
+                value={uniSearchQuery}
+                onChange={(e) => setUniSearchQuery(e.target.value)}
+                className="w-full pl-8.5 pr-3.5 py-2 text-xs border border-[var(--border)] rounded-[var(--radius-md)] bg-[var(--surface)] focus:outline-none focus:border-blue-500 text-[var(--foreground)] placeholder:text-[var(--foreground-subtle)]"
+                autoFocus
+              />
+            </div>
+
+            {/* University List */}
+            <div className="flex-1 overflow-y-auto flex flex-col gap-1.5 max-h-[40vh] pr-1 scrollbar-thin">
+              {(() => {
+                const filtered = universityOptions.filter((uni) =>
+                  uni.toLowerCase().includes(uniSearchQuery.toLowerCase())
+                )
+
+                if (filtered.length === 0) {
+                  return (
+                    <div className="py-8 text-center text-xs text-[var(--foreground-subtle)] italic">
+                      No universities found matching your search.
+                    </div>
+                  )
+                }
+
+                return filtered.map((uni) => (
+                  <button
+                    key={uni}
+                    onClick={() => {
+                      if (activeInvoiceStudentId && invoicePendingStatus) {
+                        handleUpdateInvoice(activeInvoiceStudentId, invoicePendingStatus, uni)
+                      }
+                      setIsChooseUniModalOpen(false)
+                      setActiveInvoiceStudentId(null)
+                      setInvoicePendingStatus(null)
+                    }}
+                    className="flex items-center gap-2.5 px-3 py-2.5 rounded-[var(--radius-md)] border border-[var(--border)] bg-[var(--surface)] hover:bg-[var(--border-subtle)] text-xs font-semibold text-[var(--foreground)] text-left cursor-pointer transition-all w-full"
+                  >
+                    <BookOpen className="h-3.5 w-3.5 text-blue-500 shrink-0" />
+                    <span className="truncate">{uni}</span>
+                  </button>
+                ))
+              })()}
+            </div>
+
+            {/* Cancel Button */}
+            <div className="mt-4 pt-3 border-t border-[var(--border)] flex justify-end">
+              <button
+                onClick={() => {
+                  setIsChooseUniModalOpen(false)
+                  setActiveInvoiceStudentId(null)
+                  setInvoicePendingStatus(null)
+                }}
+                className="px-4 py-2 text-xs font-semibold border border-[var(--border)] rounded-[var(--radius-md)] hover:bg-[var(--border-subtle)] transition-all cursor-pointer text-[var(--foreground)]"
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Export to Excel Modal */}
       {excelModalTransition.shouldRender && (

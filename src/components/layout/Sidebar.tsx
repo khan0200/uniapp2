@@ -14,6 +14,7 @@ import {
   LogOut,
   Loader2,
   ShieldCheck,
+  ClipboardList,
 } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import { useUser } from '@/contexts/UserContext'
@@ -31,6 +32,7 @@ interface NavItem {
 
 const NAV_ITEMS: NavItem[] = [
   { href: '/students', icon: Users, label: 'Students' },
+  { href: '/status', icon: ClipboardList, label: 'Status' },
   { href: 'https://admissions-university.vercel.app/', icon: BookOpen, label: 'Admissions', target: '_blank' },
   { href: '/documents', icon: FileText, label: 'Documents' },
   { href: '/payments', icon: CreditCard, label: 'Payments', roles: ['Manager', 'Head Manager'] },

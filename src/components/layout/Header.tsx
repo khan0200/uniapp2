@@ -10,6 +10,7 @@ import { FilterPanel } from './FilterPanel'
 // Human-readable titles for routes
 const PAGE_TITLES: Record<string, string> = {
   '/students': 'Students',
+  '/status': 'Status',
   '/payments': 'Payments',
   '/admissions': 'Admissions',
   '/documents': 'Documents',
@@ -54,8 +55,8 @@ export function Header() {
       .find(([path]) => pathname.startsWith(path))?.[1] ?? 'Dashboard'
 
 
-  // Conditionally render the custom Dynamic Island header for /students and /documents pages
-  if (pathname === '/students' || pathname === '/documents') {
+  // Conditionally render the custom Dynamic Island header for /students, /documents, and /status pages
+  if (pathname === '/students' || pathname === '/documents' || pathname === '/status') {
     return (
       <header
         className={cn(
@@ -68,7 +69,7 @@ export function Header() {
       >
         {/* Left Side: Left corner controls (Filter) */}
         <div className="flex-shrink-0 flex items-center gap-2 flex-wrap">
-          {pathname === '/students' && (
+          {(pathname === '/students' || pathname === '/status') && (
             <>
               {/* Filter Button */}
               <div className="relative shrink-0 select-none z-30">
@@ -115,7 +116,7 @@ export function Header() {
               <Search className="h-5 w-5 text-[var(--foreground-muted)] flex-shrink-0 mr-3" />
               <input
                 type="text"
-                placeholder={pathname === '/students' ? "Search students by name, ID, passport or phone..." : "Search by name, ID or phone..."}
+                placeholder={pathname === '/students' || pathname === '/status' ? "Search students by name, ID, passport or phone..." : "Search by name, ID or phone..."}
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 className="w-full bg-transparent text-[16px] md:text-sm text-[var(--foreground)] placeholder-[var(--foreground-subtle)] py-2 no-focus-outline border-none focus:border-none focus:ring-0 focus-visible:ring-0 shadow-none focus:shadow-none"
@@ -125,14 +126,14 @@ export function Header() {
         </div>
 
         {/* Mobile Filter Panel Bottom Sheet */}
-        {pathname === '/students' && (
+        {(pathname === '/students' || pathname === '/status') && (
           <div className="md:hidden">
             <FilterPanel />
           </div>
         )}
 
         {/* Right Side Actions */}
-        {pathname === '/students' && (
+        {(pathname === '/students' || pathname === '/status') && (
           <div className="flex items-center gap-2 md:gap-3 justify-end md:ml-auto z-10 w-full md:w-auto mt-1 md:mt-0">
             {/* Excel Download Button */}
             <button
@@ -146,15 +147,17 @@ export function Header() {
             </button>
 
             {/* Add Student Button */}
-            <button
-              id="students-add-btn"
-              onClick={() => setIsAddStudentModalOpen(true)}
-              className="flex-1 md:flex-initial flex items-center justify-center gap-2 rounded-[var(--radius-md)] bg-[var(--accent)] px-3.5 py-1.5 text-sm font-semibold text-white hover:bg-[var(--accent-hover)] transition-all cursor-pointer select-none h-8 md:h-9 shrink-0"
-              style={{ boxShadow: '0 4px 12px rgba(59, 127, 245, 0.2)' }}
-            >
-              <Plus className="h-4 w-4" />
-              <span>Add Student</span>
-            </button>
+            {pathname === '/students' && (
+              <button
+                id="students-add-btn"
+                onClick={() => setIsAddStudentModalOpen(true)}
+                className="flex-1 md:flex-initial flex items-center justify-center gap-2 rounded-[var(--radius-md)] bg-[var(--accent)] px-3.5 py-1.5 text-sm font-semibold text-white hover:bg-[var(--accent-hover)] transition-all cursor-pointer select-none h-8 md:h-9 shrink-0"
+                style={{ boxShadow: '0 4px 12px rgba(59, 127, 245, 0.2)' }}
+              >
+                <Plus className="h-4 w-4" />
+                <span>Add Student</span>
+              </button>
+            )}
           </div>
         )}
       </header>
