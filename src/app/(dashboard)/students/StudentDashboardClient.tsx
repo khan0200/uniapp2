@@ -13,11 +13,13 @@ import { cn } from '@/lib/utils'
 import { type Student, type StudentLevel } from '@/types/database'
 import { PageShell } from '@/components/ui/PageShell'
 import { useStudentDashboard } from '@/contexts/StudentDashboardContext'
+import { useUser } from '@/contexts/UserContext'
 import { sendTelegramNotification } from '@/lib/telegram'
 import { syncMissingDocuments } from '@/lib/validation'
 import { useCssTransition } from '@/hooks/useCssTransition'
 
 const AddStudentModal = dynamic(() => import('./AddStudentModal'), { ssr: false })
+import { StudentDetailClient } from './[id]/StudentDetailClient'
 
 export const ROW_COLOR_MAP: Record<string, { bg: string; ball: string; name: string }> = {
   BLUE: { bg: 'rgba(37, 99, 235, 0.45)', ball: '#2563EB', name: 'Blue' },
@@ -114,6 +116,47 @@ export function StudentDashboardClient({ hidePhone = false }: { hidePhone?: bool
   const [activeTooltip, setActiveTooltip] = useState<{ studentId: string; tagKey: string } | null>(null)
   const [copiedId, setCopiedId] = useState<string | null>(null)
   const [copiedPhoneId, setCopiedPhoneId] = useState<string | null>(null)
+
+  // Drawer state for displaying student details sliding in from the right
+  const [activeDetailStudentId, setActiveDetailStudentId] = useState<string | null>(null)
+  const [cachedDetailStudentId, setCachedDetailStudentId] = useState<string | null>(null)
+  const drawerRef = useRef<HTMLDivElement>(null)
+
+  useEffect(() => {
+    if (activeDetailStudentId) {
+      setCachedDetailStudentId(activeDetailStudentId)
+    }
+  }, [activeDetailStudentId])
+
+  // Outside click listener to close the drawer panel when clicking on background empty space
+  useEffect(() => {
+    const handleOutsideClick = (e: MouseEvent) => {
+      if (!activeDetailStudentId) return
+
+      const target = e.target as HTMLElement
+      // If click is inside the drawer panel, do nothing
+      if (drawerRef.current && drawerRef.current.contains(target)) {
+        return
+      }
+
+      // If click is on a table row, let the table row's onClick handle it
+      if (target.closest('tr')) {
+        return
+      }
+
+      // If click is on other dialog overlays/popups, do nothing
+      const isOtherModal = target.closest('.z-50') && (!drawerRef.current || !drawerRef.current.contains(target))
+      if (isOtherModal || target.closest('.flatpickr-calendar')) {
+        return
+      }
+
+      setActiveDetailStudentId(null)
+    }
+
+    document.addEventListener('click', handleOutsideClick, true)
+    return () => document.removeEventListener('click', handleOutsideClick, true)
+  }, [activeDetailStudentId])
+
   // Gates the dynamic import of AddStudentModal so its chunk isn't fetched
   // until the user opens it for the first time; stays true afterward so the
   // modal can play its CSS exit animation on subsequent closes.
@@ -185,6 +228,8 @@ export function StudentDashboardClient({ hidePhone = false }: { hidePhone?: bool
     setActiveFolder,
     officeOptions
   } = useStudentDashboard()
+
+  const { profile: loggedInProfile } = useUser()
 
   const excelModalTransition = useCssTransition(isExcelModalOpen, 220)
 
@@ -927,19 +972,32 @@ export function StudentDashboardClient({ hidePhone = false }: { hidePhone?: bool
   }, [loading, students, getScrollPosition])
 
   useEffect(() => {
-    const saved = localStorage.getItem('customTagsRegistry')
+    if (!loggedInProfile) return
+    const key = `customTagsRegistry_${loggedInProfile.tenant_id || 'unibridge'}`
+    const saved = localStorage.getItem(key)
     if (saved) {
       try {
         setCustomTagsRegistry(JSON.parse(saved))
       } catch (e) {
         console.error('Failed to parse customTagsRegistry:', e)
       }
+    } else {
+      const oldSaved = localStorage.getItem('customTagsRegistry')
+      if (oldSaved && (loggedInProfile.tenant_id === 'unibridge' || !loggedInProfile.tenant_id)) {
+        try {
+          setCustomTagsRegistry(JSON.parse(oldSaved))
+          localStorage.setItem(key, oldSaved)
+        } catch (e) {
+          console.error('Failed to migrate customTagsRegistry:', e)
+        }
+      } else {
+        setCustomTagsRegistry([])
+      }
     }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [])
+  }, [loggedInProfile])
 
   useEffect(() => {
-    if (students.length === 0) return
+    if (students.length === 0 || !loggedInProfile) return
     const allTags = Array.from(new Set(students.flatMap(s => s.task_tags || []).filter(Boolean))) as string[]
     const predefined = ['Call', 'Apply', 'Documents', 'Payment']
     const customTags = allTags.filter(t => !predefined.includes(t))
@@ -954,13 +1012,14 @@ export function StudentDashboardClient({ hidePhone = false }: { hidePhone?: bool
         }
       })
       if (changed) {
-        localStorage.setItem('customTagsRegistry', JSON.stringify(updated))
+        const key = `customTagsRegistry_${loggedInProfile.tenant_id || 'unibridge'}`
+        localStorage.setItem(key, JSON.stringify(updated))
         return updated
       }
       return prev
     })
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [students])
+  }, [students, loggedInProfile])
 
   // Reset pagination when search query or filter values change
   useEffect(() => {
@@ -1248,6 +1307,8 @@ export function StudentDashboardClient({ hidePhone = false }: { hidePhone?: bool
           full_name: fullName.trim().toUpperCase(),
           korean_name: translatedKoreanName,
           office: office,
+          tenant_id: loggedInProfile?.tenant_id,
+          created_by: loggedInProfile?.id,
           // Explicitly set default fields to avoid RLS/constraint issue
           university_1_status: 'Chosen',
           balance: 0,
@@ -1897,7 +1958,13 @@ export function StudentDashboardClient({ hidePhone = false }: { hidePhone?: bool
                   return (
                     <tr
                       key={student.id}
-                      onClick={() => window.open(`/students/${student.id}`, '_blank')}
+                      onClick={(e) => {
+                        if (e.metaKey || e.ctrlKey) {
+                          window.open(`/students/${student.id}`, '_blank')
+                        } else {
+                          setActiveDetailStudentId(student.id)
+                        }
+                      }}
                       className={`group cursor-pointer transition-colors text-sm text-[var(--foreground)] ${bgObj.className}`}
                       style={bgObj.style}
                     >
@@ -3569,6 +3636,42 @@ export function StudentDashboardClient({ hidePhone = false }: { hidePhone?: bool
               </div>
             </div>
           </div>
+      )}
+
+      {/* Student Details Drawer */}
+      {cachedDetailStudentId && (
+        <div className="fixed inset-y-0 right-0 z-50 pointer-events-none flex justify-end p-2 md:p-2.5">
+          {/* Backdrop Overlay (Visual only, pointer-events-none) */}
+          <div
+            className={cn(
+              'fixed inset-0 bg-black/30 transition-opacity ease-out pointer-events-none z-0',
+              activeDetailStudentId ? 'opacity-100' : 'opacity-0'
+            )}
+            style={{ transitionDuration: '380ms' }}
+          />
+
+          {/* Drawer Panel */}
+          <div
+            ref={drawerRef}
+            className={cn(
+              'relative w-full max-w-[calc(98vw+20px)] md:max-w-[calc(95vw+20px)] lg:max-w-[calc(90vw+20px)] xl:max-w-[calc(80vw+20px)] h-full bg-[var(--background)] border border-[var(--border)] rounded-2xl shadow-[var(--shadow-lg)] z-10 flex flex-col overflow-hidden pointer-events-auto',
+              'transition-transform ease-[cubic-bezier(0.16,1,0.3,1)]',
+              activeDetailStudentId ? 'translate-x-0' : 'translate-x-full'
+            )}
+            style={{ transitionDuration: '380ms' }}
+          >
+            {/* Drawer Body Scroll Container */}
+            <div className="flex-1 overflow-y-auto min-h-0 bg-transparent">
+              <StudentDetailClient
+                studentId={cachedDetailStudentId}
+                onClose={() => setActiveDetailStudentId(null)}
+                onStudentIdChange={(newId) => {
+                  setActiveDetailStudentId(newId)
+                }}
+              />
+            </div>
+          </div>
+        </div>
       )}
 
     </PageShell>

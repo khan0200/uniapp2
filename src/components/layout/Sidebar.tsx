@@ -36,7 +36,7 @@ const NAV_ITEMS: NavItem[] = [
   { href: 'https://admissions-university.vercel.app/', icon: BookOpen, label: 'Admissions', target: '_blank' },
   { href: '/documents', icon: FileText, label: 'Documents' },
   { href: '/payments', icon: CreditCard, label: 'Payments', roles: ['Manager', 'Head Manager'] },
-  { href: 'https://visa.unibridge.uz/auth.html', icon: ShieldCheck, label: 'VisaCheck', target: '_blank' },
+  { href: 'https://visatokorea.vercel.app/cabinet.html', icon: ShieldCheck, label: 'VisaCheck', target: '_blank' },
   { href: '/settings', icon: Settings, label: 'Settings', roles: ['Manager', 'Head Manager'] },
 ]
 

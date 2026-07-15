@@ -9,6 +9,7 @@ import {
 } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import { type Student, type StudentLevel, type StudentTariff, type StudentLanguageCertificate } from '@/types/database'
+import { useUser } from '@/contexts/UserContext'
 
 // Pre-fill with the legacy configuration found in the codebase
 const DEFAULT_FIREBASE_CONFIG = {
@@ -42,6 +43,7 @@ interface ParsedRecord {
 export function ImportClient() {
   const router = useRouter()
   const supabase = createClient()
+  const { profile: loggedInProfile } = useUser()
 
   // Tab State
   const [activeTab, setActiveTab] = useState<'firestore' | 'excel'>('firestore')
@@ -582,7 +584,11 @@ export function ImportClient() {
 
     for (let i = 0; i < total; i += chunkSize) {
       const chunk = recordsToImport.slice(i, i + chunkSize)
-      const chunkData = chunk.filter(c => c.isValid).map(c => c.mapped as Student)
+      const chunkData = chunk.filter(c => c.isValid).map(c => ({
+        ...(c.mapped as Student),
+        tenant_id: loggedInProfile?.tenant_id || 'unibridge',
+        created_by: loggedInProfile?.id || null
+      }))
 
       if (chunkData.length === 0) {
         failedCount += chunk.length

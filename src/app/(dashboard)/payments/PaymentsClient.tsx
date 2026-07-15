@@ -11,6 +11,7 @@ import {
 import { useStudentDashboard } from '@/contexts/StudentDashboardContext'
 import { cn } from '@/lib/utils'
 import { useCssTransition } from '@/hooks/useCssTransition'
+import { useUser } from '@/contexts/UserContext'
 
 const PAYMENT_METHODS = ['Karta J.A', 'Karta Abdulaziz', 'Naqd', 'Karta M.A', 'Bank', 'Discount']
 const RECEIVED_BY_OPTIONS = ['ABDULAZIZ', 'MUSLIHIDDIN', 'BAXTIYOR', 'MUHAMMADALI', 'JASUR', 'ADMIN', 'Discount']
@@ -97,6 +98,7 @@ const compareStudentIds = (a: Student, b: Student, order: 'asc' | 'desc' = 'asc'
 
 export function PaymentsClient() {
   const supabase = createClient()
+  const { profile: loggedInProfile } = useUser()
   const {
     paymentMethodOptions,
     paymentReceiverOptions,
@@ -371,6 +373,8 @@ export function PaymentsClient() {
         is_withdrawal: false,
         student_id: addStudentId || null,
         student_name: student?.full_name || null,
+        tenant_id: loggedInProfile?.tenant_id,
+        created_by: loggedInProfile?.id,
       })
       if (insertError) throw insertError
 
@@ -447,6 +451,8 @@ export function PaymentsClient() {
         is_withdrawal: true,
         student_id: withdrawStudentId || null,
         student_name: student?.full_name || null,
+        tenant_id: loggedInProfile?.tenant_id,
+        created_by: loggedInProfile?.id,
       })
       if (insertError) throw insertError
 
