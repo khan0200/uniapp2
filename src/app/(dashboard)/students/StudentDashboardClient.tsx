@@ -4031,6 +4031,12 @@ export function StudentDashboardClient({ hidePhone = false }: { hidePhone?: bool
                     </div>
                   </div>
 
+                  {activeEmbassyAccordionSection !== 'father' && fatherDocs.length > 0 && (
+                    <div className="text-[11px] text-[var(--foreground-muted)] dark:text-zinc-500 mt-2 font-medium truncate select-none">
+                      {fatherDocs.join(', ')}
+                    </div>
+                  )}
+
                   {activeEmbassyAccordionSection === 'father' && (
                     <div className="animate-dropdown-in flex flex-col gap-4 mt-4">
                       {/* Add Father Custom Doc */}
@@ -4130,6 +4136,12 @@ export function StudentDashboardClient({ hidePhone = false }: { hidePhone?: bool
                     </div>
                   </div>
 
+                  {activeEmbassyAccordionSection !== 'mother' && motherDocs.length > 0 && (
+                    <div className="text-[11px] text-[var(--foreground-muted)] dark:text-zinc-500 mt-2 font-medium truncate select-none">
+                      {motherDocs.join(', ')}
+                    </div>
+                  )}
+
                   {activeEmbassyAccordionSection === 'mother' && (
                     <div className="animate-dropdown-in flex flex-col gap-4 mt-4">
                       {/* Add Mother Custom Doc */}
@@ -4225,6 +4237,12 @@ export function StudentDashboardClient({ hidePhone = false }: { hidePhone?: bool
                       )}
                     </div>
                   </div>
+
+                  {activeEmbassyAccordionSection !== 'sponsor' && student.embassy_sponsor_notes && student.embassy_sponsor_notes.trim().length > 0 && (
+                    <div className="text-[11px] text-[var(--foreground-muted)] dark:text-zinc-500 mt-2 font-medium truncate select-none italic">
+                      "{student.embassy_sponsor_notes}"
+                    </div>
+                  )}
 
                   {activeEmbassyAccordionSection === 'sponsor' && (
                     <div className="animate-dropdown-in flex flex-col gap-3 mt-4">
