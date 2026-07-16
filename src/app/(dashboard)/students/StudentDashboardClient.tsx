@@ -216,7 +216,7 @@ export function StudentDashboardClient({ hidePhone = false }: { hidePhone?: bool
           .select('name')
           .order('name')
         if (data) {
-          setUniversityOptions(data.map(u => u.name))
+          setUniversityOptions(data.map(u => (u as any).name))
         }
       } catch (err) {
         console.error('Error fetching universities:', err)
@@ -1230,9 +1230,9 @@ export function StudentDashboardClient({ hidePhone = false }: { hidePhone?: bool
 
   const getEmbassyBadgeClass = (status: string | null) => {
     const val = status || 'Not Applied'
-    if (val === 'Approved') return 'bg-emerald-600 dark:bg-emerald-500 text-white font-bold border-transparent'
-    if (val === 'Applied') return 'bg-blue-600 dark:bg-blue-500 text-white font-bold border-transparent'
-    if (val === 'Rejected') return 'bg-rose-600 dark:bg-rose-500 text-white font-bold border-transparent'
+    if (val === 'Approved' || val === 'APPROVED') return 'bg-emerald-600 dark:bg-emerald-500 text-white font-bold border-transparent'
+    if (val === 'Applied' || val === 'APPLIED') return 'bg-blue-600 dark:bg-blue-500 text-white font-bold border-transparent'
+    if (val === 'Rejected' || val === 'REJECTED' || val === 'CANCELLED' || val === 'Cancelled') return 'bg-rose-600 dark:bg-rose-500 text-white font-bold border-transparent'
     return 'bg-zinc-400 dark:bg-zinc-500 text-white font-semibold border-transparent'
   }
 
@@ -1652,14 +1652,15 @@ export function StudentDashboardClient({ hidePhone = false }: { hidePhone?: bool
 
   // Row background color selector matching visual row highlights
   const getRowBgStyleAndClass = (student: Student) => {
-    if (!student.row_color) {
+    const colorKey = (hidePhone ? student.status_row_color : student.row_color)?.toUpperCase()
+
+    if (!colorKey) {
       return {
         className: 'bg-[var(--surface)] hover:bg-[var(--border-subtle)]',
         style: {}
       }
     }
 
-    const colorKey = student.row_color.toUpperCase()
     const mapping = ROW_COLOR_MAP[colorKey]
 
     if (mapping) {
@@ -2124,32 +2125,60 @@ export function StudentDashboardClient({ hidePhone = false }: { hidePhone?: bool
                             {student.full_name}
                           </span>
                           {(() => {
-                            const missing = syncMissingDocuments(student)
-                            const isFullOk = missing.includes('FULL OK')
-                            const hasMissing = missing.length > 0 && !isFullOk
-                            if (isFullOk) {
-                              return (
-                                <span
-                                  title="All required documents completed"
-                                  className="inline-flex items-center justify-center w-4 h-4 rounded-full bg-emerald-500 text-white shadow-sm flex-shrink-0"
-                                  style={{ fontSize: '9px', boxShadow: '0 1px 4px rgba(16,185,129,0.45)' }}
-                                >
-                                  ✓
-                                </span>
-                              )
+                            if (hidePhone) {
+                              const isApproved = student.embassy?.toUpperCase() === 'APPROVED'
+                              const isCancelled = student.embassy?.toUpperCase() === 'CANCELLED' || student.embassy?.toUpperCase() === 'REJECTED'
+                              if (isApproved) {
+                                return (
+                                  <span
+                                    title="Visa Approved"
+                                    className="inline-flex items-center justify-center w-4 h-4 rounded-full bg-emerald-500 text-white shadow-sm flex-shrink-0"
+                                    style={{ fontSize: '9px', boxShadow: '0 1px 4px rgba(16,185,129,0.45)' }}
+                                  >
+                                    ✓
+                                  </span>
+                                )
+                              }
+                              if (isCancelled) {
+                                return (
+                                  <span
+                                    title="Visa Cancelled"
+                                    className="inline-flex items-center justify-center w-4 h-4 rounded-full bg-rose-500 text-white shadow-sm flex-shrink-0"
+                                    style={{ fontSize: '9px', fontWeight: 900, boxShadow: '0 1px 4px rgba(239,68,68,0.45)' }}
+                                  >
+                                    ✕
+                                  </span>
+                                )
+                              }
+                              return null
+                            } else {
+                              const missing = syncMissingDocuments(student)
+                              const isFullOk = missing.includes('FULL OK')
+                              const hasMissing = missing.length > 0 && !isFullOk
+                              if (isFullOk) {
+                                return (
+                                  <span
+                                    title="All required documents completed"
+                                    className="inline-flex items-center justify-center w-4 h-4 rounded-full bg-emerald-500 text-white shadow-sm flex-shrink-0"
+                                    style={{ fontSize: '9px', boxShadow: '0 1px 4px rgba(16,185,129,0.45)' }}
+                                  >
+                                    ✓
+                                  </span>
+                                )
+                              }
+                              if (hasMissing) {
+                                return (
+                                  <span
+                                    title="Student has missing documents"
+                                    className="inline-flex items-center justify-center w-4 h-4 rounded-full bg-amber-500 text-white shadow-sm flex-shrink-0"
+                                    style={{ fontSize: '9px', fontWeight: 900, boxShadow: '0 1px 4px rgba(245,158,11,0.45)' }}
+                                  >
+                                    !
+                                  </span>
+                                )
+                              }
+                              return null
                             }
-                            if (hasMissing) {
-                              return (
-                                <span
-                                  title="Student has missing documents"
-                                  className="inline-flex items-center justify-center w-4 h-4 rounded-full bg-amber-500 text-white shadow-sm flex-shrink-0"
-                                  style={{ fontSize: '9px', fontWeight: 900, boxShadow: '0 1px 4px rgba(245,158,11,0.45)' }}
-                                >
-                                  !
-                                </span>
-                              )
-                            }
-                            return null
                           })()}
                           <button
                             onClick={(e) => {
@@ -4219,6 +4248,45 @@ export function StudentDashboardClient({ hidePhone = false }: { hidePhone?: bool
                       </div>
                     </div>
                   )}
+                </div>
+
+                {/* SECTION 4: VISA STATUS */}
+                <div className="border border-[var(--border)] rounded-2xl p-5 bg-[var(--surface-elevated)]/10 flex flex-col shadow-sm transition-all duration-200">
+                  <div className="flex items-center justify-between select-none">
+                    <h4 className="text-sm font-bold text-violet-600 dark:text-violet-400 uppercase tracking-wider flex items-center gap-1.5">
+                      <div className="w-2.5 h-2.5 rounded-full bg-violet-500 animate-pulse" />
+                      Visa
+                    </h4>
+                  </div>
+
+                  <div className="flex gap-3 mt-4">
+                    <button
+                      type="button"
+                      onClick={() => handleUpdateEmbassy(student.id, student.embassy === 'APPROVED' ? null : 'APPROVED')}
+                      className={cn(
+                        "flex-1 py-3 px-4 rounded-xl font-bold text-sm transition-all cursor-pointer border flex items-center justify-center gap-2",
+                        student.embassy === 'APPROVED'
+                          ? "bg-emerald-600 border-transparent text-white shadow-md hover:bg-emerald-700"
+                          : "bg-[var(--surface)] border-[var(--border)] text-[var(--foreground)] hover:bg-emerald-50 hover:text-emerald-600 dark:hover:bg-emerald-950/20 dark:hover:text-emerald-400"
+                      )}
+                    >
+                      <CheckCircle2 className="h-4.5 w-4.5" />
+                      APPROVED
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => handleUpdateEmbassy(student.id, student.embassy === 'CANCELLED' ? null : 'CANCELLED')}
+                      className={cn(
+                        "flex-1 py-3 px-4 rounded-xl font-bold text-sm transition-all cursor-pointer border flex items-center justify-center gap-2",
+                        student.embassy === 'CANCELLED'
+                          ? "bg-rose-600 border-transparent text-white shadow-md hover:bg-rose-700"
+                          : "bg-[var(--surface)] border-[var(--border)] text-[var(--foreground)] hover:bg-rose-50 hover:text-rose-600 dark:hover:bg-rose-950/20 dark:hover:text-rose-400"
+                      )}
+                    >
+                      <X className="h-4.5 w-4.5" />
+                      CANCELLED
+                    </button>
+                  </div>
                 </div>
 
               </div>
