@@ -1396,7 +1396,7 @@ export function StudentDashboardClient({ hidePhone = false }: { hidePhone?: bool
         } catch {}
         
         const provider = aiSettings?.provider || 'gemini'
-        const apiKey = (provider === 'openai' ? aiSettings?.openaiApiKey : aiSettings?.apiKey) || ''
+        const apiKey = ''
         const model = provider === 'openai' ? (aiSettings?.openaiModel || 'gpt-4o') : (aiSettings?.model || 'gemini-3.5-flash')
 
         const response = await fetch('/api/translate-name', {

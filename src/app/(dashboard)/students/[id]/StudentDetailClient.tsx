@@ -213,7 +213,7 @@ export function StudentDetailClient({ studentId, onClose, onStudentIdChange }: S
     }
 
     const provider = aiSettings?.provider || 'gemini'
-    const apiKey = (provider === 'openai' ? aiSettings?.openaiApiKey : aiSettings?.apiKey) || ''
+    const apiKey = ''
     const model = provider === 'openai' ? aiSettings?.openaiModel : aiSettings?.model
 
     setIsTranslatingNames(true)
@@ -257,7 +257,7 @@ export function StudentDetailClient({ studentId, onClose, onStudentIdChange }: S
     }
 
     const provider = aiSettings?.provider || 'gemini'
-    const apiKey = (provider === 'openai' ? aiSettings?.openaiApiKey : aiSettings?.apiKey) || ''
+    const apiKey = ''
     const model = provider === 'openai' ? (aiSettings?.openaiModel || 'gpt-4o') : (aiSettings?.model || 'gemini-3.5-flash')
 
     try {

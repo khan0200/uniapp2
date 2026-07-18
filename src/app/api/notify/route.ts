@@ -1,8 +1,21 @@
 import { NextResponse } from 'next/server'
 
+function removeUnavailableVisaCertificateLink(message: string) {
+  return message
+    .split(/\r?\n/)
+    .filter((line) => {
+      return !line.includes('Visa sertifikatini yuklash') &&
+        !line.includes('selectElectronicVisaPrint3.do')
+    })
+    .join('\n')
+    .replace(/\n{3,}/g, '\n\n')
+    .trim()
+}
+
 export async function POST(request: Request) {
   try {
     const { message } = await request.json()
+    const sanitizedMessage = removeUnavailableVisaCertificateLink(message)
 
     // Read BOT_TOKEN and CHAT_ID from environment variables
     const botToken = process.env.BOT_TOKEN
@@ -36,7 +49,7 @@ export async function POST(request: Request) {
         },
         body: JSON.stringify({
           chat_id: id,
-          text: message,
+          text: sanitizedMessage,
           parse_mode: 'HTML'
         })
       })

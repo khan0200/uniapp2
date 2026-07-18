@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import {
   ArrowLeft, RefreshCw, Trash2, Loader2, Upload, FileText, CheckCircle2,
-  AlertCircle, Edit, Copy, ChevronDown, ChevronUp, Cpu, Sliders
+  AlertCircle, Edit, Copy, ChevronDown, ChevronUp, Cpu, Sliders, Eye, EyeOff
 } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import { type Student, type StudentLanguageCertificate, type StudentLevel, type StudentTariff } from '@/types/database'
@@ -123,6 +123,7 @@ export function ExtractClient({ studentId }: ExtractClientProps) {
   
   const [geminiModelSelect, setGeminiModelSelect] = useState('gemini-3.5-flash')
   const [customModelId, setCustomModelId] = useState('')
+  const [showApiKey, setShowApiKey] = useState(false)
 
 
   // Whether server-side env keys are configured
@@ -143,8 +144,9 @@ export function ExtractClient({ studentId }: ExtractClientProps) {
       const stored = localStorage.getItem('ai_settings')
       if (stored) {
         const parsed = JSON.parse(stored)
-        setAiSettings(prev => ({ ...prev, ...parsed }))
-        setTempSettings(prev => ({ ...prev, ...parsed }))
+        const { apiKey, openaiApiKey, ...cleanSettings } = parsed
+        setAiSettings(prev => ({ ...prev, ...cleanSettings, apiKey: '', openaiApiKey: '' }))
+        setTempSettings(prev => ({ ...prev, ...cleanSettings, apiKey: '', openaiApiKey: '' }))
         if (parsed.model) {
           if (KNOWN_GEMINI_MODELS.includes(parsed.model)) {
             setGeminiModelSelect(parsed.model)
@@ -198,9 +200,10 @@ export function ExtractClient({ studentId }: ExtractClientProps) {
 
   // Save AI Settings helper
   const handleSaveSettings = () => {
-    setAiSettings(tempSettings)
+    const { apiKey, openaiApiKey, ...settingsToSave } = tempSettings
+    setAiSettings(prev => ({ ...prev, ...tempSettings, apiKey: '', openaiApiKey: '' }))
     try {
-      localStorage.setItem('ai_settings', JSON.stringify(tempSettings))
+      localStorage.setItem('ai_settings', JSON.stringify(settingsToSave))
       showToast('AI settings saved successfully!', 'success')
     } catch (e) {
       console.error('Failed to save ai_settings', e)
@@ -794,30 +797,46 @@ export function ExtractClient({ studentId }: ExtractClientProps) {
               )}
             </div>
 
-            {/* API Key Input */}
-            <div className="flex flex-col gap-2 md:col-span-2">
-              <label className="text-[11px] uppercase font-bold tracking-wider text-[var(--foreground-muted)]">
-                {tempSettings.provider === 'openai' ? 'OpenAI API Key' : 'Gemini API Key'}
-              </label>
-              <input
-                type="password"
-                value={tempSettings.provider === 'openai' ? tempSettings.openaiApiKey : tempSettings.apiKey}
-                onChange={(e) => {
-                  const val = e.target.value
-                  setTempSettings(prev => 
-                    tempSettings.provider === 'openai' 
-                      ? { ...prev, openaiApiKey: val }
-                      : { ...prev, apiKey: val }
-                  )
-                }}
-                placeholder={
-                  tempSettings.provider === 'openai'
-                    ? (serverKeys.openai ? 'Using server key (env). Enter key to override...' : 'Enter your OpenAI API key (sk-proj-...)...')
-                    : (serverKeys.gemini ? 'Using server key (env). Enter key to override...' : 'Enter your Gemini API key (AIzaSy...)...')
-                }
-                className="bg-[var(--surface-elevated)] border border-[var(--border)] text-xs text-[var(--foreground)] p-2.5 rounded-xl focus:outline-none focus:border-[var(--accent)] w-full shadow-sm h-10"
-              />
-            </div>
+            {/* API Key Input - Only show if not configured on the server */}
+            {((tempSettings.provider === 'gemini' && !serverKeys.gemini) || 
+              (tempSettings.provider === 'openai' && !serverKeys.openai)) && (
+              <div className="flex flex-col gap-2 md:col-span-2">
+                <label className="text-[11px] uppercase font-bold tracking-wider text-[var(--foreground-muted)]">
+                  {tempSettings.provider === 'openai' ? 'OpenAI API Key' : 'Gemini API Key'}
+                </label>
+                <div className="relative">
+                  <input
+                    type={showApiKey ? "text" : "password"}
+                    value={tempSettings.provider === 'openai' ? tempSettings.openaiApiKey : tempSettings.apiKey}
+                    onChange={(e) => {
+                      const val = e.target.value
+                      setTempSettings(prev => 
+                        tempSettings.provider === 'openai' 
+                          ? { ...prev, openaiApiKey: val }
+                          : { ...prev, apiKey: val }
+                      )
+                    }}
+                    placeholder={
+                      tempSettings.provider === 'openai'
+                        ? 'Enter your OpenAI API key (sk-proj-...)...'
+                        : 'Enter your Gemini API key (AIzaSy...)...'
+                    }
+                    className="bg-[var(--surface-elevated)] border border-[var(--border)] text-xs text-[var(--foreground)] pl-2.5 pr-10 py-2.5 rounded-xl focus:outline-none focus:border-[var(--accent)] w-full shadow-sm h-10"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowApiKey(prev => !prev)}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-[var(--foreground-muted)] hover:text-[var(--foreground)] transition-colors cursor-pointer flex items-center justify-center h-8 w-8 rounded-lg hover:bg-[var(--border)]/35"
+                  >
+                    {showApiKey ? (
+                      <EyeOff className="h-4 w-4" />
+                    ) : (
+                      <Eye className="h-4 w-4" />
+                    )}
+                  </button>
+                </div>
+              </div>
+            )}
 
 
             {/* Config Checkboxes - Styled as native iOS switches */}
