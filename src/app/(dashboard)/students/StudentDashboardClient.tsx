@@ -208,6 +208,12 @@ export function StudentDashboardClient({ hidePhone = false }: { hidePhone?: bool
   const [isChooseUniModalOpen, setIsChooseUniModalOpen] = useState(false)
   const [universityOptions, setUniversityOptions] = useState<string[]>([])
 
+  // KdbDateModal states
+  const [isKdbDateModalOpen, setIsKdbDateModalOpen] = useState(false)
+  const [kdbDateModalType, setKdbDateModalType] = useState<'PUT' | 'TAKE'>('PUT')
+  const [kdbDateModalStudentId, setKdbDateModalStudentId] = useState<string | null>(null)
+  const [kdbDateModalValue, setKdbDateModalValue] = useState('')
+
   useEffect(() => {
     const fetchUniversities = async () => {
       try {
@@ -267,6 +273,67 @@ export function StudentDashboardClient({ hidePhone = false }: { hidePhone?: bool
     setActiveFolder,
     officeOptions
   } = useStudentDashboard()
+
+  const visibleFolders = useMemo(() => {
+    return foldersOptions.filter(f => hidePhone || f.name.toUpperCase() !== 'KDB')
+  }, [foldersOptions, hidePhone])
+
+  const isKdbFolderActive = useMemo(() => {
+    const kdbFolder = foldersOptions.find(f => f.name.toUpperCase() === 'KDB')
+    return activeFolder === kdbFolder?.id
+  }, [foldersOptions, activeFolder])
+
+  const renderLeftColumnValue = (student: any) => {
+    const takeDateStr = student.kdb_take_date
+    if (!takeDateStr) {
+      return (
+        <span className="text-[11px] text-[var(--foreground-muted)] italic font-semibold select-none">
+          Take date not set
+        </span>
+      )
+    }
+
+    const takeDate = new Date(takeDateStr)
+    if (isNaN(takeDate.getTime())) {
+      return <span className="text-[11px] text-rose-500 font-semibold select-none">Invalid Date</span>
+    }
+
+    const today = new Date()
+    today.setHours(0, 0, 0, 0)
+    takeDate.setHours(0, 0, 0, 0)
+
+    const expirationDate = new Date(takeDate)
+    expirationDate.setDate(expirationDate.getDate() + 30)
+
+    const diffTime = expirationDate.getTime() - today.getTime()
+    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24))
+
+    if (diffDays < 0) {
+      return (
+        <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold uppercase bg-rose-100 dark:bg-rose-950 text-rose-600 dark:text-rose-400 border border-rose-300 dark:border-rose-800">
+          Expired ({Math.abs(diffDays)}d ago)
+        </span>
+      )
+    } else if (diffDays === 0) {
+      return (
+        <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold uppercase bg-amber-100 dark:bg-amber-950 text-amber-600 dark:text-amber-400 border border-amber-300 dark:border-amber-800 animate-pulse">
+          Expires Today
+        </span>
+      )
+    } else if (diffDays <= 7) {
+      return (
+        <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-100 dark:bg-amber-950 text-amber-600 dark:text-amber-400 border border-amber-300 dark:border-amber-800">
+          {diffDays} days left
+        </span>
+      )
+    } else {
+      return (
+        <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-100 dark:bg-emerald-950 text-emerald-600 dark:text-emerald-400 border border-emerald-300 dark:border-emerald-800">
+          {diffDays} days left
+        </span>
+      )
+    }
+  }
 
   const [newFatherDoc, setNewFatherDoc] = useState('')
   const [newMotherDoc, setNewMotherDoc] = useState('')
@@ -1139,6 +1206,63 @@ export function StudentDashboardClient({ hidePhone = false }: { hidePhone?: bool
     }
   }
 
+  const handleUpdateKdbPut = async (studentId: string, date: string | null) => {
+    let calculatedTakeDate: string | null | undefined = undefined
+
+    if (date) {
+      const student = students.find(s => s.id === studentId)
+      if (student && !student.kdb_take_date) {
+        const putDate = new Date(date)
+        if (!isNaN(putDate.getTime())) {
+          putDate.setDate(putDate.getDate() + 31)
+          const y = putDate.getFullYear()
+          const m = String(putDate.getMonth() + 1).padStart(2, '0')
+          const d = String(putDate.getDate()).padStart(2, '0')
+          calculatedTakeDate = `${y}-${m}-${d}`
+        }
+      }
+    } else {
+      calculatedTakeDate = null
+    }
+
+    setStudents(prev => prev.map(s => {
+      if (s.id === studentId) {
+        const updated = { ...s, kdb_put_date: date }
+        if (calculatedTakeDate !== undefined) {
+          updated.kdb_take_date = calculatedTakeDate
+        }
+        return updated
+      }
+      return s
+    }))
+
+    const updatePayload: any = { kdb_put_date: date }
+    if (calculatedTakeDate !== undefined) {
+      updatePayload.kdb_take_date = calculatedTakeDate
+    }
+
+    const { error: updateError } = await (supabase
+      .from('students') as any)
+      .update(updatePayload)
+      .eq('id', studentId)
+    if (updateError) {
+      console.error('Error updating student KDB PUT date:', updateError.message || updateError)
+      fetchStudents(true)
+    }
+  }
+
+  const handleUpdateKdbTake = async (studentId: string, date: string | null) => {
+    setStudents(prev => prev.map(s => s.id === studentId ? { ...s, kdb_take_date: date } : s))
+    const { error: updateError } = await (supabase
+      .from('students') as any)
+      .update({ kdb_take_date: date })
+      .eq('id', studentId)
+    if (updateError) {
+      console.error('Error updating student KDB TAKE date:', updateError.message || updateError)
+      fetchStudents(true)
+    }
+  }
+
   const handleUpdateEmbassy = async (studentId: string, status: string | null) => {
     setStudents(prev => prev.map(s => s.id === studentId ? { ...s, embassy: status } : s))
     const { error: updateError } = await (supabase
@@ -1234,6 +1358,61 @@ export function StudentDashboardClient({ hidePhone = false }: { hidePhone?: bool
     if (val === 'Applied' || val === 'APPLIED') return 'bg-blue-600 dark:bg-blue-500 text-white font-bold border-transparent'
     if (val === 'Rejected' || val === 'REJECTED' || val === 'CANCELLED' || val === 'Cancelled') return 'bg-rose-600 dark:bg-rose-500 text-white font-bold border-transparent'
     return 'bg-zinc-400 dark:bg-zinc-500 text-white font-semibold border-transparent'
+  }
+
+  const getKdbBadgeClass = (val: string | null) => {
+    if (val && val !== 'NO KDB') {
+      return 'bg-[#0a5c36] dark:bg-[#084c2c] text-white font-bold border-transparent'
+    }
+    return 'bg-blue-600 dark:bg-blue-500 text-white font-bold border-transparent'
+  }
+
+  const getTodayDateString = () => {
+    const d = new Date()
+    const year = d.getFullYear()
+    const month = String(d.getMonth() + 1).padStart(2, '0')
+    const day = String(d.getDate()).padStart(2, '0')
+    return `${year}-${month}-${day}`
+  }
+
+  const parseAndFormatDate = (input: string): string | null => {
+    const cleaned = input.replace(/[^0-9]/g, '')
+    
+    if (cleaned.length === 8) {
+      if (cleaned.startsWith('19') || cleaned.startsWith('20') || cleaned.startsWith('21')) {
+        const y = cleaned.substring(0, 4)
+        const m = cleaned.substring(4, 6)
+        const d = cleaned.substring(6, 8)
+        return `${y}-${m}-${d}`
+      } else {
+        const d = cleaned.substring(0, 2)
+        const m = cleaned.substring(2, 4)
+        const y = cleaned.substring(4, 8)
+        return `${y}-${m}-${d}`
+      }
+    }
+    
+    const parts = input.split(/[-/.\s]+/)
+    if (parts.length === 3) {
+      let y = parts[0]
+      let m = parts[1]
+      let d = parts[2]
+      
+      if (y.length <= 2 && d.length === 4) {
+        const temp = y
+        y = d
+        d = temp
+      }
+      
+      m = m.padStart(2, '0')
+      d = d.padStart(2, '0')
+      
+      if (y.length === 4 && m.length === 2 && d.length === 2) {
+        return `${y}-${m}-${d}`
+      }
+    }
+    
+    return null
   }
 
   const handleToggleTag = async (studentId: string, tagName: string) => {
@@ -1890,7 +2069,7 @@ export function StudentDashboardClient({ hidePhone = false }: { hidePhone?: bool
         </button>
 
         {/* Custom Folders */}
-        {foldersOptions.map((folder) => {
+        {visibleFolders.filter(f => f.name.toUpperCase() !== 'KDB').map((folder) => {
           const isActive = activeFolder === folder.id
           return (
             <button
@@ -1907,12 +2086,33 @@ export function StudentDashboardClient({ hidePhone = false }: { hidePhone?: bool
             </button>
           )
         })}
- 
+
+        {/* KDB Folder (Status Page only) */}
+        {hidePhone && (() => {
+          const kdbFolder = foldersOptions.find(f => f.name.toUpperCase() === 'KDB')
+          if (!kdbFolder) return null
+          const isActive = activeFolder === kdbFolder.id
+          return (
+            <button
+              onClick={() => setActiveFolder(kdbFolder.id)}
+              className={cn(
+                "relative text-sm font-semibold transition-all cursor-pointer whitespace-nowrap pb-2 -mb-2.5 border-b-2 ml-auto",
+                isActive
+                  ? "text-blue-600 dark:text-blue-400 border-blue-600 dark:border-blue-400 font-bold animate-none"
+                  : "text-[var(--foreground-muted)] border-transparent hover:text-[var(--foreground)]"
+              )}
+            >
+              KDB
+            </button>
+          )
+        })()}
+
         {/* Except Folder */}
         <button
           onClick={() => setActiveFolder('except')}
           className={cn(
-            "relative text-sm font-semibold transition-all cursor-pointer whitespace-nowrap pb-2 -mb-2.5 border-b-2 ml-auto",
+            "relative text-sm font-semibold transition-all cursor-pointer whitespace-nowrap pb-2 -mb-2.5 border-b-2",
+            (hidePhone && foldersOptions.some(f => f.name.toUpperCase() === 'KDB')) ? "" : "ml-auto",
             activeFolder === 'except'
               ? "text-blue-600 dark:text-blue-400 border-blue-600 dark:border-blue-400 font-bold animate-none"
               : "text-[var(--foreground-muted)] border-transparent hover:text-[var(--foreground)]"
@@ -1969,7 +2169,7 @@ export function StudentDashboardClient({ hidePhone = false }: { hidePhone?: bool
         </div>
         <div className="flex items-center gap-3">
           {/* Add to Folder button — only for custom folders */}
-          {activeFolder !== 'all' && activeFolder !== 'deleted' && activeFolder !== 'except' && (
+          {activeFolder !== 'all' && activeFolder !== 'deleted' && activeFolder !== 'except' && activeFolder !== 'hidden' && (
             <button
               onClick={handleOpenFolderAdd}
               className="not-italic inline-flex items-center gap-1.5 px-3 py-1.5 rounded-[var(--radius-md)] bg-[var(--accent)] hover:bg-[var(--accent-hover)] text-white text-xs font-bold cursor-pointer transition-all hover:scale-[1.02] shadow-xs"
@@ -2059,13 +2259,26 @@ export function StudentDashboardClient({ hidePhone = false }: { hidePhone?: bool
             <table className="w-full table-fixed border-collapse text-left">
               <colgroup>
                 <col style={{ width: '5rem' }} />
-                <col style={{ width: hidePhone ? '28%' : '27%' }} />
+                <col style={{ width: hidePhone ? (isKdbFolderActive ? '22%' : '28%') : '27%' }} />
                 {!hidePhone && <col style={{ width: '13%' }} />}
-                <col style={{ width: hidePhone ? '12%' : '11%' }} />
+                <col style={{ width: hidePhone ? (isKdbFolderActive ? '10%' : '12%') : '11%' }} />
                 {!hidePhone && <col style={{ width: '17%' }} />}
-                {hidePhone && <col style={{ width: '16%' }} />}
-                {hidePhone && <col style={{ width: '14%' }} />}
-                {hidePhone && <col style={{ width: '30%' }} />}
+                {hidePhone && (
+                  isKdbFolderActive ? (
+                    <>
+                      <col style={{ width: '13%' }} />
+                      <col style={{ width: '15%' }} />
+                      <col style={{ width: '15%' }} />
+                      <col style={{ width: '25%' }} />
+                    </>
+                  ) : (
+                    <>
+                      <col style={{ width: '16%' }} />
+                      <col style={{ width: '14%' }} />
+                      <col style={{ width: '30%' }} />
+                    </>
+                  )
+                )}
                 {!hidePhone && <col style={{ width: '12%' }} />}
               </colgroup>
               <thead>
@@ -2083,13 +2296,26 @@ export function StudentDashboardClient({ hidePhone = false }: { hidePhone?: bool
                       )}
                     </span>
                   </th>
-                  <th className={cn("px-1 py-2.5", hidePhone ? "w-[28%]" : "w-[18%]")}>Full Name</th>
+                  <th className={cn("px-1 py-2.5", hidePhone ? (isKdbFolderActive ? "w-[22%]" : "w-[28%]") : "w-[18%]")}>Full Name</th>
                   {!hidePhone && <th className="px-6 py-2.5 w-[12%]">Phone</th>}
-                  <th className={cn("px-6 py-2.5", hidePhone ? "w-[12%]" : "w-[10%]")}>Level</th>
+                  <th className={cn("px-6 py-2.5", hidePhone ? (isKdbFolderActive ? "w-[10%]" : "w-[12%]") : "w-[10%]")}>Level</th>
                   {!hidePhone && <th className="px-6 py-2.5 w-[32%]">University</th>}
-                  {hidePhone && <th className="px-4 py-2.5 w-[16%]">Invoice</th>}
-                  {hidePhone && <th className="px-4 py-2.5 w-[14%]">CoA</th>}
-                  {hidePhone && <th className="px-4 py-2.5 w-[30%]">Embassy</th>}
+                  {hidePhone && (
+                    isKdbFolderActive ? (
+                      <>
+                        <th className="px-4 py-2.5 w-[13%]">CoA</th>
+                        <th className="px-4 py-2.5 w-[15%]">PUT</th>
+                        <th className="px-4 py-2.5 w-[15%]">TAKE</th>
+                        <th className="px-4 py-2.5 w-[25%]">LEFT</th>
+                      </>
+                    ) : (
+                      <>
+                        <th className="px-4 py-2.5 w-[16%]">Invoice</th>
+                        <th className="px-4 py-2.5 w-[14%]">CoA</th>
+                        <th className="px-4 py-2.5 w-[30%]">Embassy</th>
+                      </>
+                    )
+                  )}
                   {!hidePhone && <th className={cn("px-6 py-2.5 text-left w-[12%]")}>Actions</th>}
                 </tr>
               </thead>
@@ -2254,105 +2480,205 @@ export function StudentDashboardClient({ hidePhone = false }: { hidePhone?: bool
                         {renderCertificatePills(student)}
                       </td>
 
-                      {/* Invoice Column */}
+                      {/* KDB Active columns vs Standard status columns */}
                       {hidePhone && (
-                        <td className="px-4 py-2.5 whitespace-nowrap" onClick={(e) => e.stopPropagation()}>
-                          <div className="flex flex-col items-center justify-center">
-                            <select
-                              value={student.invoice || 'NOT TAKEN'}
-                              onChange={(e) => handleInvoiceChange(student.id, student.invoice, e.target.value)}
-                              className={cn(
-                                "px-2.5 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider border cursor-pointer focus:outline-none transition-all duration-200 select-none",
-                                getInvoiceBadgeClass(student.invoice)
-                              )}
+                        isKdbFolderActive ? (
+                          <>
+                            {/* CoA Column (standard dropdown) */}
+                            <td className="px-4 py-2.5 whitespace-nowrap" onClick={(e) => e.stopPropagation()}>
+                              <select
+                                value={student.coa || 'NOT TAKEN'}
+                                onChange={(e) => handleUpdateCoa(student.id, e.target.value)}
+                                className={cn(
+                                  "px-2.5 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider border cursor-pointer focus:outline-none transition-all duration-200 select-none",
+                                  getCoaBadgeClass(student.coa)
+                                )}
+                              >
+                                <option value="NOT TAKEN" className="bg-white dark:bg-zinc-900 text-zinc-800 dark:text-zinc-200">Not Taken</option>
+                                <option value="TAKEN" className="bg-white dark:bg-zinc-900 text-zinc-800 dark:text-zinc-200">Taken</option>
+                                <option value="MISTAKE" className="bg-white dark:bg-zinc-900 text-zinc-800 dark:text-zinc-200">Mistake</option>
+                                <option value="CANCELLED" className="bg-white dark:bg-zinc-900 text-zinc-800 dark:text-zinc-200">Cancelled</option>
+                              </select>
+                            </td>
+
+                            {/* PUT Column (kdb_put_date dropdown pill) */}
+                            <td className="px-4 py-2.5 whitespace-nowrap" onClick={(e) => e.stopPropagation()}>
+                              <div className="flex flex-col items-center justify-center">
+                                <select
+                                  value={student.kdb_put_date ? 'KDB DONE' : 'NO KDB'}
+                                  onChange={(e) => {
+                                    if (e.target.value === 'KDB DONE' || e.target.value === 'EDIT') {
+                                      setKdbDateModalType('PUT')
+                                      setKdbDateModalStudentId(student.id)
+                                      setKdbDateModalValue(student.kdb_put_date || getTodayDateString())
+                                      setIsKdbDateModalOpen(true)
+                                    } else {
+                                      handleUpdateKdbPut(student.id, null)
+                                    }
+                                  }}
+                                  className={cn(
+                                    "px-2.5 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider border cursor-pointer focus:outline-none transition-all duration-200 select-none",
+                                    getKdbBadgeClass(student.kdb_put_date)
+                                  )}
+                                >
+                                  {student.kdb_put_date ? (
+                                    <>
+                                      <option value="KDB DONE" className="bg-white dark:bg-zinc-900 text-zinc-800 dark:text-zinc-200">{student.kdb_put_date}</option>
+                                      <option value="EDIT" className="bg-white dark:bg-zinc-900 text-zinc-800 dark:text-zinc-200">Edit Date</option>
+                                      <option value="NO KDB" className="bg-white dark:bg-zinc-900 text-zinc-800 dark:text-zinc-200">No KDB</option>
+                                    </>
+                                  ) : (
+                                    <>
+                                      <option value="NO KDB" className="bg-white dark:bg-zinc-900 text-zinc-800 dark:text-zinc-200">No KDB</option>
+                                      <option value="KDB DONE" className="bg-white dark:bg-zinc-900 text-zinc-800 dark:text-zinc-200">KDB Done</option>
+                                    </>
+                                  )}
+                                </select>
+                              </div>
+                            </td>
+
+                            {/* TAKE Column (kdb_take_date dropdown pill) */}
+                            <td className="px-4 py-2.5 whitespace-nowrap" onClick={(e) => e.stopPropagation()}>
+                              <div className="flex flex-col items-center justify-center">
+                                <select
+                                  value={student.kdb_take_date ? 'KDB DONE' : 'NO KDB'}
+                                  onChange={(e) => {
+                                    if (e.target.value === 'KDB DONE' || e.target.value === 'EDIT') {
+                                      setKdbDateModalType('TAKE')
+                                      setKdbDateModalStudentId(student.id)
+                                      setKdbDateModalValue(student.kdb_take_date || getTodayDateString())
+                                      setIsKdbDateModalOpen(true)
+                                    } else {
+                                      handleUpdateKdbTake(student.id, null)
+                                    }
+                                  }}
+                                  className={cn(
+                                    "px-2.5 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider border cursor-pointer focus:outline-none transition-all duration-200 select-none",
+                                    getKdbBadgeClass(student.kdb_take_date)
+                                  )}
+                                >
+                                  {student.kdb_take_date ? (
+                                    <>
+                                      <option value="KDB DONE" className="bg-white dark:bg-zinc-900 text-zinc-800 dark:text-zinc-200">{student.kdb_take_date}</option>
+                                      <option value="EDIT" className="bg-white dark:bg-zinc-900 text-zinc-800 dark:text-zinc-200">Edit Date</option>
+                                      <option value="NO KDB" className="bg-white dark:bg-zinc-900 text-zinc-800 dark:text-zinc-200">No KDB</option>
+                                    </>
+                                  ) : (
+                                    <>
+                                      <option value="NO KDB" className="bg-white dark:bg-zinc-900 text-zinc-800 dark:text-zinc-200">No KDB</option>
+                                      <option value="KDB DONE" className="bg-white dark:bg-zinc-900 text-zinc-800 dark:text-zinc-200">KDB Done</option>
+                                    </>
+                                  )}
+                                </select>
+                              </div>
+                            </td>
+
+                            {/* Left Column */}
+                            <td className="px-4 py-2.5 whitespace-nowrap" onClick={(e) => e.stopPropagation()}>
+                              {renderLeftColumnValue(student)}
+                            </td>
+                          </>
+                        ) : (
+                          <>
+                            {/* Invoice Column */}
+                            <td className="px-4 py-2.5 whitespace-nowrap" onClick={(e) => e.stopPropagation()}>
+                              <div className="flex flex-col items-center justify-center">
+                                <select
+                                  value={student.invoice || 'NOT TAKEN'}
+                                  onChange={(e) => handleInvoiceChange(student.id, student.invoice, e.target.value)}
+                                  className={cn(
+                                    "px-2.5 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider border cursor-pointer focus:outline-none transition-all duration-200 select-none",
+                                    getInvoiceBadgeClass(student.invoice)
+                                  )}
+                                >
+                                  <option value="NOT TAKEN" className="bg-white dark:bg-zinc-900 text-zinc-800 dark:text-zinc-200">Not Taken</option>
+                                  <option value="TAKEN" className="bg-white dark:bg-zinc-900 text-zinc-800 dark:text-zinc-200">Taken</option>
+                                  <option value="NOT PAID" className="bg-white dark:bg-zinc-900 text-zinc-800 dark:text-zinc-200">Not Paid</option>
+                                  <option value="PAID" className="bg-white dark:bg-zinc-900 text-zinc-800 dark:text-zinc-200">Paid</option>
+                                  <option value="CANCELLED" className="bg-white dark:bg-zinc-900 text-zinc-800 dark:text-zinc-200">Cancelled</option>
+                                </select>
+                                {student.invoice_university && (
+                                  <span className="text-[10px] text-zinc-400 dark:text-zinc-500 font-semibold mt-1 block truncate max-w-[110px]" title={student.invoice_university}>
+                                    {student.invoice_university}
+                                  </span>
+                                )}
+                              </div>
+                            </td>
+
+                            {/* CoA Column */}
+                            <td className="px-4 py-2.5 whitespace-nowrap" onClick={(e) => e.stopPropagation()}>
+                              <select
+                                value={student.coa || 'NOT TAKEN'}
+                                onChange={(e) => handleUpdateCoa(student.id, e.target.value)}
+                                className={cn(
+                                  "px-2.5 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider border cursor-pointer focus:outline-none transition-all duration-200 select-none",
+                                  getCoaBadgeClass(student.coa)
+                                )}
+                              >
+                                <option value="NOT TAKEN" className="bg-white dark:bg-zinc-900 text-zinc-800 dark:text-zinc-200">Not Taken</option>
+                                <option value="TAKEN" className="bg-white dark:bg-zinc-900 text-zinc-800 dark:text-zinc-200">Taken</option>
+                                <option value="MISTAKE" className="bg-white dark:bg-zinc-900 text-zinc-800 dark:text-zinc-200">Mistake</option>
+                                <option value="CANCELLED" className="bg-white dark:bg-zinc-900 text-zinc-800 dark:text-zinc-200">Cancelled</option>
+                              </select>
+                            </td>
+
+                            {/* Embassy Column */}
+                            <td
+                              className={cn("px-4 py-2.5", isKdbFolderActive ? "whitespace-nowrap" : "max-w-0")}
+                              onClick={isKdbFolderActive ? (e) => e.stopPropagation() : (e) => {
+                                e.stopPropagation()
+                                setActiveEmbassyStudentId(student.id)
+                              }}
                             >
-                              <option value="NOT TAKEN" className="bg-white dark:bg-zinc-900 text-zinc-800 dark:text-zinc-200">Not Taken</option>
-                              <option value="TAKEN" className="bg-white dark:bg-zinc-900 text-zinc-800 dark:text-zinc-200">Taken</option>
-                              <option value="NOT PAID" className="bg-white dark:bg-zinc-900 text-zinc-800 dark:text-zinc-200">Not Paid</option>
-                              <option value="PAID" className="bg-white dark:bg-zinc-900 text-zinc-800 dark:text-zinc-200">Paid</option>
-                              <option value="CANCELLED" className="bg-white dark:bg-zinc-900 text-zinc-800 dark:text-zinc-200">Cancelled</option>
-                            </select>
-                            {student.invoice_university && (
-                              <span className="text-[10px] text-zinc-400 dark:text-zinc-500 font-semibold mt-1 block truncate max-w-[110px]" title={student.invoice_university}>
-                                {student.invoice_university}
-                              </span>
-                            )}
-                          </div>
-                        </td>
-                      )}
-
-                      {/* CoA Column */}
-                      {hidePhone && (
-                        <td className="px-4 py-2.5 whitespace-nowrap" onClick={(e) => e.stopPropagation()}>
-                          <select
-                            value={student.coa || 'NOT TAKEN'}
-                            onChange={(e) => handleUpdateCoa(student.id, e.target.value)}
-                            className={cn(
-                              "px-2.5 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider border cursor-pointer focus:outline-none transition-all duration-200 select-none",
-                              getCoaBadgeClass(student.coa)
-                            )}
-                          >
-                            <option value="NOT TAKEN" className="bg-white dark:bg-zinc-900 text-zinc-800 dark:text-zinc-200">Not Taken</option>
-                            <option value="TAKEN" className="bg-white dark:bg-zinc-900 text-zinc-800 dark:text-zinc-200">Taken</option>
-                            <option value="MISTAKE" className="bg-white dark:bg-zinc-900 text-zinc-800 dark:text-zinc-200">Mistake</option>
-                            <option value="CANCELLED" className="bg-white dark:bg-zinc-900 text-zinc-800 dark:text-zinc-200">Cancelled</option>
-                          </select>
-                        </td>
-                      )}
-
-                      {/* Embassy Column */}
-                      {hidePhone && (
-                        <td className="px-4 py-2.5 max-w-0" onClick={(e) => {
-                          e.stopPropagation()
-                          setActiveEmbassyStudentId(student.id)
-                        }}>
-                          <div className="flex flex-col gap-1 cursor-pointer hover:opacity-85 transition-all">
-                            {((student.embassy_father_docs && student.embassy_father_docs.length > 0) ||
-                              (student.embassy_mother_docs && student.embassy_mother_docs.length > 0) ||
-                              (student.embassy_sponsor_notes && student.embassy_sponsor_notes.trim().length > 0)) ? (
-                              <>
-                                {student.embassy_father_docs && student.embassy_father_docs.length > 0 && (
-                                  <div className="flex flex-wrap items-center gap-1">
-                                    <span className="text-[9px] font-bold text-blue-500 uppercase tracking-wide mr-1 shrink-0 select-none">Ota:</span>
-                                    {student.embassy_father_docs.map((doc, idx) => (
-                                      <span
-                                        key={idx}
-                                        className="inline-flex items-center px-1.5 py-0.5 rounded-[4px] text-[9.5px] font-bold bg-blue-600 text-white shadow-xs border border-transparent select-none whitespace-nowrap truncate max-w-[100px]"
-                                        title={doc}
-                                      >
-                                        {doc}
-                                      </span>
-                                    ))}
-                                  </div>
+                              <div className="flex flex-col gap-1 cursor-pointer hover:opacity-85 transition-all">
+                                {((student.embassy_father_docs && student.embassy_father_docs.length > 0) ||
+                                  (student.embassy_mother_docs && student.embassy_mother_docs.length > 0) ||
+                                  (student.embassy_sponsor_notes && student.embassy_sponsor_notes.trim().length > 0)) ? (
+                                  <>
+                                    {student.embassy_father_docs && student.embassy_father_docs.length > 0 && (
+                                      <div className="flex flex-wrap items-center gap-1">
+                                        <span className="text-[9px] font-bold text-blue-500 uppercase tracking-wide mr-1 shrink-0 select-none">Ota:</span>
+                                        {student.embassy_father_docs.map((doc, idx) => (
+                                          <span
+                                            key={idx}
+                                            className="inline-flex items-center px-1.5 py-0.5 rounded-[4px] text-[9.5px] font-bold bg-blue-600 text-white shadow-xs border border-transparent select-none whitespace-nowrap truncate max-w-[100px]"
+                                            title={doc}
+                                          >
+                                            {doc}
+                                          </span>
+                                        ))}
+                                      </div>
+                                    )}
+                                    {student.embassy_mother_docs && student.embassy_mother_docs.length > 0 && (
+                                      <div className="flex flex-wrap items-center gap-1 mt-0.5">
+                                        <span className="text-[9px] font-bold text-rose-500 uppercase tracking-wide mr-1 shrink-0 select-none">Ona:</span>
+                                        {student.embassy_mother_docs.map((doc, idx) => (
+                                          <span
+                                            key={idx}
+                                            className="inline-flex items-center px-1.5 py-0.5 rounded-[4px] text-[9.5px] font-bold bg-rose-600 text-white shadow-xs border border-transparent select-none whitespace-nowrap truncate max-w-[100px]"
+                                            title={doc}
+                                          >
+                                            {doc}
+                                          </span>
+                                        ))}
+                                      </div>
+                                    )}
+                                    {student.embassy_sponsor_notes && student.embassy_sponsor_notes.trim().length > 0 && (
+                                      <div className="flex items-center gap-1 mt-0.5 text-[9.5px] text-[var(--foreground-muted)] font-medium truncate max-w-[180px]">
+                                        <span className="font-bold text-amber-500 uppercase tracking-wide shrink-0 select-none">Homiy:</span>
+                                        <span className="truncate italic">"{student.embassy_sponsor_notes}"</span>
+                                      </div>
+                                    )}
+                                  </>
+                                ) : (
+                                  <span className="text-[11px] text-[var(--foreground-muted)] dark:text-zinc-500 italic hover:text-blue-500 font-semibold select-none transition-colors">
+                                    Add documents...
+                                  </span>
                                 )}
-                                {student.embassy_mother_docs && student.embassy_mother_docs.length > 0 && (
-                                  <div className="flex flex-wrap items-center gap-1 mt-0.5">
-                                    <span className="text-[9px] font-bold text-rose-500 uppercase tracking-wide mr-1 shrink-0 select-none">Ona:</span>
-                                    {student.embassy_mother_docs.map((doc, idx) => (
-                                      <span
-                                        key={idx}
-                                        className="inline-flex items-center px-1.5 py-0.5 rounded-[4px] text-[9.5px] font-bold bg-rose-600 text-white shadow-xs border border-transparent select-none whitespace-nowrap truncate max-w-[100px]"
-                                        title={doc}
-                                      >
-                                        {doc}
-                                      </span>
-                                    ))}
-                                  </div>
-                                )}
-                                {student.embassy_sponsor_notes && student.embassy_sponsor_notes.trim().length > 0 && (
-                                  <div className="flex items-center gap-1 mt-0.5 text-[9.5px] text-[var(--foreground-muted)] font-medium truncate max-w-[180px]">
-                                    <span className="font-bold text-amber-500 uppercase tracking-wide shrink-0 select-none">Homiy:</span>
-                                    <span className="truncate italic">"{student.embassy_sponsor_notes}"</span>
-                                  </div>
-                                )}
-                              </>
-                            ) : (
-                              <span className="text-[11px] text-[var(--foreground-muted)] dark:text-zinc-500 italic hover:text-blue-500 font-semibold select-none transition-colors">
-                                Add documents...
-                              </span>
-                            )}
-                          </div>
-                        </td>
+                              </div>
+                            </td>
+                          </>
+                        )
                       )}
 
                       {/* Universities List Column */}
@@ -2605,7 +2931,7 @@ export function StudentDashboardClient({ hidePhone = false }: { hidePhone?: bool
                       </button>
  
                       {/* Custom Folders */}
-                      {foldersOptions.map((folder) => {
+                      {visibleFolders.map((folder) => {
                         const currentFolders = student.folder_ids || []
                         const isActive = currentFolders.includes(folder.id)
                         return (
@@ -2973,6 +3299,101 @@ export function StudentDashboardClient({ hidePhone = false }: { hidePhone?: bool
         </div>
       )}
 
+      {/* KDB Date Input Modal */}
+      {isKdbDateModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          {/* Backdrop Overlay */}
+          <div
+            onClick={() => {
+              setIsKdbDateModalOpen(false)
+              setKdbDateModalStudentId(null)
+            }}
+            className="fixed inset-0 bg-black/50 transition-opacity duration-220 ease-out"
+          />
+
+          {/* Modal Panel */}
+          <div className="relative w-full max-w-sm overflow-hidden rounded-[var(--radius-lg)] border border-[var(--border)] bg-[var(--surface-elevated)] p-6 shadow-[var(--shadow-lg)] z-10 flex flex-col">
+            <h3 className="text-base font-bold text-[var(--foreground)] mb-4">
+              Enter {kdbDateModalType} Date
+            </h3>
+            
+            <input
+              type="text"
+              placeholder="YYYY-MM-DD"
+              maxLength={10}
+              value={kdbDateModalValue}
+              onChange={(e) => {
+                const val = e.target.value
+                const isDelete = val.length < kdbDateModalValue.length
+                const cleaned = val.replace(/[^0-9]/g, '')
+                
+                let formatted = ''
+                if (cleaned.length > 0) {
+                  formatted += cleaned.substring(0, 4)
+                }
+                
+                if (cleaned.length > 4 || (cleaned.length === 4 && !isDelete)) {
+                  formatted += '-' + cleaned.substring(4, 6)
+                }
+                
+                if (cleaned.length > 6 || (cleaned.length === 6 && !isDelete)) {
+                  formatted += '-' + cleaned.substring(6, 8)
+                }
+                
+                setKdbDateModalValue(formatted)
+              }}
+              className="w-full px-3 py-2 rounded-[var(--radius-md)] border border-[var(--border)] bg-[var(--surface)] text-[var(--foreground)] text-sm focus:outline-none focus:border-[var(--accent)] transition-all mb-5"
+            />
+
+            <div className="flex justify-end gap-3">
+              <button
+                onClick={() => {
+                  setIsKdbDateModalOpen(false)
+                  setKdbDateModalStudentId(null)
+                }}
+                className="px-4 py-2 rounded-[var(--radius-md)] border border-[var(--border)] text-xs font-semibold text-[var(--foreground-muted)] hover:bg-[var(--surface-hover)] transition-all cursor-pointer"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={() => {
+                  const valToSave = kdbDateModalValue.trim()
+                  if (!valToSave) {
+                    alert('Date cannot be empty.')
+                    return
+                  }
+                  
+                  const formattedDate = parseAndFormatDate(valToSave)
+                  if (!formattedDate) {
+                    alert('Invalid date format. Please use YYYY-MM-DD or 8-digit format (e.g. 2026-07-18 or 20260718).')
+                    return
+                  }
+                  
+                  const [, m, d] = formattedDate.split('-').map(Number)
+                  if (m < 1 || m > 12 || d < 1 || d > 31) {
+                    alert('Invalid date: Month must be 1-12, Day must be 1-31.')
+                    return
+                  }
+
+                  if (kdbDateModalStudentId) {
+                    if (kdbDateModalType === 'PUT') {
+                      handleUpdateKdbPut(kdbDateModalStudentId, formattedDate)
+                    } else {
+                      handleUpdateKdbTake(kdbDateModalStudentId, formattedDate)
+                    }
+                  }
+                  setIsKdbDateModalOpen(false)
+                  setKdbDateModalStudentId(null)
+                }}
+                className="px-4 py-2 rounded-[var(--radius-md)] bg-[var(--accent)] text-xs font-semibold text-white hover:bg-[var(--accent-hover)] transition-all cursor-pointer"
+              >
+                Save
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Export to Excel Modal */}
       {excelModalTransition.shouldRender && (
           <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
@@ -3088,9 +3509,9 @@ export function StudentDashboardClient({ hidePhone = false }: { hidePhone?: bool
                       <span className="truncate select-none pr-1">
                         {excelSelectedFolders.length === 0
                           ? 'All Folders'
-                          : excelSelectedFolders.length === (foldersOptions.length + 1)
+                          : excelSelectedFolders.length === (visibleFolders.length + 1)
                             ? 'All Folders'
-                            : excelSelectedFolders.map(fid => fid === 'NO_FOLDER' ? 'No Folder' : (foldersOptions.find(f => f.id === fid)?.name || fid)).join(', ')}
+                            : excelSelectedFolders.map(fid => fid === 'NO_FOLDER' ? 'No Folder' : (visibleFolders.find(f => f.id === fid)?.name || fid)).join(', ')}
                       </span>
                       <ChevronDown className="absolute right-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-[var(--foreground-subtle)] pointer-events-none" />
                     </button>
@@ -3099,11 +3520,11 @@ export function StudentDashboardClient({ hidePhone = false }: { hidePhone?: bool
                       <div className="absolute left-0 mt-1 w-56 rounded-[var(--radius-md)] border border-[var(--border)] bg-[var(--surface-elevated)]/95 backdrop-blur-md shadow-lg py-1.5 z-40 max-h-72 overflow-y-auto">
                         <div
                           className="px-3 py-1.5 flex items-center gap-2 cursor-pointer hover:bg-[var(--border-subtle)] transition-colors select-none text-[11px] font-bold text-[var(--foreground)]"
-                          onClick={() => setExcelSelectedFolders(prev => prev.length === (foldersOptions.length + 1) ? [] : ['NO_FOLDER', ...foldersOptions.map(f => f.id)])}
+                          onClick={() => setExcelSelectedFolders(prev => prev.length === (visibleFolders.length + 1) ? [] : ['NO_FOLDER', ...visibleFolders.map(f => f.id)])}
                         >
                           <input
                             type="checkbox"
-                            checked={excelSelectedFolders.length === (foldersOptions.length + 1)}
+                            checked={excelSelectedFolders.length === (visibleFolders.length + 1)}
                             readOnly
                             className="h-3.5 w-3.5 rounded border-[var(--border)] text-blue-600 focus:ring-blue-500 cursor-pointer"
                           />
@@ -3122,7 +3543,7 @@ export function StudentDashboardClient({ hidePhone = false }: { hidePhone?: bool
                           />
                           <span>No Folder</span>
                         </div>
-                        {foldersOptions.map(f => {
+                        {visibleFolders.map(f => {
                           const isChecked = excelSelectedFolders.includes(f.id)
                           return (
                             <div

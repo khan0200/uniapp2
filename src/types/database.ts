@@ -91,6 +91,8 @@ export interface Student {
   invoice_university: string | null
   embassy_documents: string[] | null
   status_hidden: boolean | null
+  kdb_put_date: string | null
+  kdb_take_date: string | null
   embassy_father_docs: string[] | null
   embassy_mother_docs: string[] | null
   embassy_sponsor_notes: string | null
@@ -218,6 +220,8 @@ export type Database = {
           invoice_university?: string | null
           embassy_documents?: string[] | null
           status_hidden?: boolean | null
+          kdb_put_date?: string | null
+          kdb_take_date?: string | null
           embassy_father_docs?: string[] | null
           embassy_mother_docs?: string[] | null
           embassy_sponsor_notes?: string | null
@@ -285,6 +289,8 @@ export type Database = {
           invoice_university?: string | null
           embassy_documents?: string[] | null
           status_hidden?: boolean | null
+          kdb_put_date?: string | null
+          kdb_take_date?: string | null
           embassy_father_docs?: string[] | null
           embassy_mother_docs?: string[] | null
           embassy_sponsor_notes?: string | null

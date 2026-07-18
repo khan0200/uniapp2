@@ -1,5 +1,5 @@
 import type { Metadata } from 'next'
-import { StudentDashboardClient } from '../students/StudentDashboardClient'
+import { StudentDashboardClient } from '@/app/(dashboard)/students/StudentDashboardClient'
 
 export const metadata: Metadata = { title: 'Status' }
 

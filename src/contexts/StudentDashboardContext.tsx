@@ -128,14 +128,14 @@ export function StudentDashboardProvider({ children }: { children: ReactNode }) 
   const [hasFetched, setHasFetched] = useState(false)
   const [detailPageActions, setDetailPageActions] = useState<StudentDetailPageActions | null>(null)
 
-  // Hoisted filter state values with sessionStorage loading
-  const [selectedTariffs, setSelectedTariffs] = useState<string[]>(() => getSessionValue('selectedTariffs', []))
-  const [selectedLevels, setSelectedLevels] = useState<string[]>(() => getSessionValue('selectedLevels', []))
-  const [selectedGroups, setSelectedGroups] = useState<string[]>(() => getSessionValue('selectedGroups', []))
-  const [selectedCerts, setSelectedCerts] = useState<string[]>(() => getSessionValue('selectedCerts', []))
-  const [selectedScores, setSelectedScores] = useState<string[]>(() => getSessionValue('selectedScores', []))
-  const [selectedTags, setSelectedTags] = useState<string[]>(() => getSessionValue('selectedTags', []))
-  const [selectedLeads, setSelectedLeads] = useState<string[]>(() => getSessionValue('selectedLeads', []))
+  // Hoisted filter state values
+  const [selectedTariffs, setSelectedTariffs] = useState<string[]>([])
+  const [selectedLevels, setSelectedLevels] = useState<string[]>([])
+  const [selectedGroups, setSelectedGroups] = useState<string[]>([])
+  const [selectedCerts, setSelectedCerts] = useState<string[]>([])
+  const [selectedScores, setSelectedScores] = useState<string[]>([])
+  const [selectedTags, setSelectedTags] = useState<string[]>([])
+  const [selectedLeads, setSelectedLeads] = useState<string[]>([])
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('asc')
   const [currentPage, setCurrentPage] = useState(1)
 
@@ -167,7 +167,7 @@ export function StudentDashboardProvider({ children }: { children: ReactNode }) 
     { name: 'Accepted', colorClass: 'text-emerald-500' },
     { name: 'Failed', colorClass: 'text-rose-500' }
   ])
-  const [activeFolder, setActiveFolder] = useState<string>(() => getSessionValue('activeFolder', 'all'))
+  const [activeFolder, setActiveFolder] = useState<string>('all')
 
   const scrollPositionRef = useRef(0)
   const setScrollPosition = (pos: number) => {
@@ -175,9 +175,37 @@ export function StudentDashboardProvider({ children }: { children: ReactNode }) 
   }
   const getScrollPosition = () => scrollPositionRef.current
 
-  // Save selected filters to sessionStorage whenever they change
+  const isHydratedRef = useRef(false)
+
+  // Load selected filters from sessionStorage on mount (to avoid SSR/hydration mismatch)
   useEffect(() => {
     if (typeof window !== 'undefined') {
+      const loadSession = <T,>(key: string, setter: (val: T) => void) => {
+        const saved = sessionStorage.getItem(key)
+        if (saved) {
+          try {
+            setter(JSON.parse(saved))
+          } catch (e) {
+            console.error(`Failed to parse sessionStorage for ${key}`, e)
+          }
+        }
+      }
+      loadSession('selectedTariffs', setSelectedTariffs)
+      loadSession('selectedLevels', setSelectedLevels)
+      loadSession('selectedGroups', setSelectedGroups)
+      loadSession('selectedCerts', setSelectedCerts)
+      loadSession('selectedScores', setSelectedScores)
+      loadSession('selectedTags', setSelectedTags)
+      loadSession('selectedLeads', setSelectedLeads)
+      loadSession('activeFolder', setActiveFolder)
+      
+      isHydratedRef.current = true
+    }
+  }, [])
+
+  // Save selected filters to sessionStorage whenever they change (only after hydration)
+  useEffect(() => {
+    if (typeof window !== 'undefined' && isHydratedRef.current) {
       sessionStorage.setItem('selectedTariffs', JSON.stringify(selectedTariffs))
       sessionStorage.setItem('selectedLevels', JSON.stringify(selectedLevels))
       sessionStorage.setItem('selectedGroups', JSON.stringify(selectedGroups))
@@ -240,11 +268,25 @@ export function StudentDashboardProvider({ children }: { children: ReactNode }) 
       if (levelsRes.data && levelsRes.data.length > 0) setLevelOptions((levelsRes.data as any[]).map(l => l.name))
       if (groupsRes.data && groupsRes.data.length > 0) setGroupOptions((groupsRes.data as any[]).map(g => g.name))
       if (leadsRes.data && leadsRes.data.length > 0) setLeadByOptions((leadsRes.data as any[]).map(l => l.name))
-      if (foldersRes.data && foldersRes.data.length > 0) {
-        setFoldersOptions(foldersRes.data as Folder[])
-      } else {
-        setFoldersOptions([])
+      let folders = (foldersRes.data || []) as Folder[]
+      const hasKdb = folders.some(f => f.name.toUpperCase() === 'KDB')
+      if (!hasKdb) {
+        try {
+          const { data: newFolder, error: insertErr } = await (supabase
+            .from('folders') as any)
+            .insert({ name: 'KDB' })
+            .select('id, name')
+            .single()
+          if (newFolder) {
+            folders = [...folders, newFolder]
+          } else if (insertErr) {
+            console.warn('Failed to auto-create KDB folder:', insertErr)
+          }
+        } catch (err) {
+          console.warn('Error auto-creating KDB folder:', err)
+        }
       }
+      setFoldersOptions(folders)
       if (officesRes.data && officesRes.data.length > 0) setOfficeOptions((officesRes.data as any[]).map(o => o.name))
       if (methodsRes.data && methodsRes.data.length > 0) setPaymentMethodOptions((methodsRes.data as any[]).map(m => m.name))
       if (receiversRes.data && receiversRes.data.length > 0) setPaymentReceiverOptions((receiversRes.data as any[]).map(r => r.name))
