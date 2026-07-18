@@ -110,6 +110,52 @@ const compareStudentIds = (a: Student, b: Student, order: 'asc' | 'desc' = 'asc'
   return order === 'asc' ? idA.localeCompare(idB) : idB.localeCompare(idA)
 }
 
+const MONTHS_LIST = [
+  { value: '01', label: 'January' },
+  { value: '02', label: 'February' },
+  { value: '03', label: 'March' },
+  { value: '04', label: 'April' },
+  { value: '05', label: 'May' },
+  { value: '06', label: 'June' },
+  { value: '07', label: 'July' },
+  { value: '08', label: 'August' },
+  { value: '09', label: 'September' },
+  { value: '10', label: 'October' },
+  { value: '11', label: 'November' },
+  { value: '12', label: 'December' },
+]
+
+const getDaysInMonth = (year: number, month: number) => {
+  return new Date(year, month, 0).getDate()
+}
+
+const getUrgencyDays = (student: any) => {
+  const takeDateStr = student.kdb_take_date
+  if (!takeDateStr) return Infinity
+
+  const takeDate = new Date(takeDateStr)
+  if (isNaN(takeDate.getTime())) return Infinity
+
+  const today = new Date()
+  today.setHours(0, 0, 0, 0)
+  takeDate.setHours(0, 0, 0, 0)
+
+  const isBeforeOrOnTakeDate = today.getTime() <= takeDate.getTime()
+
+  if (isBeforeOrOnTakeDate) {
+    // Days left to take
+    const diffTime = takeDate.getTime() - today.getTime()
+    return Math.ceil(diffTime / (1000 * 60 * 60 * 24))
+  } else {
+    // Days left to expire
+    const expirationDate = new Date(takeDate)
+    expirationDate.setDate(expirationDate.getDate() + 30)
+    const diffTime = expirationDate.getTime() - today.getTime()
+    return Math.ceil(diffTime / (1000 * 60 * 60 * 24))
+  }
+}
+
+
 export function StudentDashboardClient({ hidePhone = false }: { hidePhone?: boolean } = {}) {
   const supabase = createClient()
 
@@ -214,6 +260,9 @@ export function StudentDashboardClient({ hidePhone = false }: { hidePhone?: bool
   const [kdbDateModalStudentId, setKdbDateModalStudentId] = useState<string | null>(null)
   const [kdbDateModalValue, setKdbDateModalValue] = useState('')
 
+  // Sorting state for LEFT column
+  const [sortBy, setSortBy] = useState<'id' | 'left'>('id')
+
   useEffect(() => {
     const fetchUniversities = async () => {
       try {
@@ -230,6 +279,8 @@ export function StudentDashboardClient({ hidePhone = false }: { hidePhone?: bool
     }
     fetchUniversities()
   }, [])
+
+
 
   // Context shared state
   const {
@@ -274,6 +325,32 @@ export function StudentDashboardClient({ hidePhone = false }: { hidePhone?: bool
     officeOptions
   } = useStudentDashboard()
 
+  const recentPutDates = useMemo(() => {
+    const counts: Record<string, number> = {}
+    students.forEach(s => {
+      const d = s.kdb_put_date
+      if (d && d !== 'NO KDB') {
+        counts[d] = (counts[d] || 0) + 1
+      }
+    })
+    return Object.keys(counts)
+      .sort((a, b) => counts[b] - counts[a] || b.localeCompare(a))
+      .slice(0, 5)
+  }, [students])
+
+  const recentTakeDates = useMemo(() => {
+    const counts: Record<string, number> = {}
+    students.forEach(s => {
+      const d = s.kdb_take_date
+      if (d && d !== 'NO KDB') {
+        counts[d] = (counts[d] || 0) + 1
+      }
+    })
+    return Object.keys(counts)
+      .sort((a, b) => counts[b] - counts[a] || b.localeCompare(a))
+      .slice(0, 5)
+  }, [students])
+
   const visibleFolders = useMemo(() => {
     return foldersOptions.filter(f => hidePhone || f.name.toUpperCase() !== 'KDB')
   }, [foldersOptions, hidePhone])
@@ -302,36 +379,53 @@ export function StudentDashboardClient({ hidePhone = false }: { hidePhone?: bool
     today.setHours(0, 0, 0, 0)
     takeDate.setHours(0, 0, 0, 0)
 
-    const expirationDate = new Date(takeDate)
-    expirationDate.setDate(expirationDate.getDate() + 30)
+    const isBeforeOrOnTakeDate = today.getTime() <= takeDate.getTime()
 
-    const diffTime = expirationDate.getTime() - today.getTime()
-    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24))
-
-    if (diffDays < 0) {
+    if (isBeforeOrOnTakeDate) {
+      // Days left to take bank statement (inside PUT and TAKE date range)
+      const diffTime = takeDate.getTime() - today.getTime()
+      const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24))
+      
+      if (diffDays === 0) {
+        return (
+          <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold uppercase bg-emerald-600 dark:bg-emerald-700 text-white border border-transparent select-none animate-pulse">
+            Take Today
+          </span>
+        )
+      }
+      
       return (
-        <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold uppercase bg-rose-100 dark:bg-rose-950 text-rose-600 dark:text-rose-400 border border-rose-300 dark:border-rose-800">
-          Expired ({Math.abs(diffDays)}d ago)
-        </span>
-      )
-    } else if (diffDays === 0) {
-      return (
-        <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold uppercase bg-amber-100 dark:bg-amber-950 text-amber-600 dark:text-amber-400 border border-amber-300 dark:border-amber-800 animate-pulse">
-          Expires Today
-        </span>
-      )
-    } else if (diffDays <= 7) {
-      return (
-        <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-100 dark:bg-amber-950 text-amber-600 dark:text-amber-400 border border-amber-300 dark:border-amber-800">
-          {diffDays} days left
+        <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-600 dark:bg-emerald-700 text-white border border-transparent select-none">
+          {diffDays} {diffDays === 1 ? 'day' : 'days'} left
         </span>
       )
     } else {
-      return (
-        <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-100 dark:bg-emerald-950 text-emerald-600 dark:text-emerald-400 border border-emerald-300 dark:border-emerald-800">
-          {diffDays} days left
-        </span>
-      )
+      // Today is after take date. Days left to expiration of bank statement.
+      const expirationDate = new Date(takeDate)
+      expirationDate.setDate(expirationDate.getDate() + 30)
+      
+      const diffTime = expirationDate.getTime() - today.getTime()
+      const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24))
+      
+      if (diffDays < 0) {
+        return (
+          <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold uppercase bg-rose-600 dark:bg-rose-700 text-white border border-transparent select-none">
+            Expired ({Math.abs(diffDays)}d ago)
+          </span>
+        )
+      } else if (diffDays === 0) {
+        return (
+          <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold uppercase bg-rose-600 dark:bg-rose-700 text-white border border-transparent select-none animate-pulse">
+            Expires Today
+          </span>
+        )
+      } else {
+        return (
+          <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold bg-rose-600 dark:bg-rose-700 text-white border border-transparent select-none">
+            {diffDays} {diffDays === 1 ? 'day' : 'days'} left
+          </span>
+        )
+      }
     }
   }
 
@@ -586,8 +680,19 @@ export function StudentDashboardClient({ hidePhone = false }: { hidePhone?: bool
   })
 
   const sortedExcelStudents = useMemo(() => {
-    return [...excelFilteredStudents].sort((a, b) => compareStudentIds(a, b, sortOrder))
-  }, [excelFilteredStudents, sortOrder])
+    return [...excelFilteredStudents].sort((a, b) => {
+      if (sortBy === 'left') {
+        const daysA = getUrgencyDays(a)
+        const daysB = getUrgencyDays(b)
+        if (daysA === Infinity && daysB === Infinity) return compareStudentIds(a, b, 'asc')
+        if (daysA === Infinity) return 1
+        if (daysB === Infinity) return -1
+        if (daysA === daysB) return compareStudentIds(a, b, 'asc')
+        return sortOrder === 'asc' ? daysA - daysB : daysB - daysA
+      }
+      return compareStudentIds(a, b, sortOrder)
+    })
+  }, [excelFilteredStudents, sortOrder, sortBy])
 
   // Helper to style SheetJS worksheets beautifully
   const styleWorksheet = (ws: any, isStudentSingle: boolean = false) => {
@@ -1207,38 +1312,33 @@ export function StudentDashboardClient({ hidePhone = false }: { hidePhone?: bool
   }
 
   const handleUpdateKdbPut = async (studentId: string, date: string | null) => {
-    let calculatedTakeDate: string | null | undefined = undefined
+    let calculatedTakeDate: string | null = null
 
     if (date) {
-      const student = students.find(s => s.id === studentId)
-      if (student && !student.kdb_take_date) {
-        const putDate = new Date(date)
-        if (!isNaN(putDate.getTime())) {
-          putDate.setDate(putDate.getDate() + 31)
-          const y = putDate.getFullYear()
-          const m = String(putDate.getMonth() + 1).padStart(2, '0')
-          const d = String(putDate.getDate()).padStart(2, '0')
-          calculatedTakeDate = `${y}-${m}-${d}`
-        }
+      const putDate = new Date(date)
+      if (!isNaN(putDate.getTime())) {
+        putDate.setDate(putDate.getDate() + 31)
+        const y = putDate.getFullYear()
+        const m = String(putDate.getMonth() + 1).padStart(2, '0')
+        const d = String(putDate.getDate()).padStart(2, '0')
+        calculatedTakeDate = `${y}-${m}-${d}`
       }
-    } else {
-      calculatedTakeDate = null
     }
 
     setStudents(prev => prev.map(s => {
       if (s.id === studentId) {
-        const updated = { ...s, kdb_put_date: date }
-        if (calculatedTakeDate !== undefined) {
-          updated.kdb_take_date = calculatedTakeDate
+        return {
+          ...s,
+          kdb_put_date: date,
+          kdb_take_date: calculatedTakeDate
         }
-        return updated
       }
       return s
     }))
 
-    const updatePayload: any = { kdb_put_date: date }
-    if (calculatedTakeDate !== undefined) {
-      updatePayload.kdb_take_date = calculatedTakeDate
+    const updatePayload: any = {
+      kdb_put_date: date,
+      kdb_take_date: calculatedTakeDate
     }
 
     const { error: updateError } = await (supabase
@@ -1809,7 +1909,18 @@ export function StudentDashboardClient({ hidePhone = false }: { hidePhone?: bool
   })
 
   // Sorting logic matching legacy roster
-  const sortedStudents = [...filteredStudents].sort((a, b) => compareStudentIds(a, b, sortOrder))
+  const sortedStudents = [...filteredStudents].sort((a, b) => {
+    if (sortBy === 'left') {
+      const daysA = getUrgencyDays(a)
+      const daysB = getUrgencyDays(b)
+      if (daysA === Infinity && daysB === Infinity) return compareStudentIds(a, b, 'asc')
+      if (daysA === Infinity) return 1
+      if (daysB === Infinity) return -1
+      if (daysA === daysB) return compareStudentIds(a, b, 'asc')
+      return sortOrder === 'asc' ? daysA - daysB : daysB - daysA
+    }
+    return compareStudentIds(a, b, sortOrder)
+  })
 
   // Pagination logic
   const pageSize = 30
@@ -2285,14 +2396,25 @@ export function StudentDashboardClient({ hidePhone = false }: { hidePhone?: bool
                 <tr className="border-b border-[var(--border)] bg-[var(--surface-elevated)] text-[11px] font-bold uppercase tracking-wider text-[var(--foreground-muted)] dark:text-[var(--foreground)] select-none">
                   <th
                     className="px-1 py-2.5 cursor-pointer select-none hover:bg-[var(--surface-elevated)] transition-colors rounded-tl-[var(--radius-lg)]"
-                    onClick={() => setSortOrder(prev => prev === 'asc' ? 'desc' : 'asc')}
+                    onClick={() => {
+                      if (sortBy === 'id') {
+                        setSortOrder(prev => prev === 'asc' ? 'desc' : 'asc')
+                      } else {
+                        setSortBy('id')
+                        setSortOrder('asc')
+                      }
+                    }}
                   >
                     <span className="flex items-center gap-1 font-bold text-[11px] uppercase tracking-wider text-[var(--foreground-muted)] dark:text-[var(--foreground)]">
                       ID
-                      {sortOrder === 'asc' ? (
-                        <ChevronDown className="h-3 w-3 text-[var(--accent)]" />
+                      {sortBy === 'id' ? (
+                        sortOrder === 'asc' ? (
+                          <ChevronDown className="h-3 w-3 text-[var(--accent)] shrink-0" />
+                        ) : (
+                          <ChevronUp className="h-3 w-3 text-[var(--accent)] shrink-0" />
+                        )
                       ) : (
-                        <ChevronUp className="h-3 w-3 text-[var(--accent)]" />
+                        <ChevronDown className="h-3 w-3 text-zinc-300 dark:text-zinc-600 opacity-40 shrink-0" />
                       )}
                     </span>
                   </th>
@@ -2306,7 +2428,30 @@ export function StudentDashboardClient({ hidePhone = false }: { hidePhone?: bool
                         <th className="px-4 py-2.5 w-[13%]">CoA</th>
                         <th className="px-4 py-2.5 w-[15%]">PUT</th>
                         <th className="px-4 py-2.5 w-[15%]">TAKE</th>
-                        <th className="px-4 py-2.5 w-[25%]">LEFT</th>
+                        <th
+                          className="px-4 py-2.5 w-[25%] cursor-pointer select-none hover:bg-[var(--surface-hover)] transition-colors"
+                          onClick={() => {
+                            if (sortBy === 'left') {
+                              setSortOrder(prev => prev === 'asc' ? 'desc' : 'asc')
+                            } else {
+                              setSortBy('left')
+                              setSortOrder('asc')
+                            }
+                          }}
+                        >
+                          <span className="flex items-center gap-1">
+                            LEFT
+                            {sortBy === 'left' ? (
+                              sortOrder === 'asc' ? (
+                                <ChevronDown className="h-3 w-3 text-[var(--accent)] shrink-0" />
+                              ) : (
+                                <ChevronUp className="h-3 w-3 text-[var(--accent)] shrink-0" />
+                              )
+                            ) : (
+                              <ChevronDown className="h-3 w-3 text-zinc-300 dark:text-zinc-600 opacity-40 shrink-0" />
+                            )}
+                          </span>
+                        </th>
                       </>
                     ) : (
                       <>
@@ -2502,76 +2647,114 @@ export function StudentDashboardClient({ hidePhone = false }: { hidePhone?: bool
                             </td>
 
                             {/* PUT Column (kdb_put_date dropdown pill) */}
-                            <td className="px-4 py-2.5 whitespace-nowrap" onClick={(e) => e.stopPropagation()}>
-                              <div className="flex flex-col items-center justify-center">
-                                <select
-                                  value={student.kdb_put_date ? 'KDB DONE' : 'NO KDB'}
-                                  onChange={(e) => {
-                                    if (e.target.value === 'KDB DONE' || e.target.value === 'EDIT') {
-                                      setKdbDateModalType('PUT')
-                                      setKdbDateModalStudentId(student.id)
-                                      setKdbDateModalValue(student.kdb_put_date || getTodayDateString())
-                                      setIsKdbDateModalOpen(true)
-                                    } else {
-                                      handleUpdateKdbPut(student.id, null)
-                                    }
-                                  }}
-                                  className={cn(
-                                    "px-2.5 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider border cursor-pointer focus:outline-none transition-all duration-200 select-none",
-                                    getKdbBadgeClass(student.kdb_put_date)
-                                  )}
-                                >
-                                  {student.kdb_put_date ? (
-                                    <>
-                                      <option value="KDB DONE" className="bg-white dark:bg-zinc-900 text-zinc-800 dark:text-zinc-200">{student.kdb_put_date}</option>
-                                      <option value="EDIT" className="bg-white dark:bg-zinc-900 text-zinc-800 dark:text-zinc-200">Edit Date</option>
-                                      <option value="NO KDB" className="bg-white dark:bg-zinc-900 text-zinc-800 dark:text-zinc-200">No KDB</option>
-                                    </>
-                                  ) : (
-                                    <>
-                                      <option value="NO KDB" className="bg-white dark:bg-zinc-900 text-zinc-800 dark:text-zinc-200">No KDB</option>
-                                      <option value="KDB DONE" className="bg-white dark:bg-zinc-900 text-zinc-800 dark:text-zinc-200">KDB Done</option>
-                                    </>
-                                  )}
-                                </select>
-                              </div>
-                            </td>
+                             <td className="px-4 py-2.5 whitespace-nowrap" onClick={(e) => e.stopPropagation()}>
+                               <div className="flex flex-col items-center justify-center">
+                                 <select
+                                   value={student.kdb_put_date || 'NO KDB'}
+                                   onChange={(e) => {
+                                     const val = e.target.value
+                                     if (val === 'EDIT' || val === 'KDB DONE') {
+                                       setKdbDateModalType('PUT')
+                                       setKdbDateModalStudentId(student.id)
+                                       setKdbDateModalValue(student.kdb_put_date || getTodayDateString())
+                                       setIsKdbDateModalOpen(true)
+                                     } else if (val === 'NO KDB') {
+                                       handleUpdateKdbPut(student.id, null)
+                                     } else {
+                                       handleUpdateKdbPut(student.id, val)
+                                     }
+                                   }}
+                                   className={cn(
+                                     "px-2.5 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider border cursor-pointer focus:outline-none transition-all duration-200 select-none",
+                                     getKdbBadgeClass(student.kdb_put_date)
+                                   )}
+                                 >
+                                   {student.kdb_put_date ? (
+                                     <>
+                                       <option value={student.kdb_put_date} className="bg-white dark:bg-zinc-900 text-zinc-800 dark:text-zinc-200">{student.kdb_put_date}</option>
+                                       <option value="EDIT" className="bg-white dark:bg-zinc-900 text-zinc-800 dark:text-zinc-200">Edit Date</option>
+                                       <option value="NO KDB" className="bg-white dark:bg-zinc-900 text-zinc-800 dark:text-zinc-200">No KDB</option>
+                                       {recentPutDates.length > 0 && (
+                                         <>
+                                           <option disabled className="bg-white dark:bg-zinc-900 text-zinc-400">--- Recent ---</option>
+                                           {recentPutDates.filter(d => d !== student.kdb_put_date).map(d => (
+                                             <option key={d} value={d} className="bg-white dark:bg-zinc-900 text-zinc-800 dark:text-zinc-200">{d}</option>
+                                           ))}
+                                         </>
+                                       )}
+                                     </>
+                                   ) : (
+                                     <>
+                                       <option value="NO KDB" className="bg-white dark:bg-zinc-900 text-zinc-800 dark:text-zinc-200">No KDB</option>
+                                       <option value="KDB DONE" className="bg-white dark:bg-zinc-900 text-zinc-800 dark:text-zinc-200">KDB Done</option>
+                                       {recentPutDates.length > 0 && (
+                                         <>
+                                           <option disabled className="bg-white dark:bg-zinc-900 text-zinc-400">--- Recent ---</option>
+                                           {recentPutDates.map(d => (
+                                             <option key={d} value={d} className="bg-white dark:bg-zinc-900 text-zinc-800 dark:text-zinc-200">{d}</option>
+                                           ))}
+                                         </>
+                                       )}
+                                     </>
+                                   )}
+                                 </select>
+                               </div>
+                             </td>
 
-                            {/* TAKE Column (kdb_take_date dropdown pill) */}
-                            <td className="px-4 py-2.5 whitespace-nowrap" onClick={(e) => e.stopPropagation()}>
-                              <div className="flex flex-col items-center justify-center">
-                                <select
-                                  value={student.kdb_take_date ? 'KDB DONE' : 'NO KDB'}
-                                  onChange={(e) => {
-                                    if (e.target.value === 'KDB DONE' || e.target.value === 'EDIT') {
-                                      setKdbDateModalType('TAKE')
-                                      setKdbDateModalStudentId(student.id)
-                                      setKdbDateModalValue(student.kdb_take_date || getTodayDateString())
-                                      setIsKdbDateModalOpen(true)
-                                    } else {
-                                      handleUpdateKdbTake(student.id, null)
-                                    }
-                                  }}
-                                  className={cn(
-                                    "px-2.5 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider border cursor-pointer focus:outline-none transition-all duration-200 select-none",
-                                    getKdbBadgeClass(student.kdb_take_date)
-                                  )}
-                                >
-                                  {student.kdb_take_date ? (
-                                    <>
-                                      <option value="KDB DONE" className="bg-white dark:bg-zinc-900 text-zinc-800 dark:text-zinc-200">{student.kdb_take_date}</option>
-                                      <option value="EDIT" className="bg-white dark:bg-zinc-900 text-zinc-800 dark:text-zinc-200">Edit Date</option>
-                                      <option value="NO KDB" className="bg-white dark:bg-zinc-900 text-zinc-800 dark:text-zinc-200">No KDB</option>
-                                    </>
-                                  ) : (
-                                    <>
-                                      <option value="NO KDB" className="bg-white dark:bg-zinc-900 text-zinc-800 dark:text-zinc-200">No KDB</option>
-                                      <option value="KDB DONE" className="bg-white dark:bg-zinc-900 text-zinc-800 dark:text-zinc-200">KDB Done</option>
-                                    </>
-                                  )}
-                                </select>
-                              </div>
-                            </td>
+                             {/* TAKE Column (kdb_take_date dropdown pill) */}
+                             <td className="px-4 py-2.5 whitespace-nowrap" onClick={(e) => e.stopPropagation()}>
+                               <div className="flex flex-col items-center justify-center">
+                                 <select
+                                   value={student.kdb_take_date || 'NO KDB'}
+                                   onChange={(e) => {
+                                     const val = e.target.value
+                                     if (val === 'EDIT' || val === 'KDB DONE') {
+                                       setKdbDateModalType('TAKE')
+                                       setKdbDateModalStudentId(student.id)
+                                       setKdbDateModalValue(student.kdb_take_date || getTodayDateString())
+                                       setIsKdbDateModalOpen(true)
+                                     } else if (val === 'NO KDB') {
+                                       handleUpdateKdbTake(student.id, null)
+                                     } else {
+                                       handleUpdateKdbTake(student.id, val)
+                                     }
+                                   }}
+                                   className={cn(
+                                     "px-2.5 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider border cursor-pointer focus:outline-none transition-all duration-200 select-none",
+                                     getKdbBadgeClass(student.kdb_take_date)
+                                   )}
+                                 >
+                                   {student.kdb_take_date ? (
+                                     <>
+                                       <option value={student.kdb_take_date} className="bg-white dark:bg-zinc-900 text-zinc-800 dark:text-zinc-200">{student.kdb_take_date}</option>
+                                       <option value="EDIT" className="bg-white dark:bg-zinc-900 text-zinc-800 dark:text-zinc-200">Edit Date</option>
+                                       <option value="NO KDB" className="bg-white dark:bg-zinc-900 text-zinc-800 dark:text-zinc-200">No KDB</option>
+                                       {recentTakeDates.length > 0 && (
+                                         <>
+                                           <option disabled className="bg-white dark:bg-zinc-900 text-zinc-400">--- Recent ---</option>
+                                           {recentTakeDates.filter(d => d !== student.kdb_take_date).map(d => (
+                                             <option key={d} value={d} className="bg-white dark:bg-zinc-900 text-zinc-800 dark:text-zinc-200">{d}</option>
+                                           ))}
+                                         </>
+                                       )}
+                                     </>
+                                   ) : (
+                                     <>
+                                       <option value="NO KDB" className="bg-white dark:bg-zinc-900 text-zinc-800 dark:text-zinc-200">No KDB</option>
+                                       <option value="KDB DONE" className="bg-white dark:bg-zinc-900 text-zinc-800 dark:text-zinc-200">KDB Done</option>
+                                       {recentTakeDates.length > 0 && (
+                                         <>
+                                           <option disabled className="bg-white dark:bg-zinc-900 text-zinc-400">--- Recent ---</option>
+                                           {recentTakeDates.map(d => (
+                                             <option key={d} value={d} className="bg-white dark:bg-zinc-900 text-zinc-800 dark:text-zinc-200">{d}</option>
+                                           ))}
+                                         </>
+                                       )}
+                                     </>
+                                   )}
+                                 </select>
+                               </div>
+                             </td>
 
                             {/* Left Column */}
                             <td className="px-4 py-2.5 whitespace-nowrap" onClick={(e) => e.stopPropagation()}>
@@ -3300,99 +3483,173 @@ export function StudentDashboardClient({ hidePhone = false }: { hidePhone?: bool
       )}
 
       {/* KDB Date Input Modal */}
-      {isKdbDateModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-          {/* Backdrop Overlay */}
-          <div
-            onClick={() => {
-              setIsKdbDateModalOpen(false)
-              setKdbDateModalStudentId(null)
-            }}
-            className="fixed inset-0 bg-black/50 transition-opacity duration-220 ease-out"
-          />
+      {isKdbDateModalOpen && (() => {
+        // Safe parsing of Year, Month, Day from kdbDateModalValue (expects YYYY-MM-DD)
+        let curYear = '2026'
+        let curMonth = '06'
+        let curDay = '11'
 
-          {/* Modal Panel */}
-          <div className="relative w-full max-w-sm overflow-hidden rounded-[var(--radius-lg)] border border-[var(--border)] bg-[var(--surface-elevated)] p-6 shadow-[var(--shadow-lg)] z-10 flex flex-col">
-            <h3 className="text-base font-bold text-[var(--foreground)] mb-4">
-              Enter {kdbDateModalType} Date
-            </h3>
-            
-            <input
-              type="text"
-              placeholder="YYYY-MM-DD"
-              maxLength={10}
-              value={kdbDateModalValue}
-              onChange={(e) => {
-                const val = e.target.value
-                const isDelete = val.length < kdbDateModalValue.length
-                const cleaned = val.replace(/[^0-9]/g, '')
-                
-                let formatted = ''
-                if (cleaned.length > 0) {
-                  formatted += cleaned.substring(0, 4)
-                }
-                
-                if (cleaned.length > 4 || (cleaned.length === 4 && !isDelete)) {
-                  formatted += '-' + cleaned.substring(4, 6)
-                }
-                
-                if (cleaned.length > 6 || (cleaned.length === 6 && !isDelete)) {
-                  formatted += '-' + cleaned.substring(6, 8)
-                }
-                
-                setKdbDateModalValue(formatted)
+        if (kdbDateModalValue && kdbDateModalValue.includes('-')) {
+          const parts = kdbDateModalValue.split('-')
+          if (parts.length === 3) {
+            curYear = parts[0]
+            curMonth = parts[1]
+            curDay = parts[2]
+          }
+        } else {
+          const today = new Date()
+          curYear = String(today.getFullYear())
+          curMonth = String(today.getMonth() + 1).padStart(2, '0')
+          curDay = String(today.getDate()).padStart(2, '0')
+        }
+
+        const yearsList = []
+        const currentYearNum = new Date().getFullYear()
+        for (let y = currentYearNum - 3; y <= currentYearNum + 5; y++) {
+          yearsList.push(String(y))
+        }
+
+        const handleYearChange = (year: string) => {
+          const days = getDaysInMonth(parseInt(year), parseInt(curMonth))
+          let day = curDay
+          if (parseInt(day) > days) {
+            day = String(days).padStart(2, '0')
+          }
+          setKdbDateModalValue(`${year}-${curMonth}-${day}`)
+        }
+
+        const handleMonthChange = (month: string) => {
+          const days = getDaysInMonth(parseInt(curYear), parseInt(month))
+          let day = curDay
+          if (parseInt(day) > days) {
+            day = String(days).padStart(2, '0')
+          }
+          setKdbDateModalValue(`${curYear}-${month}-${day}`)
+        }
+
+        const handleDayChange = (day: string) => {
+          setKdbDateModalValue(`${curYear}-${curMonth}-${day}`)
+        }
+
+        return (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+            {/* Backdrop Overlay */}
+            <div
+              onClick={() => {
+                setIsKdbDateModalOpen(false)
+                setKdbDateModalStudentId(null)
               }}
-              className="w-full px-3 py-2 rounded-[var(--radius-md)] border border-[var(--border)] bg-[var(--surface)] text-[var(--foreground)] text-sm focus:outline-none focus:border-[var(--accent)] transition-all mb-5"
+              className="fixed inset-0 bg-black/50 transition-opacity duration-220 ease-out"
             />
 
-            <div className="flex justify-end gap-3">
-              <button
-                onClick={() => {
-                  setIsKdbDateModalOpen(false)
-                  setKdbDateModalStudentId(null)
-                }}
-                className="px-4 py-2 rounded-[var(--radius-md)] border border-[var(--border)] text-xs font-semibold text-[var(--foreground-muted)] hover:bg-[var(--surface-hover)] transition-all cursor-pointer"
-              >
-                Cancel
-              </button>
-              <button
-                onClick={() => {
-                  const valToSave = kdbDateModalValue.trim()
-                  if (!valToSave) {
-                    alert('Date cannot be empty.')
-                    return
-                  }
-                  
-                  const formattedDate = parseAndFormatDate(valToSave)
-                  if (!formattedDate) {
-                    alert('Invalid date format. Please use YYYY-MM-DD or 8-digit format (e.g. 2026-07-18 or 20260718).')
-                    return
-                  }
-                  
-                  const [, m, d] = formattedDate.split('-').map(Number)
-                  if (m < 1 || m > 12 || d < 1 || d > 31) {
-                    alert('Invalid date: Month must be 1-12, Day must be 1-31.')
-                    return
-                  }
+            {/* Modal Panel */}
+            <div className="relative w-full max-w-sm overflow-hidden rounded-[var(--radius-lg)] border border-[var(--border)] bg-[var(--surface-elevated)] p-6 shadow-[var(--shadow-lg)] z-10 flex flex-col">
+              <h3 className="text-base font-bold text-[var(--foreground)] mb-4">
+                Enter {kdbDateModalType} Date
+              </h3>
+              
+              <div className="grid grid-cols-3 gap-2 mb-5">
+                {/* Year Select */}
+                <div className="flex flex-col gap-1">
+                  <label className="text-[10px] font-bold text-[var(--foreground-muted)] uppercase tracking-wider">Year</label>
+                  <select
+                    value={curYear}
+                    onChange={(e) => handleYearChange(e.target.value)}
+                    className="w-full px-2 py-2 rounded-[var(--radius-md)] border border-[var(--border)] bg-[var(--surface)] text-[var(--foreground)] text-sm focus:outline-none focus:border-[var(--accent)] transition-all cursor-pointer"
+                  >
+                    {yearsList.map((y) => (
+                      <option key={y} value={y} className="bg-white dark:bg-zinc-900 text-zinc-800 dark:text-zinc-200">
+                        {y}
+                      </option>
+                    ))}
+                  </select>
+                </div>
 
-                  if (kdbDateModalStudentId) {
-                    if (kdbDateModalType === 'PUT') {
-                      handleUpdateKdbPut(kdbDateModalStudentId, formattedDate)
-                    } else {
-                      handleUpdateKdbTake(kdbDateModalStudentId, formattedDate)
+                {/* Month Select */}
+                <div className="flex flex-col gap-1">
+                  <label className="text-[10px] font-bold text-[var(--foreground-muted)] uppercase tracking-wider">Month</label>
+                  <select
+                    value={curMonth}
+                    onChange={(e) => handleMonthChange(e.target.value)}
+                    className="w-full px-2 py-2 rounded-[var(--radius-md)] border border-[var(--border)] bg-[var(--surface)] text-[var(--foreground)] text-sm focus:outline-none focus:border-[var(--accent)] transition-all cursor-pointer"
+                  >
+                    {MONTHS_LIST.map((m) => (
+                      <option key={m.value} value={m.value} className="bg-white dark:bg-zinc-900 text-zinc-800 dark:text-zinc-200">
+                        {m.label}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                {/* Day Select */}
+                <div className="flex flex-col gap-1">
+                  <label className="text-[10px] font-bold text-[var(--foreground-muted)] uppercase tracking-wider">Day</label>
+                  <select
+                    value={curDay}
+                    onChange={(e) => handleDayChange(e.target.value)}
+                    className="w-full px-2 py-2 rounded-[var(--radius-md)] border border-[var(--border)] bg-[var(--surface)] text-[var(--foreground)] text-sm focus:outline-none focus:border-[var(--accent)] transition-all cursor-pointer"
+                  >
+                    {Array.from({ length: getDaysInMonth(parseInt(curYear), parseInt(curMonth)) }, (_, i) => {
+                      const dStr = String(i + 1).padStart(2, '0')
+                      return (
+                        <option key={dStr} value={dStr} className="bg-white dark:bg-zinc-900 text-zinc-800 dark:text-zinc-200">
+                          {dStr}
+                        </option>
+                      )
+                    })}
+                  </select>
+                </div>
+              </div>
+
+              <div className="flex justify-end gap-3">
+                <button
+                  onClick={() => {
+                    setIsKdbDateModalOpen(false)
+                    setKdbDateModalStudentId(null)
+                  }}
+                  className="px-4 py-2 rounded-[var(--radius-md)] border border-[var(--border)] text-xs font-semibold text-[var(--foreground-muted)] hover:bg-[var(--surface-hover)] transition-all cursor-pointer"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={() => {
+                    const valToSave = kdbDateModalValue.trim()
+                    if (!valToSave) {
+                      alert('Date cannot be empty.')
+                      return
                     }
-                  }
-                  setIsKdbDateModalOpen(false)
-                  setKdbDateModalStudentId(null)
-                }}
-                className="px-4 py-2 rounded-[var(--radius-md)] bg-[var(--accent)] text-xs font-semibold text-white hover:bg-[var(--accent-hover)] transition-all cursor-pointer"
-              >
-                Save
-              </button>
+                    
+                    const formattedDate = parseAndFormatDate(valToSave)
+                    if (!formattedDate) {
+                      alert('Invalid date format. Please use YYYY-MM-DD or 8-digit format (e.g. 2026-07-18 or 20260718).')
+                      return
+                    }
+                    
+                    const [, m, d] = formattedDate.split('-').map(Number)
+                    if (m < 1 || m > 12 || d < 1 || d > 31) {
+                      alert('Invalid date: Month must be 1-12, Day must be 1-31.')
+                      return
+                    }
+
+                    if (kdbDateModalStudentId) {
+                      if (kdbDateModalType === 'PUT') {
+                        handleUpdateKdbPut(kdbDateModalStudentId, formattedDate)
+                      } else {
+                        handleUpdateKdbTake(kdbDateModalStudentId, formattedDate)
+                      }
+                    }
+                    setIsKdbDateModalOpen(false)
+                    setKdbDateModalStudentId(null)
+                  }}
+                  className="px-4 py-2 rounded-[var(--radius-md)] bg-[var(--accent)] text-xs font-semibold text-white hover:bg-[var(--accent-hover)] transition-all cursor-pointer"
+                >
+                  Save
+                </button>
+              </div>
             </div>
           </div>
-        </div>
-      )}
+        )
+      })()}
 
       {/* Export to Excel Modal */}
       {excelModalTransition.shouldRender && (
