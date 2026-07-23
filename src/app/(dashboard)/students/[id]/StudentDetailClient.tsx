@@ -717,17 +717,13 @@ export function StudentDetailClient({ studentId, onClose, onStudentIdChange }: S
 
     return (
       <div
-        onDoubleClick={() => {
-          if (editable && !isEditing) {
-            handleStartEditing(String(field), value, options.type === 'select' ? options.selectOptions?.[0] : '')
-          }
-        }}
         className={cn(
           "group relative bg-[var(--surface)] border border-[#E5E7EB] dark:border-[var(--border)] border-l-[3px] rounded-[var(--radius-md)] px-2.5 flex flex-col justify-between text-[var(--foreground)] hover:bg-[var(--surface-elevated)] transition-all duration-200 cursor-pointer",
           stripeColor,
-          options.compact ? 'min-h-[52px] py-1' : 'min-h-[65px] py-1.5'
+          options.compact ? 'min-h-[52px] py-1' : 'min-h-[65px] py-1.5',
+          isCopied && "animate-copy-press"
         )}
-        title={`${editable ? 'Double-click to edit. ' : ''}${copyable && value ? 'Single-click value to copy.' : ''}`}
+        title={copyable && value ? 'Single-click value to copy.' : undefined}
       >
         {isMissing && (
           <span className="wave-dot" style={{ position: 'absolute', top: '50%', right: '6px', transform: 'translateY(-50%)', height: '8px', width: '8px', borderRadius: '9999px', backgroundColor: '#e11d48', color: '#e11d48' }} />
@@ -746,11 +742,7 @@ export function StudentDetailClient({ studentId, onClose, onStudentIdChange }: S
                 className="p-0.5 hover:bg-[var(--border-subtle)] rounded transition-all cursor-pointer text-[var(--foreground-muted)] hover:text-[var(--foreground)]"
                 title="Copy value"
               >
-                {isCopied ? (
-                  <CheckCircle2 className="h-3 w-3 text-[var(--success)]" />
-                ) : (
-                  <Copy className="h-3 w-3" />
-                )}
+                <Copy className="h-3 w-3" />
               </button>
             )}
             {editable && !isEditing && (
@@ -823,37 +815,42 @@ export function StudentDetailClient({ studentId, onClose, onStudentIdChange }: S
               </div>
             </div>
           ) : (
-            isCopied ? (
-              <span className="text-[15px] font-bold text-[var(--success)] animate-pulse">Copied!</span>
-            ) : (options.badgeColor && !isMissing) ? (
-              Array.isArray(displayValue) ? (
-                <div className="flex flex-wrap gap-1.5 mt-0.5">
-                  {displayValue.map((item, idx) => (
-                    <span key={idx} className={`inline-flex px-1.5 py-0.5 rounded-[4px] text-[13px] font-bold uppercase ${options.badgeColor}`}>
-                      {item}
+            <div className="flex items-center justify-between gap-2 w-full">
+              <div className="flex-1 min-w-0">
+                {(options.badgeColor && !isMissing) ? (
+                  Array.isArray(displayValue) ? (
+                    <div className="flex flex-wrap gap-1.5 mt-0.5">
+                      {displayValue.map((item, idx) => (
+                        <span key={idx} className={`inline-flex px-1.5 py-0.5 rounded-[4px] text-[13px] font-bold uppercase ${options.badgeColor}`}>
+                          {item}
+                        </span>
+                      ))}
+                    </div>
+                  ) : (
+                    <span className={`inline-flex px-1.5 py-0.5 rounded-[4px] text-[13px] font-bold uppercase ${options.badgeColor}`}>
+                      {displayValue}
                     </span>
-                  ))}
-                </div>
-              ) : (
-                <span className={`inline-flex px-1.5 py-0.5 rounded-[4px] text-[13px] font-bold uppercase ${options.badgeColor}`}>
-                  {displayValue}
-                </span>
-              )
-            ) : isMissing ? (
-              <span className="text-[14px] font-semibold text-[#B91C1C]">{displayValue}</span>
-            ) : (
-              Array.isArray(displayValue) ? (
-                <div className="flex flex-wrap gap-1.5 mt-0.5">
-                  {displayValue.map((item, idx) => (
-                    <span key={idx} className={cn("text-[15px] font-semibold tracking-wide text-[#0F172A] dark:text-[var(--foreground)]", options.valueClassName)}>
-                      {item}
-                    </span>
-                  ))}
-                </div>
-              ) : (
-                <span className={cn("text-[15px] font-semibold tracking-wide text-[#0F172A] dark:text-[var(--foreground)]", options.valueClassName)}>{displayValue}</span>
-              )
-            )
+                  )
+                ) : isMissing ? (
+                  <span className="text-[14px] font-semibold text-[#B91C1C]">{displayValue}</span>
+                ) : (
+                  Array.isArray(displayValue) ? (
+                    <div className="flex flex-wrap gap-1.5 mt-0.5">
+                      {displayValue.map((item, idx) => (
+                        <span key={idx} className={cn("text-[15px] font-semibold tracking-wide text-[#0F172A] dark:text-[var(--foreground)]", options.valueClassName)}>
+                          {item}
+                        </span>
+                      ))}
+                    </div>
+                  ) : (
+                    <span className={cn("text-[15px] font-semibold tracking-wide text-[#0F172A] dark:text-[var(--foreground)]", options.valueClassName)}>{displayValue}</span>
+                  )
+                )}
+              </div>
+              {isCopied && (
+                <CheckCircle2 className="h-4 w-4 text-[var(--success)] shrink-0 animate-in fade-in zoom-in-75 duration-200" />
+              )}
+            </div>
           )}
         </div>
       </div>
@@ -876,19 +873,17 @@ export function StudentDetailClient({ studentId, onClose, onStudentIdChange }: S
     const scoreVal = selectedStudent?.[scoreField] as string
     const isMissing = !certVal || certVal === 'NO CERTIFICATE' || certVal.trim() === ''
 
+    const isCopied = copiedField === String(certField)
+
     return (
       <div
-        onDoubleClick={() => {
-          if (!isEditing) {
-            handleStartEditing(String(certField), certVal, certsAllowed[0]);
-          }
-        }}
         className={cn(
           "group relative bg-[var(--surface)] border border-[#E5E7EB] dark:border-[var(--border)] border-l-[3px] rounded-[var(--radius-md)] px-2.5 flex flex-col justify-between text-[var(--foreground)] hover:bg-[var(--surface-elevated)] transition-all duration-200 cursor-pointer",
           isMissing ? 'border-l-rose-600' : 'border-l-[var(--accent)]',
-          options.compact ? 'min-h-[52px] py-1' : 'min-h-[65px] py-1.5'
+          options.compact ? 'min-h-[52px] py-1' : 'min-h-[65px] py-1.5',
+          isCopied && "animate-copy-press"
         )}
-        title="Double-click to edit. Single-click value to copy."
+        title={certVal && certVal !== 'NO CERTIFICATE' ? 'Single-click value to copy.' : undefined}
       >
         {isMissing && (
           <span className="wave-dot" style={{ position: 'absolute', top: '50%', right: '6px', transform: 'translateY(-50%)', height: '8px', width: '8px', borderRadius: '9999px', backgroundColor: '#e11d48', color: '#e11d48' }} />
@@ -905,11 +900,7 @@ export function StudentDetailClient({ studentId, onClose, onStudentIdChange }: S
                 className="p-0.5 hover:bg-[var(--border-subtle)] rounded transition-all cursor-pointer text-[var(--foreground-muted)] hover:text-[var(--foreground)]"
                 title="Copy certificate details"
               >
-                {copiedField === String(certField) ? (
-                  <CheckCircle2 className="h-3 w-3 text-[var(--success)]" />
-                ) : (
-                  <Copy className="h-3 w-3" />
-                )}
+                <Copy className="h-3 w-3" />
               </button>
             )}
             {!isEditing && (
@@ -1021,16 +1012,21 @@ export function StudentDetailClient({ studentId, onClose, onStudentIdChange }: S
               </div>
             </div>
           ) : (
-            copiedField === String(certField) ? (
-              <span className="text-[15px] font-bold text-[var(--success)] animate-pulse">Copied!</span>
-            ) : certVal && certVal !== 'NO CERTIFICATE' ? (
-              <div className="inline-flex items-center text-[13px] font-bold rounded-[4px] overflow-hidden shadow-sm">
-                <span className={`${certColor} text-white px-1.5 py-0.5 uppercase`}>{certVal}</span>
-                <span className="bg-[#0052cc] text-white px-1.5 py-0.5">SCORE: {scoreVal || '—'}</span>
+            <div className="flex items-center justify-between gap-2 w-full">
+              <div className="flex-1 min-w-0">
+                {certVal && certVal !== 'NO CERTIFICATE' ? (
+                  <div className="inline-flex items-center text-[13px] font-bold rounded-[4px] overflow-hidden shadow-sm">
+                    <span className={`${certColor} text-white px-1.5 py-0.5 uppercase`}>{certVal}</span>
+                    <span className="bg-[#0052cc] text-white px-1.5 py-0.5">SCORE: {scoreVal || '—'}</span>
+                  </div>
+                ) : (
+                  <span className="text-[14px] font-semibold text-[#B91C1C]">Not provided</span>
+                )}
               </div>
-            ) : (
-              <span className="text-[14px] font-semibold text-[#B91C1C]">Not provided</span>
-            )
+              {copiedField === String(certField) && (
+                <CheckCircle2 className="h-4 w-4 text-[var(--success)] shrink-0 animate-in fade-in zoom-in-75 duration-200" />
+              )}
+            </div>
           )}
         </div>
           </div>
@@ -1104,19 +1100,17 @@ export function StudentDetailClient({ studentId, onClose, onStudentIdChange }: S
 
         const isMissing = !uniVal || uniVal.trim() === ''
 
+        const isCopied = copiedField === String(uniField)
+
         return (
           <div
-            onDoubleClick={() => {
-              if (!isEditing) {
-                handleStartEditing(String(uniField), uniVal);
-              }
-            }}
             className={cn(
               "group relative bg-[var(--surface)] border border-[#E5E7EB] dark:border-[var(--border)] border-l-[3px] rounded-[var(--radius-md)] px-2.5 flex flex-col justify-between text-[var(--foreground)] hover:bg-[var(--surface-elevated)] transition-all duration-200 cursor-pointer",
               isMissing ? 'border-l-rose-600' : 'border-l-[var(--accent)]',
-              options.compact ? 'min-h-[52px] py-1' : 'min-h-[65px] py-1.5'
+              options.compact ? 'min-h-[52px] py-1' : 'min-h-[65px] py-1.5',
+              isCopied && "animate-copy-press"
             )}
-            title="Double-click to edit. Single-click value to copy."
+            title={uniVal ? 'Single-click value to copy.' : undefined}
           >
             {isMissing && (
               <span className="wave-dot" style={{ position: 'absolute', top: '50%', right: '6px', transform: 'translateY(-50%)', height: '8px', width: '8px', borderRadius: '9999px', backgroundColor: '#e11d48', color: '#e11d48' }} />
@@ -1133,11 +1127,7 @@ export function StudentDetailClient({ studentId, onClose, onStudentIdChange }: S
                     className="p-0.5 hover:bg-[var(--border-subtle)] rounded transition-all cursor-pointer text-[var(--foreground-muted)] hover:text-[var(--foreground)]"
                     title="Copy university details"
                   >
-                    {copiedField === String(uniField) ? (
-                      <CheckCircle2 className="h-3 w-3 text-[var(--success)]" />
-                    ) : (
-                      <Copy className="h-3 w-3" />
-                    )}
+                    <Copy className="h-3 w-3" />
                   </button>
                 )}
                 {!isEditing && (
@@ -1237,63 +1227,68 @@ export function StudentDetailClient({ studentId, onClose, onStudentIdChange }: S
                   </div>
                 </div>
               ) : (
-                copiedField === String(uniField) ? (
-                  <span className="text-[15px] font-bold text-[var(--success)] animate-pulse">Copied!</span>
-                ) : uniVal ? (
-                  <div className="flex flex-col gap-0.5 w-full">
-                    <span className="text-[14px] font-semibold tracking-wide text-[#0F172A] dark:text-[var(--foreground)]" title={uniVal}>{uniVal}</span>
-                    <div className="flex relative">
-                      <span 
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          setActiveStatusDropdown(activeStatusDropdown === String(uniField) ? null : String(uniField));
-                        }}
-                        className={cn(
-                          "inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[10.5px] font-extrabold uppercase border cursor-pointer hover:opacity-90 active:scale-95 transition-all shadow-sm select-none",
-                          getStatusBadgeClass(statusVal)
-                        )}
-                      >
-                        <span className="h-1.5 w-1.5 rounded-full bg-white flex-shrink-0" />
-                        {statusVal || 'Chosen'}
-                      </span>
-
-                      {activeStatusDropdown === String(uniField) && (
-                        <>
-                          {/* Transparent overlay backdrop to handle clicks outside */}
-                          <div 
-                            className="fixed inset-0 z-30 cursor-default" 
+                <div className="flex items-center justify-between gap-2 w-full">
+                  <div className="flex-1 min-w-0">
+                    {uniVal ? (
+                      <div className="flex flex-col gap-0.5 w-full">
+                        <span className="text-[14px] font-semibold tracking-wide text-[#0F172A] dark:text-[var(--foreground)]" title={uniVal}>{uniVal}</span>
+                        <div className="flex relative">
+                          <span 
                             onClick={(e) => {
                               e.stopPropagation();
-                              setActiveStatusDropdown(null);
+                              setActiveStatusDropdown(activeStatusDropdown === String(uniField) ? null : String(uniField));
                             }}
-                          />
-                          
-                          {/* Dropdown Popover */}
-                          <div 
-                            className="absolute left-0 mt-6 w-36 bg-white dark:bg-[#1c1c1e] border border-[var(--border)] rounded-[var(--radius-md)] shadow-lg z-40 py-1 flex flex-col gap-0.5 animate-in fade-in slide-in-from-top-1 duration-100"
-                            onClick={(e) => e.stopPropagation()}
+                            className={cn(
+                              "inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[10.5px] font-extrabold uppercase border cursor-pointer hover:opacity-90 active:scale-95 transition-all shadow-sm select-none",
+                              getStatusBadgeClass(statusVal)
+                            )}
                           >
-                            <div className="px-2.5 py-1 text-[10.5px] uppercase font-bold tracking-wider text-[var(--foreground-muted)] border-b border-[var(--border)] mb-0.5 select-none">
-                              University Status
-                            </div>
-                            {universityStatusOptions.map((item) => (
-                              <button
-                                key={item.name}
-                                onClick={() => handleStatusSelect(item.name)}
-                                className="w-full text-left px-2.5 py-1 text-[14px] font-semibold text-[var(--foreground)] hover:bg-[var(--border-subtle)] flex items-center gap-2 cursor-pointer transition-all"
+                            <span className="h-1.5 w-1.5 rounded-full bg-white flex-shrink-0" />
+                            {statusVal || 'Chosen'}
+                          </span>
+
+                          {activeStatusDropdown === String(uniField) && (
+                            <>
+                              {/* Transparent overlay backdrop to handle clicks outside */}
+                              <div 
+                                className="fixed inset-0 z-30 cursor-default" 
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  setActiveStatusDropdown(null);
+                                }}
+                              />
+                              
+                              {/* Dropdown Popover */}
+                              <div 
+                                className="absolute left-0 mt-6 w-36 bg-white dark:bg-[#1c1c1e] border border-[var(--border)] rounded-[var(--radius-md)] shadow-lg z-40 py-1 flex flex-col gap-0.5 animate-in fade-in slide-in-from-top-1 duration-100"
+                                onClick={(e) => e.stopPropagation()}
                               >
-                                <span className={cn("h-1.5 w-1.5 rounded-full flex-shrink-0 bg-current", item.colorClass)} />
-                                {item.name}
-                              </button>
-                            ))}
-                          </div>
-                        </>
-                      )}
-                    </div>
+                                <div className="px-2.5 py-1 text-[10.5px] uppercase font-bold tracking-wider text-[var(--foreground-muted)] border-b border-[var(--border)] mb-0.5 select-none">
+                                  University Status
+                                </div>
+                                {universityStatusOptions.map((item) => (
+                                  <button
+                                    key={item.name}
+                                    onClick={() => handleStatusSelect(item.name)}
+                                    className="w-full text-left px-2.5 py-1 text-[14px] font-semibold text-[var(--foreground)] hover:bg-[var(--border-subtle)] flex items-center gap-2 cursor-pointer transition-all"
+                                  >
+                                    <span className={cn("h-1.5 w-1.5 rounded-full flex-shrink-0 bg-current", item.colorClass)} />
+                                    {item.name}
+                                  </button>
+                                ))}
+                              </div>
+                            </>
+                          )}
+                        </div>
+                      </div>
+                    ) : (
+                      <span className="text-[14px] font-semibold text-[#B91C1C]">Not provided</span>
+                    )}
                   </div>
-                ) : (
-                  <span className="text-[14px] font-semibold text-[#B91C1C]">Not provided</span>
-                )
+                  {copiedField === String(uniField) && (
+                    <CheckCircle2 className="h-4 w-4 text-[var(--success)] shrink-0 animate-in fade-in zoom-in-75 duration-200" />
+                  )}
+                </div>
               )}
             </div>
           </div>
@@ -1319,8 +1314,12 @@ export function StudentDetailClient({ studentId, onClose, onStudentIdChange }: S
     const isMissing = !isLoading && (!value || value.trim() === '' || value.trim() === '—')
     return (
       <div
-        className={`group relative bg-[var(--surface)] border border-[#E5E7EB] dark:border-[var(--border)] border-l-[3px] ${isMissing ? 'border-l-rose-600' : 'border-l-[var(--accent)]'} rounded-[var(--radius-md)] px-2.5 py-1.5 flex flex-col justify-between min-h-[65px] text-[var(--foreground)] hover:bg-[var(--surface-elevated)] transition-all duration-200 cursor-pointer`}
-        title={value && !isLoading ? 'Single-click value to copy.' : ''}
+        className={cn(
+          "group relative bg-[var(--surface)] border border-[#E5E7EB] dark:border-[var(--border)] border-l-[3px] rounded-[var(--radius-md)] px-2.5 py-1.5 flex flex-col justify-between min-h-[65px] text-[var(--foreground)] hover:bg-[var(--surface-elevated)] transition-all duration-200 cursor-pointer",
+          isMissing ? 'border-l-rose-600' : 'border-l-[var(--accent)]',
+          isCopied && "animate-copy-press"
+        )}
+        title={value && !isLoading ? 'Single-click value to copy.' : undefined}
       >
         {isMissing && (
           <span className="wave-dot" style={{ position: 'absolute', top: '50%', right: '6px', transform: 'translateY(-50%)', height: '8px', width: '8px', borderRadius: '9999px', backgroundColor: '#e11d48', color: '#e11d48' }} />
@@ -1342,31 +1341,30 @@ export function StudentDetailClient({ studentId, onClose, onStudentIdChange }: S
                 className="p-0.5 hover:bg-[var(--border-subtle)] rounded transition-all cursor-pointer text-[var(--foreground-muted)] hover:text-[var(--foreground)]"
                 title="Copy value"
               >
-                {isCopied ? (
-                  <CheckCircle2 className="h-3 w-3 text-[var(--success)]" />
-                ) : (
-                  <Copy className="h-3 w-3" />
-                )}
+                <Copy className="h-3 w-3" />
               </button>
             )}
           </div>
         </div>
         <div
-          className="mt-0.5 flex items-center min-h-[20px]"
+          className="mt-0.5 flex items-center justify-between gap-2 min-h-[20px] w-full"
           onClick={() => {
             if (value && !isLoading) {
               handleCopy(field, value);
             }
           }}
         >
-          {isCopied ? (
-            <span className="text-[15px] font-bold text-[var(--success)] animate-pulse">Copied!</span>
-          ) : isLoading ? (
-            <span className="text-[14px] font-medium italic text-[#64748B]">{value}</span>
-          ) : value ? (
-            <span className="text-[15px] font-semibold tracking-wide text-[#0F172A] dark:text-[var(--foreground)]">{value}</span>
-          ) : (
-            <span className="text-[14px] font-semibold text-[#B91C1C]">Not provided</span>
+          <div className="flex-1 min-w-0">
+            {isLoading ? (
+              <span className="text-[14px] font-medium italic text-[#64748B]">{value}</span>
+            ) : value ? (
+              <span className="text-[15px] font-semibold tracking-wide text-[#0F172A] dark:text-[var(--foreground)]">{value}</span>
+            ) : (
+              <span className="text-[14px] font-semibold text-[#B91C1C]">Not provided</span>
+            )}
+          </div>
+          {isCopied && (
+            <CheckCircle2 className="h-4 w-4 text-[var(--success)] shrink-0 animate-in fade-in zoom-in-75 duration-200" />
           )}
         </div>
       </div>
@@ -1732,8 +1730,11 @@ export function StudentDetailClient({ studentId, onClose, onStudentIdChange }: S
                   </div>
                 ) : (
                   <div
-                    className="bg-blue-500 dark:bg-blue-600 rounded-[var(--radius-md)] p-2.5 text-white flex flex-col justify-between min-h-[62px] shadow-sm cursor-pointer"
-                    title="Double-click to edit. Single-click value to copy."
+                    className={cn(
+                      "bg-blue-500 dark:bg-blue-600 rounded-[var(--radius-md)] p-2.5 text-white flex flex-col justify-between min-h-[62px] shadow-sm cursor-pointer transition-all duration-200",
+                      copiedField === 'office' && "animate-copy-press"
+                    )}
+                    title="Single-click value to copy."
                   >
                     <div className="flex items-center justify-between">
                       <span className="text-[11.5px] uppercase font-bold tracking-wider text-blue-100 flex items-center gap-1">
@@ -1750,11 +1751,7 @@ export function StudentDetailClient({ studentId, onClose, onStudentIdChange }: S
                             className="p-0.5 hover:bg-blue-600/50 rounded transition-all cursor-pointer text-blue-200 hover:text-white"
                             title="Copy office location"
                           >
-                            {copiedField === 'office' ? (
-                              <CheckCircle2 className="h-3 w-3 text-white" />
-                            ) : (
-                              <Copy className="h-3 w-3" />
-                            )}
+                            <Copy className="h-3 w-3" />
                           </button>
                         )}
                         {editingField !== 'office' && (
@@ -1810,11 +1807,12 @@ export function StudentDetailClient({ studentId, onClose, onStudentIdChange }: S
                           </button>
                         </div>
                       ) : (
-                        copiedField === 'office' ? (
-                          <span className="text-[15px] font-bold text-white animate-pulse">Copied!</span>
-                        ) : (
-                          <span className="text-[15px] font-bold tracking-wide uppercase">{selectedStudent.office || 'Not provided'}</span>
-                        )
+                        <div className="flex items-center justify-between gap-2 w-full">
+                          <span className="text-[15px] font-bold tracking-wide uppercase truncate">{selectedStudent.office || 'Not provided'}</span>
+                          {copiedField === 'office' && (
+                            <CheckCircle2 className="h-4 w-4 text-white shrink-0 animate-in fade-in zoom-in-75 duration-200" />
+                          )}
+                        </div>
                       )}
                     </div>
                   </div>
@@ -1828,9 +1826,11 @@ export function StudentDetailClient({ studentId, onClose, onStudentIdChange }: S
                   </div>
                 ) : (
                   <div 
-                    className={`rounded-[var(--radius-md)] p-2.5 text-white flex flex-col justify-between min-h-[62px] cursor-pointer ${
-                      selectedStudent.balance < 0 ? 'bg-rose-500 dark:bg-rose-600' : 'bg-emerald-500 dark:bg-emerald-600'
-                    }`}
+                    className={cn(
+                      "rounded-[var(--radius-md)] p-2.5 text-white flex flex-col justify-between min-h-[62px] cursor-pointer transition-all duration-200",
+                      selectedStudent.balance < 0 ? 'bg-rose-500 dark:bg-rose-600' : 'bg-emerald-500 dark:bg-emerald-600',
+                      copiedField === 'balance' && "animate-copy-press"
+                    )}
                     title="Single-click value to copy."
                     onClick={() => {
                       handleCopy('balance', String(selectedStudent.balance))
@@ -1850,21 +1850,16 @@ export function StudentDetailClient({ studentId, onClose, onStudentIdChange }: S
                           className="p-0.5 hover:bg-black/10 rounded transition-all cursor-pointer text-white"
                           title="Copy balance"
                         >
-                          {copiedField === 'balance' ? (
-                            <CheckCircle2 className="h-3 w-3 text-white" />
-                          ) : (
-                            <Copy className="h-3 w-3" />
-                          )}
+                          <Copy className="h-3 w-3" />
                         </button>
                       </div>
                     </div>
-                    <div className="mt-0.5 flex items-center min-h-[22px] w-full">
-                      {copiedField === 'balance' ? (
-                        <span className="text-[15px] font-bold text-white animate-pulse">Copied!</span>
-                      ) : (
-                        <span className="text-[15px] font-bold tracking-wide">
-                          {formatCurrency(selectedStudent.balance)}
-                        </span>
+                    <div className="mt-0.5 flex items-center justify-between gap-2 min-h-[22px] w-full">
+                      <span className="text-[15px] font-bold tracking-wide">
+                        {formatCurrency(selectedStudent.balance)}
+                      </span>
+                      {copiedField === 'balance' && (
+                        <CheckCircle2 className="h-4 w-4 text-white shrink-0 animate-in fade-in zoom-in-75 duration-200" />
                       )}
                     </div>
                   </div>
@@ -1878,7 +1873,10 @@ export function StudentDetailClient({ studentId, onClose, onStudentIdChange }: S
                   </div>
                 ) : (
                   <div 
-                    className="bg-emerald-500 dark:bg-emerald-600 rounded-[var(--radius-md)] p-2.5 text-white flex flex-col justify-between min-h-[62px] cursor-pointer"
+                    className={cn(
+                      "bg-emerald-500 dark:bg-emerald-600 rounded-[var(--radius-md)] p-2.5 text-white flex flex-col justify-between min-h-[62px] cursor-pointer transition-all duration-200",
+                      copiedField === 'payments_done' && "animate-copy-press"
+                    )}
                     title="Single-click value to copy."
                     onClick={() => {
                       handleCopy('payments_done', String(computedPaymentsDone))
@@ -1898,21 +1896,16 @@ export function StudentDetailClient({ studentId, onClose, onStudentIdChange }: S
                           className="p-0.5 hover:bg-black/10 rounded transition-all cursor-pointer text-white"
                           title="Copy payments done"
                         >
-                          {copiedField === 'payments_done' ? (
-                            <CheckCircle2 className="h-3 w-3 text-white" />
-                          ) : (
-                            <Copy className="h-3 w-3" />
-                          )}
+                          <Copy className="h-3 w-3" />
                         </button>
                       </div>
                     </div>
-                    <div className="mt-0.5 flex items-center min-h-[22px] w-full">
-                      {copiedField === 'payments_done' ? (
-                        <span className="text-[15px] font-bold text-white animate-pulse">Copied!</span>
-                      ) : (
-                        <span className="text-[15px] font-bold tracking-wide">
-                          {formatCurrency(computedPaymentsDone)}
-                        </span>
+                    <div className="mt-0.5 flex items-center justify-between gap-2 min-h-[22px] w-full">
+                      <span className="text-[15px] font-bold tracking-wide">
+                        {formatCurrency(computedPaymentsDone)}
+                      </span>
+                      {copiedField === 'payments_done' && (
+                        <CheckCircle2 className="h-4 w-4 text-white shrink-0 animate-in fade-in zoom-in-75 duration-200" />
                       )}
                     </div>
                   </div>
@@ -1926,7 +1919,10 @@ export function StudentDetailClient({ studentId, onClose, onStudentIdChange }: S
                   </div>
                 ) : (
                   <div 
-                    className="bg-orange-500 dark:bg-orange-600 rounded-[var(--radius-md)] p-2.5 text-white flex flex-col justify-between min-h-[62px] cursor-pointer"
+                    className={cn(
+                      "bg-orange-500 dark:bg-orange-600 rounded-[var(--radius-md)] p-2.5 text-white flex flex-col justify-between min-h-[62px] cursor-pointer transition-all duration-200",
+                      copiedField === 'discount' && "animate-copy-press"
+                    )}
                     title="Single-click value to copy."
                     onClick={() => {
                       handleCopy('discount', String(computedDiscount))
@@ -1946,21 +1942,16 @@ export function StudentDetailClient({ studentId, onClose, onStudentIdChange }: S
                           className="p-0.5 hover:bg-black/10 rounded transition-all cursor-pointer text-white"
                           title="Copy discount amount"
                         >
-                          {copiedField === 'discount' ? (
-                            <CheckCircle2 className="h-3 w-3 text-white" />
-                          ) : (
-                            <Copy className="h-3 w-3" />
-                          )}
+                          <Copy className="h-3 w-3" />
                         </button>
                       </div>
                     </div>
-                    <div className="mt-0.5 flex items-center min-h-[22px] w-full">
-                      {copiedField === 'discount' ? (
-                        <span className="text-[15px] font-bold text-white animate-pulse">Copied!</span>
-                      ) : (
-                        <span className="text-[15px] font-bold tracking-wide">
-                          {formatCurrency(computedDiscount)}
-                        </span>
+                    <div className="mt-0.5 flex items-center justify-between gap-2 min-h-[22px] w-full">
+                      <span className="text-[15px] font-bold tracking-wide">
+                        {formatCurrency(computedDiscount)}
+                      </span>
+                      {copiedField === 'discount' && (
+                        <CheckCircle2 className="h-4 w-4 text-white shrink-0 animate-in fade-in zoom-in-75 duration-200" />
                       )}
                     </div>
                   </div>
