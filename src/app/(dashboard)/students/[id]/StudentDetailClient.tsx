@@ -1400,6 +1400,22 @@ export function StudentDetailClient({ studentId, onClose, onStudentIdChange }: S
     )
   }
 
+  const formatRegistrationDate = (dateStr?: string | null) => {
+    if (!dateStr) return 'Not recorded'
+    try {
+      const d = new Date(dateStr)
+      if (isNaN(d.getTime())) return dateStr
+      const day = String(d.getDate()).padStart(2, '0')
+      const month = String(d.getMonth() + 1).padStart(2, '0')
+      const year = d.getFullYear()
+      const hours = String(d.getHours()).padStart(2, '0')
+      const minutes = String(d.getMinutes()).padStart(2, '0')
+      return `${day}.${month}.${year} ${hours}:${minutes}`
+    } catch {
+      return dateStr
+    }
+  }
+
   return (
     <PageShell className="p-3 gap-3">
       <div className="bg-transparent text-[var(--foreground)] transition-colors flex flex-col gap-2.5">
@@ -1439,7 +1455,7 @@ export function StudentDetailClient({ studentId, onClose, onStudentIdChange }: S
                 <h1 className="text-[17.5px] font-bold uppercase tracking-wide text-[var(--foreground)] truncate">
                   {selectedStudent.full_name}
                 </h1>
-                <div className="flex items-center gap-2 text-[13px] font-semibold text-[var(--foreground-muted)] mt-0.5">
+                <div className="flex items-center gap-2 text-[13px] font-semibold text-[var(--foreground-muted)] mt-0.5 flex-wrap">
                   <span>ID: <span className="font-mono text-[var(--accent)] font-bold text-[13px]">{selectedStudent.id}</span></span>
                   <span className="h-1 w-1 rounded-full bg-[var(--foreground-subtle)]" />
                   {selectedStudent.is_deleted ? (
@@ -1455,6 +1471,15 @@ export function StudentDetailClient({ studentId, onClose, onStudentIdChange }: S
                     <>
                       <span className="h-1 w-1 rounded-full bg-[var(--foreground-subtle)]" />
                       <span className="text-[var(--foreground)] uppercase font-bold text-[11.5px]">{selectedStudent.student_group}</span>
+                    </>
+                  )}
+                  {selectedStudent.created_at && (
+                    <>
+                      <span className="h-1 w-1 rounded-full bg-[var(--foreground-subtle)]" />
+                      <span className="inline-flex items-center gap-1 text-[12px] font-bold text-[var(--foreground-muted)]" title="First time registered in CRM">
+                        <Calendar className="h-3.5 w-3.5 text-[var(--accent)] shrink-0" />
+                        <span>Registered: <span className="font-mono text-[var(--foreground)] font-bold">{formatRegistrationDate(selectedStudent.created_at)}</span></span>
+                      </span>
                     </>
                   )}
                 </div>
@@ -1983,6 +2008,12 @@ export function StudentDetailClient({ studentId, onClose, onStudentIdChange }: S
                   selectOptions: coordinatorOptions,
                   badgeColor: 'bg-[#ff5630] text-white',
                   titleColor: 'text-[var(--accent)]'
+                })}
+
+                {renderDetailCard('Registration Date', 'created_at' as any, formatRegistrationDate(selectedStudent.created_at), { 
+                  titleColor: 'text-[var(--accent)]',
+                  editable: false,
+                  copyable: true
                 })}
 
               </div>
