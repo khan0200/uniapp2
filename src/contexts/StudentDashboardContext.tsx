@@ -2,6 +2,7 @@
 
 import { createContext, useContext, useState, useEffect, useRef, type ReactNode } from 'react'
 import { createClient } from '@/lib/supabase/client'
+import { useUser } from '@/contexts/UserContext'
 import { type Student } from '@/types/database'
 
 export interface CustomTag {
@@ -115,7 +116,8 @@ const getSessionValue = <T,>(key: string, defaultValue: T): T => {
 
 export function StudentDashboardProvider({ children }: { children: ReactNode }) {
   const supabase = createClient()
-  
+  const { profile } = useUser()
+
   const [searchQuery, setSearchQuery] = useState('')
   const [isAddStudentModalOpen, setIsAddStudentModalOpen] = useState(false)
   const [isFilterPanelOpen, setIsFilterPanelOpen] = useState(false)
@@ -270,11 +272,15 @@ export function StudentDashboardProvider({ children }: { children: ReactNode }) 
       if (leadsRes.data && leadsRes.data.length > 0) setLeadByOptions((leadsRes.data as any[]).map(l => l.name))
       let folders = (foldersRes.data || []) as Folder[]
       const hasKdb = folders.some(f => f.name.toUpperCase() === 'KDB')
-      if (!hasKdb) {
+      // folders is tenant-scoped and its RLS policy only lets managers write,
+      // so only attempt the auto-create once we know the caller qualifies —
+      // otherwise the insert is guaranteed to fail the WITH CHECK.
+      const canCreateFolder = !!profile?.tenant_id && ['Manager', 'Head Manager'].includes(profile.role)
+      if (!hasKdb && canCreateFolder) {
         try {
           const { data: newFolder, error: insertErr } = await (supabase
             .from('folders') as any)
-            .insert({ name: 'KDB' })
+            .insert({ name: 'KDB', tenant_id: profile.tenant_id })
             .select('id, name')
             .single()
           if (newFolder) {
@@ -333,6 +339,17 @@ export function StudentDashboardProvider({ children }: { children: ReactNode }) 
     fetchStudents()
     fetchFilterOptions()
   }, [])
+
+  // The first fetchFilterOptions() above runs before UserContext has resolved
+  // the profile, so the tenant-scoped KDB auto-create is skipped on that pass.
+  // Re-run it once the profile lands so the folder gets created for managers.
+  const kdbCreateAttemptedRef = useRef(false)
+  useEffect(() => {
+    if (!profile?.tenant_id || kdbCreateAttemptedRef.current) return
+    if (!['Manager', 'Head Manager'].includes(profile.role)) return
+    kdbCreateAttemptedRef.current = true
+    fetchFilterOptions()
+  }, [profile?.tenant_id, profile?.role])
 
   return (
     <StudentDashboardContext.Provider value={{
