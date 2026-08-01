@@ -1,4 +1,14 @@
 import { NextResponse } from 'next/server'
+import { createClient } from '@/lib/supabase/server'
+
+// Each tenant notifies its own Telegram chat(s). The env var per tenant holds
+// a chat ID, or a comma-separated list of them. Tenants are resolved from the
+// caller's session server-side — never from the request body, which a client
+// could forge to read another company's notifications.
+const TENANT_CHAT_ENV: Record<string, string> = {
+  unibridge: 'CHAT_ID',
+  sodiq: 'SODIQ_CHAT_ID',
+}
 
 function removeUnavailableVisaCertificateLink(message: string) {
   return message
@@ -14,22 +24,58 @@ function removeUnavailableVisaCertificateLink(message: string) {
 
 export async function POST(request: Request) {
   try {
+    // Resolve the caller's tenant from their session so notifications only
+    // ever reach that tenant's chat. An unauthenticated caller gets nothing.
+    const supabase = await createClient()
+    const { data: { user } } = await supabase.auth.getUser()
+
+    if (!user) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    }
+
+    const { data: profile } = await supabase
+      .from('profiles')
+      .select('tenant_id')
+      .eq('id', user.id)
+      .single()
+
+    const tenantId = (profile as { tenant_id: string } | null)?.tenant_id
+
+    if (!tenantId) {
+      return NextResponse.json(
+        { error: 'Could not resolve tenant for the current user' },
+        { status: 403 }
+      )
+    }
+
     const { message } = await request.json()
+
+    if (typeof message !== 'string' || !message.trim()) {
+      return NextResponse.json({ error: 'A non-empty message is required' }, { status: 400 })
+    }
+
     const sanitizedMessage = removeUnavailableVisaCertificateLink(message)
 
-    // Read BOT_TOKEN and CHAT_ID from environment variables
     const botToken = process.env.BOT_TOKEN
-    const chatId = process.env.CHAT_ID
+    const chatEnvKey = TENANT_CHAT_ENV[tenantId]
+    const chatId = chatEnvKey ? process.env[chatEnvKey] : undefined
 
-    if (!botToken || !chatId) {
+    if (!botToken) {
       return NextResponse.json(
-        { error: 'Server configuration error: Telegram credentials not set' },
+        { error: 'Server configuration error: Telegram bot token not set' },
         { status: 500 }
       )
     }
 
+    if (!chatId) {
+      // A tenant with no chat configured simply gets no notification. This is
+      // not an error the user can act on, so don't surface it as a failure.
+      console.warn(`No Telegram chat configured for tenant "${tenantId}"`)
+      return NextResponse.json({ success: true, message: 'No chat configured for tenant', results: [] })
+    }
+
     const telegramUrl = `https://api.telegram.org/bot${botToken}/sendMessage`
-    
+
     // Support comma-separated list of Chat IDs
     const chatIds = chatId.split(',').map(id => id.trim()).filter(Boolean)
 
