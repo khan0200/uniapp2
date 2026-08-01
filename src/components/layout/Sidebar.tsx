@@ -41,7 +41,7 @@ const NAV_ITEMS: NavItem[] = [
 
 export function Sidebar() {
   const [signingOut, setSigningOut] = useState(false)
-  const { profile, loading } = useUser()
+  const { profile, loading, tenantLogoUrl } = useUser()
   const router = useRouter()
   const supabase = createClient()
 
@@ -66,13 +66,28 @@ export function Sidebar() {
     >
       {/* ── Header / Logo ─────────────────────────────────── */}
       <div className="flex items-center justify-center h-16 flex-shrink-0 border-b border-border dark:border-white/5">
-        <Image
-          src={logo}
-          alt="UniApp logo"
-          width={32}
-          height={32}
-          className="rounded-lg object-contain"
-        />
+        {tenantLogoUrl ? (
+          // Tenant-uploaded logo. Plain <img> rather than next/image: the URL
+          // is a runtime value from Supabase Storage, so it can't be statically
+          // analysed, and configuring a remote pattern per project isn't worth
+          // it for a single 32px image.
+          // eslint-disable-next-line @next/next/no-img-element
+          <img
+            src={tenantLogoUrl}
+            alt="Company logo"
+            width={32}
+            height={32}
+            className="h-8 w-8 rounded-lg object-contain"
+          />
+        ) : (
+          <Image
+            src={logo}
+            alt="UniApp logo"
+            width={32}
+            height={32}
+            className="rounded-lg object-contain"
+          />
+        )}
       </div>
 
       {/* ── Nav Items ──────────────────────────────────────── */}

@@ -5,7 +5,7 @@ import { PageShell } from '@/components/ui/PageShell'
 import { createClient } from '@/lib/supabase/client'
 import { 
   Tag, GraduationCap, Users, Contact, PlusCircle, Pencil, Trash2, X, Loader2, AlertCircle, School, Bookmark, Search, Folder,
-  Building2, CreditCard
+  Building2, CreditCard, Upload, Image as ImageIcon
 } from 'lucide-react'
 import { CUSTOM_TAG_ICONS, type CustomTag } from '@/app/(dashboard)/students/StudentDashboardClient'
 import { useStudentDashboard } from '@/contexts/StudentDashboardContext'
@@ -157,6 +157,18 @@ const TABS_CONFIG = {
     btnBgClass: 'bg-pink-600 hover:bg-pink-700 dark:bg-pink-500 dark:hover:bg-pink-600 focus:ring-pink-500/20',
     addText: 'Add Status',
     placeholder: 'Define custom progress statuses.'
+  },
+  branding: {
+    id: 'branding',
+    label: 'Company Logo',
+    subLabel: 'Brand identity',
+    description: 'Upload the logo shown in the sidebar for everyone in your company.',
+    icon: ImageIcon,
+    colorClass: 'text-indigo-500 bg-indigo-50 dark:bg-indigo-950/20 border-indigo-100 dark:border-indigo-900/30',
+    activeColorClass: 'bg-indigo-500/10 text-indigo-500 dark:bg-indigo-500/20',
+    btnBgClass: 'bg-indigo-600 hover:bg-indigo-700 dark:bg-indigo-500 dark:hover:bg-indigo-600 focus:ring-indigo-500/20',
+    addText: 'Upload Logo',
+    placeholder: 'Upload your company logo.'
   }
 }
 
@@ -203,7 +215,88 @@ export default function SettingsPage() {
   const [submitting, setSubmitting] = useState(false)
   const [modalError, setModalError] = useState<string | null>(null)
 
-  const { profile: loggedInProfile } = useUser()
+  const { profile: loggedInProfile, tenantLogoUrl, setTenantLogoUrl } = useUser()
+
+  // ── Company Branding (logo) ──────────────────────────────────────────────
+  // Writes are restricted to managers by RLS on tenant_settings and the
+  // branding storage bucket, so hide the control for everyone else.
+  const isManager = !!loggedInProfile && ['Manager', 'Head Manager'].includes(loggedInProfile.role)
+  const [logoUploading, setLogoUploading] = useState(false)
+  const [logoError, setLogoError] = useState<string | null>(null)
+
+  const handleLogoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    // Reset the input so picking the same file twice still fires onChange.
+    e.target.value = ''
+    if (!file) return
+
+    const tenantId = loggedInProfile?.tenant_id
+    if (!tenantId) {
+      setLogoError('Could not determine your company. Try reloading the page.')
+      return
+    }
+
+    if (file.size > 1024 * 1024) {
+      setLogoError('That file is larger than 1 MB. Please upload a smaller image.')
+      return
+    }
+
+    setLogoError(null)
+    setLogoUploading(true)
+    try {
+      // One object per tenant, overwritten on replace, so old logos don't pile
+      // up. The extension is kept so the browser gets the right content type.
+      const extension = file.name.split('.').pop()?.toLowerCase() || 'png'
+      const path = `${tenantId}/logo.${extension}`
+
+      const { error: uploadError } = await supabase.storage
+        .from('branding')
+        .upload(path, file, { upsert: true, contentType: file.type })
+
+      if (uploadError) throw uploadError
+
+      const { data: publicUrlData } = supabase.storage.from('branding').getPublicUrl(path)
+      // Cache-bust so a replaced logo shows immediately instead of the CDN copy.
+      const publicUrl = `${publicUrlData.publicUrl}?v=${Date.now()}`
+
+      const { error: saveError } = await (supabase
+        .from('tenant_settings') as any)
+        .upsert({ tenant_id: tenantId, logo_url: publicUrl, updated_at: new Date().toISOString() })
+
+      if (saveError) throw saveError
+
+      setTenantLogoUrl(publicUrl)
+    } catch (err: any) {
+      console.error('Error uploading company logo:', err)
+      setLogoError(err.message || 'Failed to upload the logo. Please try again.')
+    } finally {
+      setLogoUploading(false)
+    }
+  }
+
+  const handleLogoRemove = async () => {
+    const tenantId = loggedInProfile?.tenant_id
+    if (!tenantId) return
+    if (!confirm('Remove the company logo? The default app logo will be shown instead.')) return
+
+    setLogoError(null)
+    setLogoUploading(true)
+    try {
+      // Clear the pointer first — that's what the sidebar reads. Leaving the
+      // stored object behind is harmless; the next upload overwrites it.
+      const { error: saveError } = await (supabase
+        .from('tenant_settings') as any)
+        .upsert({ tenant_id: tenantId, logo_url: null, updated_at: new Date().toISOString() })
+
+      if (saveError) throw saveError
+      setTenantLogoUrl(null)
+    } catch (err: any) {
+      console.error('Error removing company logo:', err)
+      setLogoError(err.message || 'Failed to remove the logo. Please try again.')
+    } finally {
+      setLogoUploading(false)
+    }
+  }
 
   // ── Custom Tags State ────────────────────────────────────────────────────
   const [customTagsRegistry, setCustomTagsRegistry] = useState<CustomTag[]>([])
@@ -729,6 +822,107 @@ export default function SettingsPage() {
     const config = TABS_CONFIG[activeTab]
     const Icon = config.icon
 
+    if (activeTab === 'branding') {
+      return (
+        <div className="flex flex-col flex-1 h-full">
+          {/* Section Header */}
+          <div className="border-b border-border pb-5 mb-5 flex items-start gap-3">
+            <div className={`p-2.5 rounded-xl border shrink-0 ${config.colorClass}`}>
+              <Icon className="h-6 w-6" />
+            </div>
+            <div>
+              <h3 className="text-base font-bold text-foreground leading-tight">{config.label}</h3>
+              <p className="text-xs text-foreground-muted mt-1.5 leading-relaxed max-w-xl">{config.description}</p>
+            </div>
+          </div>
+
+          {/* Writes are restricted to managers by RLS on tenant_settings and
+              the branding bucket, so don't offer a control that would fail. */}
+          {!isManager ? (
+            <div className="flex flex-1 items-center justify-center">
+              <div className="text-center max-w-sm">
+                <ImageIcon className="h-10 w-10 text-foreground-subtle mx-auto mb-3" />
+                <p className="text-xs text-foreground-muted leading-relaxed">
+                  Only Managers and Head Managers can change the company logo.
+                </p>
+              </div>
+            </div>
+          ) : (
+            <div className="flex flex-col gap-5">
+              {logoError && (
+                <div className="flex items-start gap-2.5 rounded-lg bg-rose-50 dark:bg-rose-950/20 border border-rose-200 dark:border-rose-900/30 p-3 text-xs text-rose-800 dark:text-rose-350">
+                  <AlertCircle className="h-4 w-4 shrink-0 mt-0.5" />
+                  <p className="leading-tight">{logoError}</p>
+                </div>
+              )}
+
+              <div className="bg-surface border border-border rounded-xl p-5 flex flex-col sm:flex-row sm:items-center gap-5">
+                {/* Current logo preview */}
+                <div className="h-20 w-20 shrink-0 rounded-xl border border-border bg-surface-elevated flex items-center justify-center overflow-hidden">
+                  {tenantLogoUrl ? (
+                    // Runtime URL from Supabase Storage — next/image would need
+                    // a configured remote pattern for a single small image.
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img src={tenantLogoUrl} alt="Current company logo" className="h-full w-full object-contain" />
+                  ) : (
+                    <ImageIcon className="h-7 w-7 text-foreground-subtle" />
+                  )}
+                </div>
+
+                <div className="flex flex-col gap-3 min-w-0">
+                  <div>
+                    <div className="text-xs font-bold text-foreground">
+                      {tenantLogoUrl ? 'Current logo' : 'No logo uploaded'}
+                    </div>
+                    <p className="text-[10.5px] text-foreground-muted mt-1 leading-relaxed">
+                      Appears in the sidebar for everyone in your company. PNG, JPG, SVG or WebP, up to 1&nbsp;MB.
+                      Square images look best.
+                    </p>
+                  </div>
+
+                  <div className="flex items-center gap-2.5 flex-wrap">
+                    <label
+                      className={cn(
+                        'inline-flex items-center gap-2 rounded-lg px-4 py-2 text-xs font-bold text-white transition-all shadow-sm',
+                        config.btnBgClass,
+                        logoUploading ? 'opacity-60 cursor-not-allowed' : 'cursor-pointer'
+                      )}
+                    >
+                      {logoUploading ? (
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                      ) : (
+                        <Upload className="h-4 w-4" />
+                      )}
+                      {logoUploading ? 'Uploading...' : (tenantLogoUrl ? 'Replace logo' : 'Upload logo')}
+                      <input
+                        type="file"
+                        accept="image/png,image/jpeg,image/svg+xml,image/webp"
+                        className="hidden"
+                        disabled={logoUploading}
+                        onChange={handleLogoUpload}
+                      />
+                    </label>
+
+                    {tenantLogoUrl && (
+                      <button
+                        type="button"
+                        onClick={handleLogoRemove}
+                        disabled={logoUploading}
+                        className="inline-flex items-center gap-2 rounded-lg border border-border bg-surface-elevated px-4 py-2 text-xs font-bold text-rose-600 dark:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-950/20 hover:border-rose-300 transition-all shadow-sm cursor-pointer disabled:opacity-60 disabled:cursor-not-allowed"
+                      >
+                        <Trash2 className="h-4 w-4" />
+                        Remove
+                      </button>
+                    )}
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
+      )
+    }
+
     if (activeTab === 'payment_setting') {
       return (
         <div className="flex flex-col flex-1 h-full">
@@ -1047,6 +1241,7 @@ export default function SettingsPage() {
                       onClick={() => {
                         setActiveTab(tab.id as TabType)
                         setSearchQuery('')
+                        setLogoError(null)
                       }}
                       className={`flex items-center gap-2.5 text-left px-2.5 py-1.5 rounded-lg transition-all cursor-pointer select-none shrink-0 lg:shrink border ${
                         isActive
@@ -1071,8 +1266,10 @@ export default function SettingsPage() {
             </div>
 
             {/* Main Active Panel Card */}
-            <div className="lg:col-span-3 bg-surface-elevated border border-border rounded-xl p-6 shadow-sm min-h-[500px] flex flex-col justify-between">
-              {renderActiveTabContent()}
+            <div className="lg:col-span-3 flex flex-col gap-5">
+              <div className="bg-surface-elevated border border-border rounded-xl p-6 shadow-sm min-h-[500px] flex flex-col justify-between">
+                {renderActiveTabContent()}
+              </div>
             </div>
           </div>
         )}

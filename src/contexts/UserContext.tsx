@@ -7,16 +7,23 @@ import { type Profile } from '@/types/database'
 interface UserContextValue {
   profile: Profile | null
   loading: boolean
+  /** Tenant's uploaded logo URL, or null to fall back to the bundled logo. */
+  tenantLogoUrl: string | null
+  /** Called after a successful upload so the sidebar updates immediately. */
+  setTenantLogoUrl: (url: string | null) => void
 }
 
 const UserContext = createContext<UserContextValue>({
   profile: null,
   loading: true,
+  tenantLogoUrl: null,
+  setTenantLogoUrl: () => {},
 })
 
 export function UserProvider({ children }: { children: ReactNode }) {
   const [profile, setProfile] = useState<Profile | null>(null)
   const [loading, setLoading] = useState(true)
+  const [tenantLogoUrl, setTenantLogoUrl] = useState<string | null>(null)
   const supabase = createClient()
 
   useEffect(() => {
@@ -30,6 +37,7 @@ export function UserProvider({ children }: { children: ReactNode }) {
         const user = session?.user
         if (authError || !user) {
           setProfile(null)
+          setTenantLogoUrl(null)
           setLoading(false)
           return
         }
@@ -45,6 +53,21 @@ export function UserProvider({ children }: { children: ReactNode }) {
           setProfile(null)
         } else {
           setProfile(data)
+
+          // Branding is per tenant. A missing row or an empty logo_url just
+          // means this tenant hasn't uploaded one — fall back to the bundled
+          // logo rather than treating it as an error.
+          const tenantId = (data as Profile | null)?.tenant_id
+          if (tenantId) {
+            const { data: branding } = await supabase
+              .from('tenant_settings')
+              .select('logo_url')
+              .eq('tenant_id', tenantId)
+              .maybeSingle()
+            setTenantLogoUrl((branding as { logo_url: string | null } | null)?.logo_url || null)
+          } else {
+            setTenantLogoUrl(null)
+          }
         }
       } catch (err) {
         console.error('Failed to load user session/profile:', err)
@@ -65,7 +88,7 @@ export function UserProvider({ children }: { children: ReactNode }) {
   }, [])
 
   return (
-    <UserContext.Provider value={{ profile, loading }}>
+    <UserContext.Provider value={{ profile, loading, tenantLogoUrl, setTenantLogoUrl }}>
       {children}
     </UserContext.Provider>
   )
