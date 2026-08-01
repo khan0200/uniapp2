@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useMemo } from 'react'
+import { useState, useEffect, useMemo, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { 
@@ -8,7 +8,7 @@ import {
   Building2, Landmark, Tag, Layers, 
   ChevronDown, Copy, ArrowLeft,
   Mail, Calendar, MapPin, User, CheckSquare, GraduationCap, Hourglass, X,
-  FileText, RefreshCw, Trash2, BookOpen, Maximize2
+  FileText, RefreshCw, Trash2, BookOpen, Maximize2, Minimize2
 } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import { type Student, type StudentLevel, type StudentTariff, type Profile } from '@/types/database'
@@ -22,9 +22,13 @@ interface StudentDetailClientProps {
   studentId: string
   onClose?: () => void
   onStudentIdChange?: (newId: string) => void
+  /** Drawer-only: whether the panel currently fills the screen. */
+  isExpanded?: boolean
+  /** Drawer-only: toggles the panel between drawer width and fullscreen. */
+  onToggleExpand?: () => void
 }
 
-export function StudentDetailClient({ studentId, onClose, onStudentIdChange }: StudentDetailClientProps) {
+export function StudentDetailClient({ studentId, onClose, onStudentIdChange, isExpanded, onToggleExpand }: StudentDetailClientProps) {
   const supabase = createClient()
   const router = useRouter()
   const {
@@ -38,11 +42,57 @@ export function StudentDetailClient({ studentId, onClose, onStudentIdChange }: S
     groupOptions,
     leadByOptions,
     fetchStudents,
+    refreshStudent,
   } = useStudentDashboard()
 
   // State for student details
   const [selectedStudentState, setSelectedStudent] = useState<Student | null>(null)
   const selectedStudent = selectedStudentState || ({} as any)
+
+  // The panel's 3-column layout is designed for a wide viewport. Rather than
+  // letting the columns squeeze on a narrower screen, zoom the whole panel
+  // down proportionally so it reads the same, just smaller. Driven by width
+  // (the panel already fills the viewport height and scrolls internally).
+  //
+  // Expanded (fullscreen) mode never zooms: the panel already has the whole
+  // screen, so scaling down would just leave unused space on the right.
+  const panelRef = useRef<HTMLDivElement | null>(null)
+  const [panelZoom, setPanelZoom] = useState(1)
+
+  // Width the 3-column layout was designed against; below this we scale down.
+  const PANEL_DESIGN_WIDTH = 1520
+
+  useEffect(() => {
+    if (isExpanded) {
+      setPanelZoom(1)
+      return
+    }
+
+    const recalcZoom = () => {
+      const el = panelRef.current
+      if (!el) return
+
+      // Measure the container, reading it while our own zoom is neutralised —
+      // otherwise each pass measures a width the previous zoom already shrank.
+      const prevZoom = el.style.zoom
+      el.style.zoom = '1'
+      const available = el.parentElement?.clientWidth ?? el.clientWidth
+      el.style.zoom = prevZoom
+
+      if (!available) return
+
+      const next = Math.min(1, available / PANEL_DESIGN_WIDTH)
+      // Below ~0.75 text stops being comfortable; keep the floor there.
+      setPanelZoom(Math.max(next, 0.75))
+    }
+
+    const raf = requestAnimationFrame(recalcZoom)
+    window.addEventListener('resize', recalcZoom)
+    return () => {
+      cancelAnimationFrame(raf)
+      window.removeEventListener('resize', recalcZoom)
+    }
+  }, [isExpanded])
   const [payments, setPayments] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -119,7 +169,7 @@ export function StudentDetailClient({ studentId, onClose, onStudentIdChange }: S
     }
 
     setSelectedStudent((prev) => (prev ? { ...prev, ...updateData } : prev))
-    fetchStudents(true)
+    refreshStudent(selectedStudent.id)
   }
 
   // tariffOptions/tariffPrices/levelOptions/groupOptions/leadByOptions come from
@@ -463,7 +513,7 @@ export function StudentDetailClient({ studentId, onClose, onStudentIdChange }: S
           .eq('id', selectedStudent.id)
 
         if (updateError) throw updateError
-        fetchStudents(true)
+        refreshStudent(selectedStudent.id)
 
         const updatedStudent = { ...selectedStudent, ...updateData }
         setSelectedStudent(updatedStudent)
@@ -480,7 +530,7 @@ export function StudentDetailClient({ studentId, onClose, onStudentIdChange }: S
               .update({ korean_name: finalTranslated })
               .eq('id', targetStudentId)
             if (!bgError) {
-              fetchStudents(true)
+              refreshStudent(targetStudentId)
               setSelectedStudent(prev => {
                 if (prev && prev.id === targetStudentId) {
                   return { ...prev, korean_name: finalTranslated }
@@ -512,8 +562,8 @@ export function StudentDetailClient({ studentId, onClose, onStudentIdChange }: S
           .eq('id', selectedStudent.id)
   
         if (updateError) throw updateError
-        fetchStudents(true)
-  
+        refreshStudent(selectedStudent.id)
+
         const updatedStudent = { ...selectedStudent, ...updateData }
         setSelectedStudent(updatedStudent)
         setEditingField(null)
@@ -599,7 +649,7 @@ export function StudentDetailClient({ studentId, onClose, onStudentIdChange }: S
         .eq('id', selectedStudent.id)
 
       if (updateError) throw updateError
-      fetchStudents(true)
+      refreshStudent(selectedStudent.id)
 
       const updatedStudent = { ...selectedStudent, ...updateData }
       if (field === 'full_name') {
@@ -615,7 +665,7 @@ export function StudentDetailClient({ studentId, onClose, onStudentIdChange }: S
               .update({ korean_name: finalTranslated })
               .eq('id', targetStudentId)
             if (!bgError) {
-              fetchStudents(true)
+              refreshStudent(targetStudentId)
               setSelectedStudent(prev => {
                 if (prev && prev.id === targetStudentId) {
                   return { ...prev, korean_name: finalTranslated }
@@ -796,7 +846,7 @@ export function StudentDetailClient({ studentId, onClose, onStudentIdChange }: S
         <div
           className={cn(
             "bg-[var(--surface)] border border-[#E5E7EB] dark:border-[var(--border)] border-l-[3px] border-l-gray-250 dark:border-l-gray-700 rounded-[var(--radius-md)] px-2.5 flex flex-col justify-between animate-pulse",
-            options.compact ? 'min-h-[52px] py-1' : 'min-h-[65px] lg:min-h-[56px] xl:min-h-[65px] py-1.5 lg:py-1 xl:py-1.5'
+            options.compact ? 'min-h-[52px] py-1' : 'min-h-[65px] py-1.5'
           )}
         >
           <div className="h-2.5 w-16 bg-gray-200 dark:bg-gray-700 rounded mt-1" />
@@ -828,7 +878,7 @@ export function StudentDetailClient({ studentId, onClose, onStudentIdChange }: S
         className={cn(
           "group relative bg-[var(--surface)] border border-[#E5E7EB] dark:border-[var(--border)] border-l-[3px] rounded-[var(--radius-md)] px-2.5 flex flex-col justify-between text-[var(--foreground)] hover:bg-[var(--surface-elevated)] transition-all duration-200 cursor-pointer",
           stripeColor,
-          options.compact ? 'min-h-[52px] py-1' : 'min-h-[65px] lg:min-h-[56px] xl:min-h-[65px] py-1.5 lg:py-1 xl:py-1.5',
+          options.compact ? 'min-h-[52px] py-1' : 'min-h-[65px] py-1.5',
           isCopied && "animate-copy-press"
         )}
         title={copyable && value ? 'Single-click value to copy.' : undefined}
@@ -1026,7 +1076,7 @@ export function StudentDetailClient({ studentId, onClose, onStudentIdChange }: S
         className={cn(
           "group relative bg-[var(--surface)] border border-[#E5E7EB] dark:border-[var(--border)] border-l-[3px] rounded-[var(--radius-md)] px-2.5 flex flex-col justify-between text-[var(--foreground)] hover:bg-[var(--surface-elevated)] transition-all duration-200 cursor-pointer",
           isMissing ? 'border-l-rose-600' : 'border-l-[var(--accent)]',
-          options.compact ? 'min-h-[52px] py-1' : 'min-h-[65px] lg:min-h-[56px] xl:min-h-[65px] py-1.5 lg:py-1 xl:py-1.5',
+          options.compact ? 'min-h-[52px] py-1' : 'min-h-[65px] py-1.5',
           isCopied && "animate-copy-press"
         )}
         title={certVal && certVal !== 'NO CERTIFICATE' ? 'Single-click value to copy.' : undefined}
@@ -1281,7 +1331,7 @@ export function StudentDetailClient({ studentId, onClose, onStudentIdChange }: S
             className={cn(
               "group relative bg-[var(--surface)] border border-[#E5E7EB] dark:border-[var(--border)] border-l-[3px] rounded-[var(--radius-md)] px-2.5 flex flex-col justify-between text-[var(--foreground)] hover:bg-[var(--surface-elevated)] transition-all duration-200 cursor-pointer",
               isMissing ? 'border-l-rose-600' : 'border-l-[var(--accent)]',
-              options.compact ? 'min-h-[52px] py-1' : 'min-h-[65px] lg:min-h-[56px] xl:min-h-[65px] py-1.5 lg:py-1 xl:py-1.5',
+              options.compact ? 'min-h-[52px] py-1' : 'min-h-[65px] py-1.5',
               isCopied && "animate-copy-press"
             )}
             title={uniVal ? 'Single-click value to copy.' : undefined}
@@ -1493,7 +1543,7 @@ export function StudentDetailClient({ studentId, onClose, onStudentIdChange }: S
       return (
         <div
           className={cn(
-            "bg-[var(--surface)] border border-[#E5E7EB] dark:border-[var(--border)] border-l-[3px] border-l-gray-250 dark:border-l-gray-700 rounded-[var(--radius-md)] px-2.5 py-1.5 lg:py-1 xl:py-1.5 flex flex-col justify-between animate-pulse min-h-[65px] lg:min-h-[56px] xl:min-h-[65px]"
+            "bg-[var(--surface)] border border-[#E5E7EB] dark:border-[var(--border)] border-l-[3px] border-l-gray-250 dark:border-l-gray-700 rounded-[var(--radius-md)] px-2.5 py-1.5 flex flex-col justify-between animate-pulse min-h-[65px]"
           )}
         >
           <div className="h-2.5 w-16 bg-gray-200 dark:bg-gray-700 rounded mt-1" />
@@ -1507,7 +1557,7 @@ export function StudentDetailClient({ studentId, onClose, onStudentIdChange }: S
     return (
       <div
         className={cn(
-          "group relative bg-[var(--surface)] border border-[#E5E7EB] dark:border-[var(--border)] border-l-[3px] rounded-[var(--radius-md)] px-2.5 py-1.5 lg:py-1 xl:py-1.5 flex flex-col justify-between min-h-[65px] lg:min-h-[56px] xl:min-h-[65px] text-[var(--foreground)] hover:bg-[var(--surface-elevated)] transition-all duration-200 cursor-pointer",
+          "group relative bg-[var(--surface)] border border-[#E5E7EB] dark:border-[var(--border)] border-l-[3px] rounded-[var(--radius-md)] px-2.5 py-1.5 flex flex-col justify-between min-h-[65px] text-[var(--foreground)] hover:bg-[var(--surface-elevated)] transition-all duration-200 cursor-pointer",
           isMissing ? 'border-l-rose-600' : 'border-l-[var(--accent)]',
           isCopied && "animate-copy-press"
         )}
@@ -1610,7 +1660,11 @@ export function StudentDetailClient({ studentId, onClose, onStudentIdChange }: S
 
   return (
     <PageShell className="p-3 gap-3">
-      <div className="bg-transparent text-[var(--foreground)] transition-colors flex flex-col gap-2.5">
+      <div
+        ref={panelRef}
+        className="bg-transparent text-[var(--foreground)] transition-colors flex flex-col gap-2.5"
+        style={{ zoom: panelZoom }}
+      >
         {/* Student Header Identifier Banner (Extremely compact) */}
         <div className="py-2.5 px-3 bg-[var(--surface)] border border-[var(--border)] rounded-[var(--radius-md)] flex items-center gap-3 shadow-[var(--shadow-sm)] transition-colors flex-shrink-0">
           {onClose ? (
@@ -1729,11 +1783,17 @@ export function StudentDetailClient({ studentId, onClose, onStudentIdChange }: S
                 </>
               )}
               <button
-                onClick={() => router.push(`/students/${selectedStudent.id}`)}
+                onClick={() => {
+                  if (onToggleExpand) {
+                    onToggleExpand()
+                  } else {
+                    router.push(`/students/${selectedStudent.id}`)
+                  }
+                }}
                 className="p-1.5 hover:bg-[var(--border-subtle)] rounded-full text-[var(--foreground-muted)] hover:text-[var(--foreground)] transition-all cursor-pointer"
-                title="Open in full page"
+                title={onToggleExpand ? (isExpanded ? 'Collapse panel' : 'Expand to fullscreen') : 'Open in full page'}
               >
-                <Maximize2 className="h-4 w-4" />
+                {isExpanded ? <Minimize2 className="h-4 w-4" /> : <Maximize2 className="h-4 w-4" />}
               </button>
               <button
                 onClick={onClose}
@@ -1747,11 +1807,11 @@ export function StudentDetailClient({ studentId, onClose, onStudentIdChange }: S
         </div>
 
         {/* Main Dashboard Layout (3-Column Grid) */}
-        <div className="grid grid-cols-1 lg:grid-cols-[1.35fr_1.15fr_0.85fr] xl:grid-cols-[1.45fr_1.25fr_0.75fr] gap-3 lg:gap-2 xl:gap-3 pb-1">
+        <div className="grid grid-cols-1 lg:grid-cols-[1.45fr_1.25fr_0.75fr] gap-3 pb-1">
           {/* Column 1: Passport Details & Contact */}
           <div className="flex flex-col gap-3">
             {/* Passport Details Block */}
-            <div className="bg-white/10 dark:bg-white/5 backdrop-blur-md border border-white/20 dark:border-white/10 rounded-[var(--radius-md)] p-3 lg:p-2 xl:p-3 shadow-[var(--shadow-sm)] flex flex-col gap-2.5 lg:gap-2 xl:gap-2.5">
+            <div className="bg-white/10 dark:bg-white/5 backdrop-blur-md border border-white/20 dark:border-white/10 rounded-[var(--radius-md)] p-3 shadow-[var(--shadow-sm)] flex flex-col gap-2.5">
               <div className="flex items-center justify-between gap-1.5 pb-1.5 border-b border-[var(--border)]">
                 <div className="flex items-center gap-1.5">
                   <User className="h-3.5 w-3.5 text-[var(--accent)]" />
@@ -1845,27 +1905,29 @@ export function StudentDetailClient({ studentId, onClose, onStudentIdChange }: S
             </div>
 
             {/* Contact Block */}
-            <div className="bg-white/10 dark:bg-white/5 backdrop-blur-md border border-white/20 dark:border-white/10 rounded-[var(--radius-md)] p-3 lg:p-2 xl:p-3 shadow-[var(--shadow-sm)] flex flex-col gap-2.5 lg:gap-2 xl:gap-2.5">
-              <div className="flex items-center gap-1.5 pb-1.5 border-b border-[var(--border)]">
+            <div className="bg-white/10 dark:bg-white/5 backdrop-blur-md border border-white/20 dark:border-white/10 rounded-[var(--radius-md)] p-3 shadow-[var(--shadow-sm)] flex flex-col gap-2">
+              <div className="flex items-center gap-1.5 pb-1 border-b border-[var(--border)]">
                 <Mail className="h-3.5 w-3.5 text-[var(--accent)]" />
                 <h3 className="text-[13px] font-semibold uppercase tracking-wide text-[#64748B]">
                   Contact
                 </h3>
               </div>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-1.5">
-                {renderDetailCard('Phone 1', 'phone1', selectedStudent.phone1, { titleColor: 'text-[var(--accent)]' })}
-                {renderDetailCard('Phone 2', 'phone2', selectedStudent.phone2, { titleColor: 'text-[var(--accent)]' })}
+              {/* Contact runs compact: six cards, four of them full width, so
+                  the shorter card height keeps the column from dominating. */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-1">
+                {renderDetailCard('Phone 1', 'phone1', selectedStudent.phone1, { titleColor: 'text-[var(--accent)]', compact: true })}
+                {renderDetailCard('Phone 2', 'phone2', selectedStudent.phone2, { titleColor: 'text-[var(--accent)]', compact: true })}
                 <div className="sm:col-span-2">
-                  {renderDetailCard('Email', 'email', selectedStudent.email, { titleColor: 'text-[var(--accent)]' })}
+                  {renderDetailCard('Email', 'email', selectedStudent.email, { titleColor: 'text-[var(--accent)]', compact: true })}
                 </div>
                 <div className="sm:col-span-2">
-                  {renderDetailCard('Notes', 'notes', selectedStudent.notes, { titleColor: 'text-[var(--accent)]' })}
+                  {renderDetailCard('Notes', 'notes', selectedStudent.notes, { titleColor: 'text-[var(--accent)]', compact: true })}
                 </div>
                 <div className="sm:col-span-2">
-                  {renderDetailCard('Educational Background', 'educational_background', selectedStudent.educational_background, { titleColor: 'text-[var(--accent)]' })}
+                  {renderDetailCard('Educational Background', 'educational_background', selectedStudent.educational_background, { titleColor: 'text-[var(--accent)]', compact: true })}
                 </div>
                 <div className="sm:col-span-2">
-                  {renderDetailCard('Major', 'major', selectedStudent.major, { titleColor: 'text-[var(--accent)]' })}
+                  {renderDetailCard('Major', 'major', selectedStudent.major, { titleColor: 'text-[var(--accent)]', compact: true })}
                 </div>
               </div>
             </div>
@@ -1874,7 +1936,7 @@ export function StudentDetailClient({ studentId, onClose, onStudentIdChange }: S
           {/* Column 2: Academic, Universities & Family */}
           <div className="flex flex-col gap-3">
             {/* Academic & Languages Block */}
-            <div className="bg-white/10 dark:bg-white/5 backdrop-blur-md border border-white/20 dark:border-white/10 rounded-[var(--radius-md)] p-3 lg:p-2 xl:p-3 shadow-[var(--shadow-sm)] flex flex-col gap-2.5 lg:gap-2 xl:gap-2.5">
+            <div className="bg-white/10 dark:bg-white/5 backdrop-blur-md border border-white/20 dark:border-white/10 rounded-[var(--radius-md)] p-3 shadow-[var(--shadow-sm)] flex flex-col gap-2.5">
               <div className="flex items-center gap-1.5 pb-1.5 border-b border-[var(--border)]">
                 <Layers className="h-3.5 w-3.5 text-[var(--accent)]" />
                 <h3 className="text-[13px] font-semibold uppercase tracking-wide text-[#64748B]">
@@ -1935,7 +1997,7 @@ export function StudentDetailClient({ studentId, onClose, onStudentIdChange }: S
             </div>
 
             {/* Universities & Docs Block */}
-            <div className="bg-white/10 dark:bg-white/5 backdrop-blur-md border border-white/20 dark:border-white/10 rounded-[var(--radius-md)] p-3 lg:p-2 xl:p-3 shadow-[var(--shadow-sm)] flex flex-col gap-2.5 lg:gap-2 xl:gap-2.5">
+            <div className="bg-white/10 dark:bg-white/5 backdrop-blur-md border border-white/20 dark:border-white/10 rounded-[var(--radius-md)] p-3 shadow-[var(--shadow-sm)] flex flex-col gap-2.5">
               <div className="flex items-center gap-1.5 pb-1.5 border-b border-[var(--border)]">
                 <GraduationCap className="h-3.5 w-3.5 text-[var(--accent)]" />
                 <h3 className="text-[13px] font-semibold uppercase tracking-wide text-[#64748B]">
@@ -1950,7 +2012,7 @@ export function StudentDetailClient({ studentId, onClose, onStudentIdChange }: S
             </div>
 
             {/* Family Info Block */}
-            <div className="bg-white/10 dark:bg-white/5 backdrop-blur-md border border-white/20 dark:border-white/10 rounded-[var(--radius-md)] p-3 lg:p-2 xl:p-3 shadow-[var(--shadow-sm)] flex flex-col gap-2.5 lg:gap-2 xl:gap-2.5">
+            <div className="bg-white/10 dark:bg-white/5 backdrop-blur-md border border-white/20 dark:border-white/10 rounded-[var(--radius-md)] p-3 shadow-[var(--shadow-sm)] flex flex-col gap-2.5">
               <div className="flex items-center gap-1.5 pb-1.5 border-b border-[var(--border)]">
                 <User className="h-3.5 w-3.5 text-[var(--accent)]" />
                 <h3 className="text-[13px] font-semibold uppercase tracking-wide text-[#64748B]">
@@ -1971,7 +2033,7 @@ export function StudentDetailClient({ studentId, onClose, onStudentIdChange }: S
           {/* Column 3: System & Finance */}
           <div className="flex flex-col gap-3">
             {/* System & Finance Block */}
-            <div className="bg-white/10 dark:bg-white/5 backdrop-blur-md border border-white/20 dark:border-white/10 rounded-[var(--radius-md)] p-3 lg:p-2 xl:p-3 shadow-[var(--shadow-sm)] flex flex-col gap-2.5 lg:gap-2 xl:gap-2.5">
+            <div className="bg-white/10 dark:bg-white/5 backdrop-blur-md border border-white/20 dark:border-white/10 rounded-[var(--radius-md)] p-3 shadow-[var(--shadow-sm)] flex flex-col gap-2.5">
               <div className="flex items-center gap-1.5 pb-1.5 border-b border-[var(--border)]">
                 <Landmark className="h-3.5 w-3.5 text-[var(--accent)]" />
                 <h3 className="text-[13px] font-semibold uppercase tracking-wide text-[#64748B]">
@@ -1982,14 +2044,14 @@ export function StudentDetailClient({ studentId, onClose, onStudentIdChange }: S
                 {/* Office Location Card */}
                 {/* Office Card */}
                 {loading ? (
-                  <div className="bg-blue-500/20 rounded-[var(--radius-md)] p-2.5 lg:p-2 xl:p-2.5 min-h-[62px] lg:min-h-[54px] xl:min-h-[62px] animate-pulse flex flex-col justify-between">
+                  <div className="bg-blue-500/20 rounded-[var(--radius-md)] p-2.5 min-h-[62px] animate-pulse flex flex-col justify-between">
                     <div className="h-2.5 w-12 bg-blue-400/30 rounded" />
                     <div className="h-3.5 w-24 bg-blue-400/30 rounded" />
                   </div>
                 ) : (
                   <div
                     className={cn(
-                      "bg-blue-500 dark:bg-blue-600 rounded-[var(--radius-md)] p-2.5 lg:p-2 xl:p-2.5 text-white flex flex-col justify-between min-h-[62px] lg:min-h-[54px] xl:min-h-[62px] shadow-sm cursor-pointer transition-all duration-200",
+                      "bg-blue-500 dark:bg-blue-600 rounded-[var(--radius-md)] p-2.5 text-white flex flex-col justify-between min-h-[62px] shadow-sm cursor-pointer transition-all duration-200",
                       copiedField === 'office' && "animate-copy-press"
                     )}
                     title="Single-click value to copy."
@@ -2078,14 +2140,14 @@ export function StudentDetailClient({ studentId, onClose, onStudentIdChange }: S
 
                 {/* Student Balance Card */}
                 {loading ? (
-                  <div className="bg-emerald-500/20 rounded-[var(--radius-md)] p-2.5 lg:p-2 xl:p-2.5 min-h-[62px] lg:min-h-[54px] xl:min-h-[62px] animate-pulse flex flex-col justify-between">
+                  <div className="bg-emerald-500/20 rounded-[var(--radius-md)] p-2.5 min-h-[62px] animate-pulse flex flex-col justify-between">
                     <div className="h-2.5 w-12 bg-emerald-400/30 rounded" />
                     <div className="h-3.5 w-24 bg-emerald-400/30 rounded" />
                   </div>
                 ) : (
                   <div
                     className={cn(
-                      "rounded-[var(--radius-md)] p-2.5 lg:p-2 xl:p-2.5 text-white flex flex-col justify-between min-h-[62px] lg:min-h-[54px] xl:min-h-[62px] cursor-pointer transition-all duration-200",
+                      "rounded-[var(--radius-md)] p-2.5 text-white flex flex-col justify-between min-h-[62px] cursor-pointer transition-all duration-200",
                       selectedStudent.balance < 0 ? 'bg-rose-500 dark:bg-rose-600' : 'bg-emerald-500 dark:bg-emerald-600',
                       copiedField === 'balance' && "animate-copy-press"
                     )}
@@ -2125,14 +2187,14 @@ export function StudentDetailClient({ studentId, onClose, onStudentIdChange }: S
 
                 {/* Payments Done Card */}
                 {loading ? (
-                  <div className="bg-emerald-500/20 rounded-[var(--radius-md)] p-2.5 lg:p-2 xl:p-2.5 min-h-[62px] lg:min-h-[54px] xl:min-h-[62px] animate-pulse flex flex-col justify-between">
+                  <div className="bg-emerald-500/20 rounded-[var(--radius-md)] p-2.5 min-h-[62px] animate-pulse flex flex-col justify-between">
                     <div className="h-2.5 w-20 bg-emerald-400/30 rounded" />
                     <div className="h-3.5 w-24 bg-emerald-400/30 rounded" />
                   </div>
                 ) : (
                   <div
                     className={cn(
-                      "bg-emerald-500 dark:bg-emerald-600 rounded-[var(--radius-md)] p-2.5 lg:p-2 xl:p-2.5 text-white flex flex-col justify-between min-h-[62px] lg:min-h-[54px] xl:min-h-[62px] cursor-pointer transition-all duration-200",
+                      "bg-emerald-500 dark:bg-emerald-600 rounded-[var(--radius-md)] p-2.5 text-white flex flex-col justify-between min-h-[62px] cursor-pointer transition-all duration-200",
                       copiedField === 'payments_done' && "animate-copy-press"
                     )}
                     title="Single-click value to copy."
@@ -2171,14 +2233,14 @@ export function StudentDetailClient({ studentId, onClose, onStudentIdChange }: S
 
                 {/* Discount Card */}
                 {loading ? (
-                  <div className="bg-orange-500/20 rounded-[var(--radius-md)] p-2.5 lg:p-2 xl:p-2.5 min-h-[62px] lg:min-h-[54px] xl:min-h-[62px] animate-pulse flex flex-col justify-between">
+                  <div className="bg-orange-500/20 rounded-[var(--radius-md)] p-2.5 min-h-[62px] animate-pulse flex flex-col justify-between">
                     <div className="h-2.5 w-16 bg-orange-400/30 rounded" />
                     <div className="h-3.5 w-24 bg-orange-400/30 rounded" />
                   </div>
                 ) : (
                   <div
                     className={cn(
-                      "bg-orange-500 dark:bg-orange-600 rounded-[var(--radius-md)] p-2.5 lg:p-2 xl:p-2.5 text-white flex flex-col justify-between min-h-[62px] lg:min-h-[54px] xl:min-h-[62px] cursor-pointer transition-all duration-200",
+                      "bg-orange-500 dark:bg-orange-600 rounded-[var(--radius-md)] p-2.5 text-white flex flex-col justify-between min-h-[62px] cursor-pointer transition-all duration-200",
                       copiedField === 'discount' && "animate-copy-press"
                     )}
                     title="Single-click value to copy."
