@@ -8,7 +8,7 @@ import {
   Building2, Landmark, Tag, Layers, 
   ChevronDown, Copy, ArrowLeft,
   Mail, Calendar, MapPin, User, CheckSquare, GraduationCap, Hourglass, X,
-  FileText, RefreshCw, Trash2, BookOpen
+  FileText, RefreshCw, Trash2, BookOpen, Maximize2
 } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import { type Student, type StudentLevel, type StudentTariff, type Profile } from '@/types/database'
@@ -517,7 +517,7 @@ export function StudentDetailClient({ studentId, onClose, onStudentIdChange }: S
       }
 
       // If the field is an empty string or 'Select', set it to null to prevent DB check constraint violations
-      if (valToSave === '' || (['tariff', 'level', 'level2'].includes(String(field)) && valToSave === 'Select')) {
+      if (valToSave === '' || (['tariff', 'level', 'level2', 'student_group', 'lead_by', 'coordinator'].includes(String(field)) && valToSave === 'Select')) {
         valToSave = null
       }
 
@@ -1610,6 +1610,13 @@ export function StudentDetailClient({ studentId, onClose, onStudentIdChange }: S
                 </>
               )}
               <button
+                onClick={() => router.push(`/students/${selectedStudent.id}`)}
+                className="p-1.5 hover:bg-[var(--border-subtle)] rounded-full text-[var(--foreground-muted)] hover:text-[var(--foreground)] transition-all cursor-pointer"
+                title="Open in full page"
+              >
+                <Maximize2 className="h-4 w-4" />
+              </button>
+              <button
                 onClick={onClose}
                 className="p-1.5 hover:bg-[var(--border-subtle)] rounded-full text-[var(--foreground-muted)] hover:text-[var(--foreground)] transition-all cursor-pointer"
                 title="Close Profile Details"
@@ -1622,15 +1629,15 @@ export function StudentDetailClient({ studentId, onClose, onStudentIdChange }: S
 
         {/* Main Dashboard Layout (3-Column Grid) */}
         <div className="grid grid-cols-1 lg:grid-cols-[1.45fr_1.25fr_0.75fr] gap-3 pb-1">
-          {/* Column 1: Personal Info & Contact Info */}
+          {/* Column 1: Passport Details & Contact */}
           <div className="flex flex-col gap-3">
-            {/* Personal & Passport Block */}
+            {/* Passport Details Block */}
             <div className="bg-white/10 dark:bg-white/5 backdrop-blur-md border border-white/20 dark:border-white/10 rounded-[var(--radius-md)] p-3 shadow-[var(--shadow-sm)] flex flex-col gap-2.5">
               <div className="flex items-center justify-between gap-1.5 pb-1.5 border-b border-[var(--border)]">
                 <div className="flex items-center gap-1.5">
                   <User className="h-3.5 w-3.5 text-[var(--accent)]" />
                   <h3 className="text-[13px] font-semibold uppercase tracking-wide text-[#64748B]">
-                    Personal & Passport
+                    Passport Details
                   </h3>
                 </div>
                 <div className="flex items-center gap-1.5">
@@ -1699,33 +1706,38 @@ export function StudentDetailClient({ studentId, onClose, onStudentIdChange }: S
                   'given_name',
                   nameLanguage === 'KR' && isTranslatingNames
                 )}
-                <div className="sm:col-span-2 grid grid-cols-1 sm:grid-cols-4 gap-1.5">
-                  <div className="sm:col-span-1">
-                    {renderDetailCard('Sex', 'gender', selectedStudent.gender, {
-                      type: 'select',
-                      selectOptions: ['MALE', 'FEMALE'],
-                      titleColor: 'text-[var(--accent)]'
-                    })}
-                  </div>
-                  <div className="sm:col-span-1">
-                    {renderDetailCard('Birthday', 'birthday', selectedStudent.birthday, { type: 'date', titleColor: 'text-[var(--accent)]' })}
-                  </div>
-                  <div className="sm:col-span-2">
-                    {renderDetailCard('Email', 'email', selectedStudent.email, { titleColor: 'text-[var(--accent)]', valueClassName: 'text-[12px]' })}
-                  </div>
-                </div>
                 <div className="sm:col-span-2 grid grid-cols-1 sm:grid-cols-2 gap-1.5">
-                  {renderDetailCard('Phone 1', 'phone1', selectedStudent.phone1, { titleColor: 'text-[var(--accent)]' })}
-                  {renderDetailCard('Phone 2', 'phone2', selectedStudent.phone2, { titleColor: 'text-[var(--accent)]' })}
+                  {renderDetailCard('Sex', 'gender', selectedStudent.gender, {
+                    type: 'select',
+                    selectOptions: ['MALE', 'FEMALE'],
+                    titleColor: 'text-[var(--accent)]'
+                  })}
+                  {renderDetailCard('Birthday', 'birthday', selectedStudent.birthday, { type: 'date', titleColor: 'text-[var(--accent)]' })}
                 </div>
                 <div className="sm:col-span-2 grid grid-cols-1 sm:grid-cols-3 gap-1.5">
                   {renderDetailCard('Passport', 'passport', selectedStudent.passport, { titleColor: 'text-[var(--accent)]' })}
                   {renderDetailCard('Date of Issue', 'passport_issue_date', selectedStudent.passport_issue_date, { type: 'date', titleColor: 'text-[var(--accent)]' })}
                   {renderDetailCard('Date of Expiration', 'passport_expire_date', selectedStudent.passport_expire_date, { type: 'date', titleColor: 'text-[var(--accent)]' })}
                 </div>
-
                 <div className="sm:col-span-2">
                   {renderDetailCard('Address', 'address', selectedStudent.address, { titleColor: 'text-[var(--accent)]' })}
+                </div>
+              </div>
+            </div>
+
+            {/* Contact Block */}
+            <div className="bg-white/10 dark:bg-white/5 backdrop-blur-md border border-white/20 dark:border-white/10 rounded-[var(--radius-md)] p-3 shadow-[var(--shadow-sm)] flex flex-col gap-2.5">
+              <div className="flex items-center gap-1.5 pb-1.5 border-b border-[var(--border)]">
+                <Mail className="h-3.5 w-3.5 text-[var(--accent)]" />
+                <h3 className="text-[13px] font-semibold uppercase tracking-wide text-[#64748B]">
+                  Contact
+                </h3>
+              </div>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-1.5">
+                {renderDetailCard('Phone 1', 'phone1', selectedStudent.phone1, { titleColor: 'text-[var(--accent)]' })}
+                {renderDetailCard('Phone 2', 'phone2', selectedStudent.phone2, { titleColor: 'text-[var(--accent)]' })}
+                <div className="sm:col-span-2">
+                  {renderDetailCard('Email', 'email', selectedStudent.email, { titleColor: 'text-[var(--accent)]' })}
                 </div>
                 <div className="sm:col-span-2">
                   {renderDetailCard('Notes', 'notes', selectedStudent.notes, { titleColor: 'text-[var(--accent)]' })}
@@ -1740,7 +1752,7 @@ export function StudentDetailClient({ studentId, onClose, onStudentIdChange }: S
             </div>
           </div>
 
-          {/* Column 2: Academic & Universities */}
+          {/* Column 2: Academic, Universities & Family */}
           <div className="flex flex-col gap-3">
             {/* Academic & Languages Block */}
             <div className="bg-white/10 dark:bg-white/5 backdrop-blur-md border border-white/20 dark:border-white/10 rounded-[var(--radius-md)] p-3 shadow-[var(--shadow-sm)] flex flex-col gap-2.5">
@@ -1758,7 +1770,7 @@ export function StudentDetailClient({ studentId, onClose, onStudentIdChange }: S
                     badgeColor: 'bg-[#00875a] text-white',
                     titleColor: 'text-[var(--accent)]'
                   })}
-                  {renderDetailCard('Education Level', 'level', selectedStudent.level, {
+                  {renderDetailCard('Level to Study', 'level', selectedStudent.level, {
                     type: 'select',
                     selectOptions: ['Select', ...levelOptions],
                     badgeColor: 'bg-[#0052cc] text-white',
@@ -1772,7 +1784,7 @@ export function StudentDetailClient({ studentId, onClose, onStudentIdChange }: S
                 </div>
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-1.5">
-                  {renderDetailCard('Education Level 2', 'level2', selectedStudent.level2, {
+                  {renderDetailCard('Level to Study 2', 'level2', selectedStudent.level2, {
                     type: 'select',
                     selectOptions: ['Select', ...levelOptions],
                     badgeColor: 'bg-[#ff9900] text-white',
@@ -1796,14 +1808,24 @@ export function StudentDetailClient({ studentId, onClose, onStudentIdChange }: S
                 {renderUniversityCardDetails('University 1', 'university_1', 'university_1_status')}
                 {renderUniversityCardDetails('University 2', 'university_2', 'university_2_status')}
                 {renderUniversityCardDetails('University 3', 'university_3', 'university_3_status', { compact: true })}
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-1.5">
-                  {renderDetailCard('Father Fullname', 'father_name', selectedStudent.father_name, { titleColor: 'text-[var(--accent)]', compact: true })}
-                  {renderDetailCard('Mother Fullname', 'mother_name', selectedStudent.mother_name, { titleColor: 'text-[var(--accent)]', compact: true })}
-                  {renderDetailCard('Father Phone', 'father_phone', selectedStudent.father_phone, { titleColor: 'text-[var(--accent)]', compact: true })}
-                  {renderDetailCard('Mother Phone', 'mother_phone', selectedStudent.mother_phone, { titleColor: 'text-[var(--accent)]', compact: true })}
-                  {renderDetailCard('Father Job', 'father_job', selectedStudent.father_job, { titleColor: 'text-[var(--accent)]', compact: true })}
-                  {renderDetailCard('Mother Job', 'mother_job', selectedStudent.mother_job, { titleColor: 'text-[var(--accent)]', compact: true })}
-                </div>
+              </div>
+            </div>
+
+            {/* Family Info Block */}
+            <div className="bg-white/10 dark:bg-white/5 backdrop-blur-md border border-white/20 dark:border-white/10 rounded-[var(--radius-md)] p-3 shadow-[var(--shadow-sm)] flex flex-col gap-2.5">
+              <div className="flex items-center gap-1.5 pb-1.5 border-b border-[var(--border)]">
+                <User className="h-3.5 w-3.5 text-[var(--accent)]" />
+                <h3 className="text-[13px] font-semibold uppercase tracking-wide text-[#64748B]">
+                  Family Info
+                </h3>
+              </div>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-1.5">
+                {renderDetailCard('Father Fullname', 'father_name', selectedStudent.father_name, { titleColor: 'text-[var(--accent)]', compact: true })}
+                {renderDetailCard('Mother Fullname', 'mother_name', selectedStudent.mother_name, { titleColor: 'text-[var(--accent)]', compact: true })}
+                {renderDetailCard('Father Phone', 'father_phone', selectedStudent.father_phone, { titleColor: 'text-[var(--accent)]', compact: true })}
+                {renderDetailCard('Mother Phone', 'mother_phone', selectedStudent.mother_phone, { titleColor: 'text-[var(--accent)]', compact: true })}
+                {renderDetailCard('Father Job', 'father_job', selectedStudent.father_job, { titleColor: 'text-[var(--accent)]', compact: true })}
+                {renderDetailCard('Mother Job', 'mother_job', selectedStudent.mother_job, { titleColor: 'text-[var(--accent)]', compact: true })}
               </div>
             </div>
           </div>
@@ -2055,18 +2077,18 @@ export function StudentDetailClient({ studentId, onClose, onStudentIdChange }: S
                   </div>
                 )}
 
-                {renderDetailCard('Group', 'student_group', selectedStudent.student_group, { 
+                {renderDetailCard('Group', 'student_group', selectedStudent.student_group, {
                   type: 'select',
-                  selectOptions: groupOptions,
+                  selectOptions: ['Select', ...groupOptions],
                   badgeColor: 'bg-[#6554c0] text-white',
                   titleColor: 'text-[var(--accent)]'
                 })}
 
-                {renderDetailCard('Lead By', 'lead_by', selectedStudent.lead_by, { 
+                {renderDetailCard('Lead By', 'lead_by', selectedStudent.lead_by, {
                   type: 'select',
-                  selectOptions: leadByOptions,
+                  selectOptions: ['Select', ...leadByOptions],
                   badgeColor: 'bg-[#00b8d9] text-white',
-                  titleColor: 'text-[var(--accent)]' 
+                  titleColor: 'text-[var(--accent)]'
                 })}
 
                 {renderDetailCard('Missing Documents', 'pick_needed', selectedStudent.pick_needed, {
@@ -2076,9 +2098,9 @@ export function StudentDetailClient({ studentId, onClose, onStudentIdChange }: S
                   editable: false
                 })}
 
-                {renderDetailCard('Kordinator', 'coordinator', selectedStudent.coordinator, { 
+                {renderDetailCard('Kordinator', 'coordinator', selectedStudent.coordinator, {
                   type: 'select',
-                  selectOptions: coordinatorOptions,
+                  selectOptions: ['Select', ...coordinatorOptions],
                   badgeColor: 'bg-[#ff5630] text-white',
                   titleColor: 'text-[var(--accent)]'
                 })}
