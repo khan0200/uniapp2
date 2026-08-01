@@ -40,6 +40,7 @@ interface StudentDashboardContextValue {
   loading: boolean
   error: string | null
   fetchStudents: (force?: boolean) => Promise<void>
+  refreshStudent: (studentId: string) => Promise<void>
 
   // Student detail page header action buttons (Fill By Document / Reload / Delete)
   detailPageActions: StudentDetailPageActions | null
@@ -334,6 +335,34 @@ export function StudentDashboardProvider({ children }: { children: ReactNode }) 
     }
   }
 
+  // Re-fetch a single student and patch it into the list in place. Editing one
+  // field in the detail panel doesn't need the whole table pulled down again —
+  // this keeps the row in sync without the full select('*') round trip.
+  const refreshStudent = async (studentId: string) => {
+    try {
+      const { data, error: fetchError } = await supabase
+        .from('students')
+        .select('*')
+        .eq('id', studentId)
+        .single()
+
+      if (fetchError) throw fetchError
+      if (!data) return
+
+      setStudents(prev => {
+        const updated = data as Student
+        const index = prev.findIndex(s => s.id === updated.id)
+        // Not in the current list (e.g. filtered out) — nothing to patch.
+        if (index === -1) return prev
+        const next = [...prev]
+        next[index] = updated
+        return next
+      })
+    } catch (err: any) {
+      console.error('Error refreshing student:', err)
+    }
+  }
+
   // Pre-fetch students and options once on mount of the dashboard provider
   useEffect(() => {
     fetchStudents()
@@ -366,6 +395,7 @@ export function StudentDashboardProvider({ children }: { children: ReactNode }) 
       loading,
       error,
       fetchStudents,
+      refreshStudent,
       detailPageActions,
       setDetailPageActions,
       selectedTariffs,
