@@ -166,11 +166,17 @@ export function StudentDashboardClient({ hidePhone = false }: { hidePhone?: bool
   // Drawer state for displaying student details sliding in from the right
   const [activeDetailStudentId, setActiveDetailStudentId] = useState<string | null>(null)
   const [cachedDetailStudentId, setCachedDetailStudentId] = useState<string | null>(null)
+  // Expand button grows the drawer to fill the screen instead of navigating
+  // away, so close/collapse stay reachable.
+  const [isDetailExpanded, setIsDetailExpanded] = useState(false)
   const drawerRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
     if (activeDetailStudentId) {
       setCachedDetailStudentId(activeDetailStudentId)
+    } else {
+      // Reset so the next student opens at normal drawer width.
+      setIsDetailExpanded(false)
     }
   }, [activeDetailStudentId])
 
@@ -4527,7 +4533,12 @@ export function StudentDashboardClient({ hidePhone = false }: { hidePhone?: bool
 
       {/* Student Details Drawer */}
       {cachedDetailStudentId && (
-        <div className="fixed inset-y-0 right-0 z-50 pointer-events-none flex justify-end p-2 md:p-2.5">
+        <div className={cn(
+          'fixed inset-y-0 right-0 z-50 pointer-events-none flex justify-end',
+          // Expanded spans the full viewport width; collapsed is anchored to
+          // the right and sized by the panel's own max-width.
+          isDetailExpanded ? 'left-0 p-0' : 'p-2 md:p-2.5'
+        )}>
           {/* Backdrop Overlay (Visual only, pointer-events-none) */}
           <div
             className={cn(
@@ -4541,7 +4552,10 @@ export function StudentDashboardClient({ hidePhone = false }: { hidePhone?: bool
           <div
             ref={drawerRef}
             className={cn(
-              'relative w-full max-w-[calc(98vw+20px)] md:max-w-[calc(96vw+20px)] lg:max-w-[calc(95vw+20px)] xl:max-w-[calc(80vw+20px)] h-full bg-[var(--background)] border border-[var(--border)] rounded-2xl shadow-[var(--shadow-lg)] z-10 flex flex-col overflow-hidden pointer-events-auto',
+              'relative w-full h-full bg-[var(--background)] border border-[var(--border)] shadow-[var(--shadow-lg)] z-10 flex flex-col overflow-hidden pointer-events-auto',
+              isDetailExpanded
+                ? 'max-w-none rounded-none'
+                : 'max-w-[calc(98vw+20px)] md:max-w-[calc(95vw+20px)] lg:max-w-[calc(90vw+20px)] xl:max-w-[calc(80vw+20px)] rounded-2xl',
               'transition-transform ease-[cubic-bezier(0.16,1,0.3,1)]',
               activeDetailStudentId ? 'translate-x-0' : 'translate-x-full'
             )}
@@ -4555,6 +4569,8 @@ export function StudentDashboardClient({ hidePhone = false }: { hidePhone?: bool
                 onStudentIdChange={(newId) => {
                   setActiveDetailStudentId(newId)
                 }}
+                isExpanded={isDetailExpanded}
+                onToggleExpand={() => setIsDetailExpanded(prev => !prev)}
               />
             </div>
           </div>
