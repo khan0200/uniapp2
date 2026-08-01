@@ -77,7 +77,7 @@ export function Header() {
                   type="button"
                   onClick={() => setIsFilterPanelOpen(!isFilterPanelOpen)}
                   className={cn(
-                    "flex items-center justify-center gap-1.5 px-4 h-[34px] md:h-[36px] rounded-full border text-xs md:text-sm font-semibold select-none cursor-pointer transition-all duration-300 shadow-[0_8px_30px_rgba(0,0,0,0.06)] hover:shadow-md outline-none",
+                    "flex items-center justify-center gap-1.5 px-3 lg:px-4 h-[34px] md:h-[36px] rounded-full border text-xs md:text-sm font-semibold select-none cursor-pointer transition-all duration-300 shadow-[0_8px_30px_rgba(0,0,0,0.06)] hover:shadow-md outline-none whitespace-nowrap shrink-0",
                     isFilterPanelOpen || activeFiltersCount > 0
                       ? "border-blue-500 bg-blue-50/50 dark:bg-blue-950/20 text-blue-600 dark:text-blue-400" 
                       : "border-[var(--border)] bg-[var(--surface-elevated)]/60 text-[var(--foreground)] hover:bg-[var(--surface-elevated)]"
@@ -98,13 +98,16 @@ export function Header() {
           )}
         </div>
 
-        {/* Center: iOS Dynamic Island Inspired Search Bar */}
-        <div 
+        {/* Center: iOS Dynamic Island Inspired Search Bar.
+            Kept in the flex flow (not absolutely centred) so it shrinks
+            against the action buttons instead of overlapping them when the
+            header runs out of room. */}
+        <div
           className={cn(
             "flex items-center gap-2.5 z-30",
             "w-full h-auto",
-            "md:absolute md:left-1/2 md:top-1/2 md:-translate-x-1/2 md:-translate-y-1/2",
-            "max-w-full md:max-w-[350px] lg:max-w-[450px]"
+            "md:flex-1 md:min-w-0 md:mx-3",
+            "max-w-full md:max-w-[450px]"
           )}
         >
           <div 
@@ -136,28 +139,30 @@ export function Header() {
 
         {/* Right Side Actions */}
         {(pathname === '/students' || pathname === '/status') && (
-          <div className="flex items-center gap-2 md:gap-3 justify-end md:ml-auto z-10 w-full md:w-auto mt-1 md:mt-0">
+          <div className="flex items-center gap-2 md:gap-2.5 justify-end z-10 w-full md:w-auto md:shrink-0 mt-1 md:mt-0">
             {/* Admissions Link Button */}
             <a
               href="https://admissions-university.vercel.app/"
               target="_blank"
               rel="noopener noreferrer"
-              className="flex items-center justify-center gap-1.5 px-4 h-[34px] rounded-full border border-blue-600/30 bg-blue-50 hover:bg-blue-100/70 text-blue-700 dark:bg-blue-950/20 dark:border-blue-800/40 dark:text-blue-400 text-xs md:text-sm font-semibold select-none cursor-pointer transition-all duration-300 shadow-[0_8px_30px_rgba(0,0,0,0.06)] hover:shadow-md outline-none shrink-0"
+              className="flex items-center justify-center gap-1.5 px-3 lg:px-4 h-[34px] rounded-full border border-blue-600/30 bg-blue-50 hover:bg-blue-100/70 text-blue-700 dark:bg-blue-950/20 dark:border-blue-800/40 dark:text-blue-400 text-xs md:text-sm font-semibold select-none cursor-pointer transition-all duration-300 shadow-[0_8px_30px_rgba(0,0,0,0.06)] hover:shadow-md outline-none shrink-0 whitespace-nowrap"
               title="Admissions University Portal"
             >
-              <BookOpen className="h-4.5 w-4.5 text-blue-500" />
-              <span className="hidden sm:inline">Admissions</span>
+              <BookOpen className="h-4.5 w-4.5 text-blue-500 shrink-0" />
+              {/* Label drops out between md and lg, where the header is
+                  tightest; the icon plus title attribute still identify it. */}
+              <span className="hidden sm:inline md:hidden lg:inline">Admissions</span>
             </a>
 
             {/* Excel Download Button */}
             <button
               type="button"
               onClick={() => setIsExcelModalOpen(true)}
-              className="flex items-center justify-center gap-1.5 px-4 h-[34px] rounded-full border border-emerald-600/30 bg-emerald-50 hover:bg-emerald-100/70 text-emerald-700 dark:bg-emerald-950/20 dark:border-emerald-800/40 dark:text-emerald-400 text-xs md:text-sm font-semibold select-none cursor-pointer transition-all duration-300 shadow-[0_8px_30px_rgba(0,0,0,0.06)] hover:shadow-md outline-none"
+              className="flex items-center justify-center gap-1.5 px-3 lg:px-4 h-[34px] rounded-full border border-emerald-600/30 bg-emerald-50 hover:bg-emerald-100/70 text-emerald-700 dark:bg-emerald-950/20 dark:border-emerald-800/40 dark:text-emerald-400 text-xs md:text-sm font-semibold select-none cursor-pointer transition-all duration-300 shadow-[0_8px_30px_rgba(0,0,0,0.06)] hover:shadow-md outline-none shrink-0 whitespace-nowrap"
               title="Export Roster to Excel"
             >
-              <FileSpreadsheet className="h-4.5 w-4.5" />
-              <span className="hidden sm:inline">Export Excel</span>
+              <FileSpreadsheet className="h-4.5 w-4.5 shrink-0" />
+              <span className="hidden sm:inline md:hidden lg:inline">Export Excel</span>
             </button>
 
             {/* Add Student Button */}
@@ -165,11 +170,13 @@ export function Header() {
               <button
                 id="students-add-btn"
                 onClick={() => setIsAddStudentModalOpen(true)}
-                className="flex-1 md:flex-initial flex items-center justify-center gap-2 rounded-[var(--radius-md)] bg-[var(--accent)] px-3.5 py-1.5 text-sm font-semibold text-white hover:bg-[var(--accent-hover)] transition-all cursor-pointer select-none h-8 md:h-9 shrink-0"
+                className="flex-1 md:flex-initial flex items-center justify-center gap-1.5 lg:gap-2 rounded-[var(--radius-md)] bg-[var(--accent)] px-3 lg:px-3.5 py-1.5 text-sm font-semibold text-white hover:bg-[var(--accent-hover)] transition-all cursor-pointer select-none h-8 md:h-9 shrink-0 whitespace-nowrap"
                 style={{ boxShadow: '0 4px 12px rgba(59, 127, 245, 0.2)' }}
               >
-                <Plus className="h-4 w-4" />
-                <span>Add Student</span>
+                <Plus className="h-4 w-4 shrink-0" />
+                {/* Primary action — keep the label, drop only the word
+                    "Student" where space is tightest. */}
+                <span>Add<span className="sm:inline md:hidden lg:inline"> Student</span></span>
               </button>
             )}
           </div>
