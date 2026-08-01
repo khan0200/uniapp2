@@ -79,6 +79,29 @@ export function StudentDetailClient({ studentId, onClose, onStudentIdChange }: S
   const [isTranslatingNames, setIsTranslatingNames] = useState(false)
   const [translateError, setTranslateError] = useState<string | null>(null)
 
+  // Extra Level to Study / Language Certificate slots are hidden by default
+  // and revealed via the "+" button next to the preceding slot's edit icon,
+  // unless the student already has data saved in them.
+  const [showLevel2, setShowLevel2] = useState(false)
+  const [showCert2, setShowCert2] = useState(false)
+  const [showCert3, setShowCert3] = useState(false)
+
+  useEffect(() => {
+    if (selectedStudent?.level2) setShowLevel2(true)
+    if (selectedStudent?.language_certificate_2) setShowCert2(true)
+    if (selectedStudent?.language_certificate_3) setShowCert3(true)
+  }, [selectedStudent?.level2, selectedStudent?.language_certificate_2, selectedStudent?.language_certificate_3])
+
+  // Hiding a slot only affects local UI state, not the saved record — if the
+  // slot still holds data, confirm first since the value stays in the
+  // database but disappears from view until "+" is clicked again.
+  const confirmHideSlot = (hasData: boolean, hide: () => void) => {
+    if (hasData && !window.confirm('This field still has data saved. Hide it from view anyway? The data will not be deleted.')) {
+      return
+    }
+    hide()
+  }
+
   // tariffOptions/tariffPrices/levelOptions/groupOptions/leadByOptions come from
   // the shared dashboard context (fetched once for the whole dashboard).
   // universities/coordinators are specific to this page and fetched below.
@@ -742,6 +765,10 @@ export function StudentDetailClient({ studentId, onClose, onStudentIdChange }: S
       forceBorderColor?: 'blue' | 'red'
       valueClassName?: string
       compact?: boolean
+      onAdd?: () => void
+      addTitle?: string
+      onRemove?: () => void
+      removeTitle?: string
     } = {}
   ) => {
     if (loading) {
@@ -770,6 +797,12 @@ export function StudentDetailClient({ studentId, onClose, onStudentIdChange }: S
       ? 'border-l-rose-600'
       : 'border-l-[var(--accent)]'
 
+    const showCopy = !!(copyable && value && !isEditing)
+    const showEdit = !!(editable && !isEditing)
+    const showAdd = !!(options.onAdd && !isEditing)
+    const showRemove = !!(options.onRemove && !isEditing)
+    const activeButtonsCount = [showCopy, showEdit, showAdd, showRemove].filter(Boolean).length
+
     return (
       <div
         className={cn(
@@ -787,7 +820,10 @@ export function StudentDetailClient({ studentId, onClose, onStudentIdChange }: S
           <span className="text-[11px] uppercase tracking-wide glitter-label">
             {label}
           </span>
-          <div className="flex items-center gap-1.5 opacity-0 group-hover:opacity-100 focus-within:opacity-100 transition-opacity">
+          <div className={cn(
+            "opacity-0 group-hover:opacity-100 focus-within:opacity-100 transition-opacity shrink-0",
+            activeButtonsCount > 2 ? "grid grid-cols-2 gap-0.5" : "flex items-center gap-1.5"
+          )}>
             {copyable && value && !isEditing && (
               <button
                 onClick={(e) => {
@@ -810,6 +846,30 @@ export function StudentDetailClient({ studentId, onClose, onStudentIdChange }: S
                 title="Edit field"
               >
                 <Pencil className="h-3 w-3" />
+              </button>
+            )}
+            {options.onAdd && !isEditing && (
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  options.onAdd!();
+                }}
+                className="p-0.5 hover:bg-[var(--border-subtle)] rounded transition-all cursor-pointer text-[var(--foreground-muted)] hover:text-[var(--foreground)]"
+                title={options.addTitle || 'Add another'}
+              >
+                <Plus className="h-3 w-3" />
+              </button>
+            )}
+            {options.onRemove && !isEditing && (
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  options.onRemove!();
+                }}
+                className="p-0.5 hover:bg-[var(--border-subtle)] rounded transition-all cursor-pointer text-[var(--foreground-muted)] hover:text-red-600"
+                title={options.removeTitle || 'Remove'}
+              >
+                <X className="h-3 w-3" />
               </button>
             )}
           </div>
@@ -921,6 +981,10 @@ export function StudentDetailClient({ studentId, onClose, onStudentIdChange }: S
     certColor: string = 'bg-[#de350b]',
     options: {
       compact?: boolean
+      onAdd?: () => void
+      addTitle?: string
+      onRemove?: () => void
+      removeTitle?: string
     } = {}
   ) => {
     const isEditing = editingField === certField
@@ -929,6 +993,12 @@ export function StudentDetailClient({ studentId, onClose, onStudentIdChange }: S
     const isMissing = !certVal || certVal === 'NO CERTIFICATE' || certVal.trim() === ''
 
     const isCopied = copiedField === String(certField)
+
+    const showCopy = !!(certVal && certVal !== 'NO CERTIFICATE' && !isEditing)
+    const showEdit = !isEditing
+    const showAdd = !!(options.onAdd && !isEditing)
+    const showRemove = !!(options.onRemove && !isEditing)
+    const activeButtonsCount = [showCopy, showEdit, showAdd, showRemove].filter(Boolean).length
 
     return (
       <div
@@ -945,7 +1015,10 @@ export function StudentDetailClient({ studentId, onClose, onStudentIdChange }: S
         )}
         <div className="flex items-center justify-between gap-2">
           <span className="text-[11px] uppercase tracking-wide glitter-label">{label}</span>
-          <div className="flex items-center gap-1.5 opacity-0 group-hover:opacity-100 focus-within:opacity-100 transition-opacity">
+          <div className={cn(
+            "opacity-0 group-hover:opacity-100 focus-within:opacity-100 transition-opacity shrink-0",
+            activeButtonsCount > 2 ? "grid grid-cols-2 gap-0.5" : "flex items-center gap-1.5"
+          )}>
             {certVal && certVal !== 'NO CERTIFICATE' && !isEditing && (
               <button
                 onClick={(e) => {
@@ -968,6 +1041,30 @@ export function StudentDetailClient({ studentId, onClose, onStudentIdChange }: S
                 title="Edit certificate"
               >
                 <Pencil className="h-3 w-3" />
+              </button>
+            )}
+            {options.onAdd && !isEditing && (
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  options.onAdd!();
+                }}
+                className="p-0.5 hover:bg-[var(--border-subtle)] rounded transition-all cursor-pointer text-[var(--foreground-muted)] hover:text-[var(--foreground)]"
+                title={options.addTitle || 'Add another certificate'}
+              >
+                <Plus className="h-3 w-3" />
+              </button>
+            )}
+            {options.onRemove && !isEditing && (
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  options.onRemove!();
+                }}
+                className="p-0.5 hover:bg-[var(--border-subtle)] rounded transition-all cursor-pointer text-[var(--foreground-muted)] hover:text-red-600"
+                title={options.removeTitle || 'Remove'}
+              >
+                <X className="h-3 w-3" />
               </button>
             )}
           </div>
@@ -1774,25 +1871,51 @@ export function StudentDetailClient({ studentId, onClose, onStudentIdChange }: S
                     type: 'select',
                     selectOptions: ['Select', ...levelOptions],
                     badgeColor: 'bg-[#0052cc] text-white',
-                    titleColor: 'text-[var(--accent)]'
-                  })}
-                </div>
-
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-1.5">
-                  {renderCertificateCard('Language Certificate 1', 'language_certificate', 'certificate_score', ['TOPIK', 'IELTS', 'TOEFL', 'CEFR', 'SAT', 'SKA', 'NO CERTIFICATE'], 'bg-[#de350b]')}
-                  {renderCertificateCard('Language Certificate 2', 'language_certificate_2', 'certificate_score_2', ['TOPIK', 'IELTS', 'TOEFL', 'CEFR', 'SAT', 'SKA', 'NO CERTIFICATE'], 'bg-[#00b8d9]')}
-                </div>
-
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-1.5">
-                  {renderDetailCard('Level to Study 2', 'level2', selectedStudent.level2, {
-                    type: 'select',
-                    selectOptions: ['Select', ...levelOptions],
-                    badgeColor: 'bg-[#ff9900] text-white',
                     titleColor: 'text-[var(--accent)]',
-                    compact: true
+                    onAdd: showLevel2 ? undefined : () => setShowLevel2(true),
+                    addTitle: 'Add Level to Study 2'
                   })}
-                  {renderCertificateCard('Language Certificate 3', 'language_certificate_3', 'certificate_score_3', ['TOPIK', 'IELTS', 'TOEFL', 'CEFR', 'SAT', 'SKA', 'NO CERTIFICATE'], 'bg-[#ff5630]', { compact: true })}
                 </div>
+
+                {showLevel2 && (
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-1.5">
+                    {renderDetailCard('Level to Study 2', 'level2', selectedStudent.level2, {
+                      type: 'select',
+                      selectOptions: ['Select', ...levelOptions],
+                      badgeColor: 'bg-[#ff9900] text-white',
+                      titleColor: 'text-[var(--accent)]',
+                      compact: true,
+                      onRemove: () => confirmHideSlot(!!selectedStudent.level2, () => setShowLevel2(false)),
+                      removeTitle: 'Hide Level to Study 2'
+                    })}
+                  </div>
+                )}
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-1.5">
+                  {renderCertificateCard('Language Certificate 1', 'language_certificate', 'certificate_score', ['TOPIK', 'IELTS', 'TOEFL', 'CEFR', 'SAT', 'SKA', 'NO CERTIFICATE'], 'bg-[#de350b]', {
+                    onAdd: showCert2 ? undefined : () => setShowCert2(true),
+                    addTitle: 'Add Language Certificate 2'
+                  })}
+                  {showCert2 && renderCertificateCard('Language Certificate 2', 'language_certificate_2', 'certificate_score_2', ['TOPIK', 'IELTS', 'TOEFL', 'CEFR', 'SAT', 'SKA', 'NO CERTIFICATE'], 'bg-[#00b8d9]', {
+                    onAdd: showCert3 ? undefined : () => setShowCert3(true),
+                    addTitle: 'Add Language Certificate 3',
+                    onRemove: () => confirmHideSlot(!!selectedStudent.language_certificate_2 || !!selectedStudent.language_certificate_3, () => {
+                      setShowCert2(false)
+                      setShowCert3(false)
+                    }),
+                    removeTitle: 'Hide Language Certificate 2'
+                  })}
+                </div>
+
+                {showCert3 && (
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-1.5">
+                    {renderCertificateCard('Language Certificate 3', 'language_certificate_3', 'certificate_score_3', ['TOPIK', 'IELTS', 'TOEFL', 'CEFR', 'SAT', 'SKA', 'NO CERTIFICATE'], 'bg-[#ff5630]', {
+                      compact: true,
+                      onRemove: () => confirmHideSlot(!!selectedStudent.language_certificate_3, () => setShowCert3(false)),
+                      removeTitle: 'Hide Language Certificate 3'
+                    })}
+                  </div>
+                )}
               </div>
             </div>
 
