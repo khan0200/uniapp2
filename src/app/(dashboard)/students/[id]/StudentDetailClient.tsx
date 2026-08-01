@@ -8,7 +8,7 @@ import {
   Building2, Landmark, Tag, Layers, 
   ChevronDown, Copy, ArrowLeft,
   Mail, Calendar, MapPin, User, CheckSquare, GraduationCap, Hourglass, X,
-  FileText, RefreshCw, Trash2
+  FileText, RefreshCw, Trash2, BookOpen
 } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import { type Student, type StudentLevel, type StudentTariff, type Profile } from '@/types/database'
@@ -53,6 +53,13 @@ export function StudentDetailClient({ studentId, onClose, onStudentIdChange }: S
   const [copiedField, setCopiedField] = useState<string | null>(null)
   const [isDeleting, setIsDeleting] = useState(false)
   const [activeStatusDropdown, setActiveStatusDropdown] = useState<string | null>(null)
+
+  // Major modal states
+  const [isMajorModalOpen, setIsMajorModalOpen] = useState(false)
+  const [majorModalLabel, setMajorModalLabel] = useState('')
+  const [majorEditingField, setMajorEditingField] = useState<'university_1_major' | 'university_2_major' | 'university_3_major' | null>(null)
+  const [tempMajorValue, setTempMajorValue] = useState('')
+  const [savingMajor, setSavingMajor] = useState(false)
   const [nameLanguage, setNameLanguage] = useState<'EN' | 'KR'>('EN')
   const [koreanNames, setKoreanNames] = useState<{ full: string; family: string; given: string } | null>(null)
   const [isTranslatingNames, setIsTranslatingNames] = useState(false)
@@ -146,6 +153,39 @@ export function StudentDetailClient({ studentId, onClose, onStudentIdChange }: S
       if (!isBackground) {
         setLoading(false)
       }
+    }
+  }
+
+  const handleSaveMajor = async () => {
+    if (!majorEditingField || !selectedStudentState) return
+    setSavingMajor(true)
+    try {
+      const nextStudent = {
+        ...selectedStudentState,
+        [majorEditingField]: tempMajorValue || null,
+        jarayon_updated_at: new Date().toISOString()
+      }
+      const syncedPick = syncMissingDocuments(nextStudent)
+      const { error } = await (supabase
+        .from('students') as any)
+        .update({
+          [majorEditingField]: tempMajorValue || null,
+          jarayon_updated_at: new Date().toISOString(),
+          pick_needed: syncedPick
+        })
+        .eq('id', selectedStudent.id)
+      if (error) throw error
+
+      setSelectedStudent({
+        ...nextStudent,
+        pick_needed: syncedPick
+      })
+      setIsMajorModalOpen(false)
+      fetchStudents?.()
+    } catch (err: any) {
+      alert(`Failed to save major: ${err.message}`)
+    } finally {
+      setSavingMajor(false)
     }
   }
 
@@ -1247,6 +1287,24 @@ export function StudentDetailClient({ studentId, onClose, onStudentIdChange }: S
                             {statusVal || 'Chosen'}
                           </span>
 
+                          {/* Render major text/pill next to it if uniVal exists */}
+                          {uniVal && (
+                            <span 
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                const majorField = uniField === 'university_1' ? 'university_1_major' : uniField === 'university_2' ? 'university_2_major' : 'university_3_major';
+                                setMajorEditingField(majorField);
+                                setMajorModalLabel(label);
+                                setTempMajorValue((selectedStudent?.[majorField] as string) || '');
+                                setIsMajorModalOpen(true);
+                              }}
+                              className="inline-flex items-center gap-1.5 ml-2 px-2 py-0.5 rounded-full text-[10.5px] font-bold border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900 text-[var(--accent)] hover:bg-[var(--border-subtle)] active:scale-95 transition-all shadow-sm select-none cursor-pointer"
+                            >
+                              <BookOpen className="h-3 w-3 shrink-0" />
+                              {((selectedStudent?.[uniField === 'university_1' ? 'university_1_major' : uniField === 'university_2' ? 'university_2_major' : 'university_3_major'] as string) || 'Add Major').toUpperCase()}
+                            </span>
+                          )}
+
                           {activeStatusDropdown === String(uniField) && (
                             <>
                               {/* Transparent overlay backdrop to handle clicks outside */}
@@ -2021,6 +2079,62 @@ export function StudentDetailClient({ studentId, onClose, onStudentIdChange }: S
           </div>
         </div>
       </div>
+
+      {/* Major Editing Modal */}
+      {isMajorModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center">
+          {/* Backdrop */}
+          <div 
+            className="fixed inset-0 bg-black/60 backdrop-blur-sm transition-opacity"
+            onClick={() => setIsMajorModalOpen(false)}
+          />
+          {/* Modal Container */}
+          <div className="relative bg-[var(--surface)] border border-[var(--border)] rounded-[var(--radius-xl)] shadow-2xl p-6 w-full max-w-md mx-4 z-10 animate-in fade-in zoom-in-95 duration-150">
+            <button
+              onClick={() => setIsMajorModalOpen(false)}
+              className="absolute right-4 top-4 text-[var(--foreground-muted)] hover:text-[var(--foreground)] p-1 hover:bg-[var(--border-subtle)] rounded transition-all cursor-pointer"
+            >
+              <X className="h-4 w-4" />
+            </button>
+            <h3 className="text-base font-bold text-[var(--foreground)] mb-4 flex items-center gap-2">
+              <GraduationCap className="h-5 w-5 text-[var(--accent)]" />
+              Write Selected Major
+            </h3>
+            <p className="text-xs text-[var(--foreground-muted)] mb-3">
+              Enter the major manually for <strong>{majorModalLabel}</strong>.
+            </p>
+            <input
+              type="text"
+              value={tempMajorValue}
+              onChange={(e) => setTempMajorValue(e.target.value)}
+              placeholder="e.g. BUSINESS ADMINISTRATION"
+              className="w-full rounded-[var(--radius-md)] border border-[var(--border)] bg-[var(--background)] px-3.5 py-2.5 text-sm text-[var(--foreground)] placeholder:text-[var(--foreground-subtle)] focus:outline-none focus:ring-2 focus:ring-[var(--accent)] focus:border-transparent transition-all mb-5 uppercase"
+              autoFocus
+              onKeyDown={async (e) => {
+                if (e.key === 'Enter') {
+                  await handleSaveMajor();
+                }
+              }}
+            />
+            <div className="flex justify-end gap-2">
+              <button
+                onClick={() => setIsMajorModalOpen(false)}
+                className="px-4 py-2 text-xs font-bold rounded-[var(--radius-md)] bg-gray-200 dark:bg-gray-800 text-[var(--foreground)] hover:opacity-90 active:scale-[0.98] transition-all cursor-pointer"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleSaveMajor}
+                disabled={savingMajor}
+                className="px-4 py-2 text-xs font-bold rounded-[var(--radius-md)] bg-[var(--accent)] text-white hover:bg-[var(--accent-hover)] active:scale-[0.98] transition-all disabled:opacity-50 cursor-pointer flex items-center gap-1.5"
+              >
+                {savingMajor && <Loader2 className="h-3 w-3 animate-spin" />}
+                Save
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </PageShell>
   )
 }
