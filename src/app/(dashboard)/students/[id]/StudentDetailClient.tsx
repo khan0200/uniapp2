@@ -68,6 +68,10 @@ export function StudentDetailClient({ studentId, onClose, onStudentIdChange }: S
     // De-duplicate array case-insensitively
     const unique = Array.from(new Set(MAJOR_SUGGESTIONS.map(s => s.trim())))
     
+    // If the input exactly matches one of the options (case-insensitively), hide suggestions
+    const exactMatch = unique.some(s => s.toLowerCase() === query.trim())
+    if (exactMatch) return []
+    
     return unique.filter(s => s.toLowerCase().includes(query))
   }, [tempMajorValue])
   const [nameLanguage, setNameLanguage] = useState<'EN' | 'KR'>('EN')
