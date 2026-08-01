@@ -60,6 +60,16 @@ export function StudentDetailClient({ studentId, onClose, onStudentIdChange }: S
   const [majorEditingField, setMajorEditingField] = useState<'university_1_major' | 'university_2_major' | 'university_3_major' | null>(null)
   const [tempMajorValue, setTempMajorValue] = useState('')
   const [savingMajor, setSavingMajor] = useState(false)
+
+  const filteredSuggestions = useMemo(() => {
+    if (!tempMajorValue.trim()) return []
+    const query = tempMajorValue.toLowerCase()
+    
+    // De-duplicate array case-insensitively
+    const unique = Array.from(new Set(MAJOR_SUGGESTIONS.map(s => s.trim())))
+    
+    return unique.filter(s => s.toLowerCase().includes(query))
+  }, [tempMajorValue])
   const [nameLanguage, setNameLanguage] = useState<'EN' | 'KR'>('EN')
   const [koreanNames, setKoreanNames] = useState<{ full: string; family: string; given: string } | null>(null)
   const [isTranslatingNames, setIsTranslatingNames] = useState(false)
@@ -159,17 +169,18 @@ export function StudentDetailClient({ studentId, onClose, onStudentIdChange }: S
   const handleSaveMajor = async () => {
     if (!majorEditingField || !selectedStudentState) return
     setSavingMajor(true)
+    const formattedMajor = tempMajorValue.trim().toUpperCase() || null
     try {
       const nextStudent = {
         ...selectedStudentState,
-        [majorEditingField]: tempMajorValue || null,
+        [majorEditingField]: formattedMajor,
         jarayon_updated_at: new Date().toISOString()
       }
       const syncedPick = syncMissingDocuments(nextStudent)
       const { error } = await (supabase
         .from('students') as any)
         .update({
-          [majorEditingField]: tempMajorValue || null,
+          [majorEditingField]: formattedMajor,
           jarayon_updated_at: new Date().toISOString(),
           pick_needed: syncedPick
         })
@@ -2103,19 +2114,35 @@ export function StudentDetailClient({ studentId, onClose, onStudentIdChange }: S
             <p className="text-xs text-[var(--foreground-muted)] mb-3">
               Enter the major manually for <strong>{majorModalLabel}</strong>.
             </p>
-            <input
-              type="text"
-              value={tempMajorValue}
-              onChange={(e) => setTempMajorValue(e.target.value)}
-              placeholder="e.g. BUSINESS ADMINISTRATION"
-              className="w-full rounded-[var(--radius-md)] border border-[var(--border)] bg-[var(--background)] px-3.5 py-2.5 text-sm text-[var(--foreground)] placeholder:text-[var(--foreground-subtle)] focus:outline-none focus:ring-2 focus:ring-[var(--accent)] focus:border-transparent transition-all mb-5 uppercase"
-              autoFocus
-              onKeyDown={async (e) => {
-                if (e.key === 'Enter') {
-                  await handleSaveMajor();
-                }
-              }}
-            />
+            <div className="relative mb-5">
+              <input
+                type="text"
+                value={tempMajorValue}
+                onChange={(e) => setTempMajorValue(e.target.value)}
+                placeholder="e.g. BUSINESS ADMINISTRATION"
+                className="w-full rounded-[var(--radius-md)] border border-[var(--border)] bg-[var(--background)] px-3.5 py-2.5 text-sm text-[var(--foreground)] placeholder:text-[var(--foreground-subtle)] focus:outline-none focus:ring-2 focus:ring-[var(--accent)] focus:border-transparent transition-all uppercase"
+                autoFocus
+                onKeyDown={async (e) => {
+                  if (e.key === 'Enter') {
+                    await handleSaveMajor();
+                  }
+                }}
+              />
+              {filteredSuggestions.length > 0 && (
+                <div className="absolute left-0 right-0 mt-1 max-h-40 overflow-y-auto border border-[var(--border)] rounded-[var(--radius-md)] bg-[var(--surface-elevated)] shadow-lg z-50 divide-y divide-[var(--border-subtle)] animate-in fade-in slide-in-from-top-1 duration-100">
+                  {filteredSuggestions.map((suggestion) => (
+                    <button
+                      key={suggestion}
+                      type="button"
+                      onClick={() => setTempMajorValue(suggestion.toUpperCase())}
+                      className="w-full text-left px-3.5 py-2 text-xs font-semibold hover:bg-[var(--surface-hover)] text-[var(--foreground)] transition-colors cursor-pointer"
+                    >
+                      {suggestion.toUpperCase()}
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
             <div className="flex justify-end gap-2">
               <button
                 onClick={() => setIsMajorModalOpen(false)}
@@ -2138,3 +2165,49 @@ export function StudentDetailClient({ studentId, onClose, onStudentIdChange }: S
     </PageShell>
   )
 }
+
+const MAJOR_SUGGESTIONS = [
+  "Business Administration",
+  "International Business",
+  "Economics",
+  "Accounting",
+  "Finance",
+  "Marketing",
+  "Hospitality & Tourism Management",
+  "Hotel Management",
+  "Tourism Management",
+  "Global Business",
+  "International Trade",
+  "International Studies",
+  "Korean Language & Literature",
+  "Korean Language Education",
+  "Media & Communication",
+  "Journalism",
+  "Artificial Intelligence",
+  "Computer Science",
+  "Software Engineering",
+  "Computer Engineering",
+  "Information Technology (IT)",
+  "Data Science",
+  "Cyber Security",
+  "Electrical Engineering",
+  "Electronic Engineering",
+  "Mechanical Engineering",
+  "Civil Engineering",
+  "Industrial Engineering",
+  "Automotive Engineering",
+  "Naval Architecture & Marine Engineering",
+  "SHIP BUILDING",
+  "Marine Power Machinery Engineering",
+  "Architecture",
+  "Biotechnology",
+  "Biomedical Engineering",
+  "Nursing",
+  "Pharmacy",
+  "Fashion Design",
+  "Beauty & Cosmetology",
+  "Animation & Game Design",
+  "Visual Design",
+  "Music & Performing Arts",
+  "Korean Tourism Service Department"
+]
