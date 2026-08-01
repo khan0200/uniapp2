@@ -8,6 +8,12 @@ const MANAGER_ONLY_ROUTES = ['/payments', '/settings', '/users']
 // Routes that are publicly accessible (no auth required)
 const PUBLIC_ROUTES = ['/login']
 
+// Mapping from production domains to expected tenant IDs
+const DOMAIN_TENANT_MAP: Record<string, string> = {
+  'crm.unibridge.uz': 'unibridge',
+  'sodiqcrm.vercel.app': 'sodiq',
+}
+
 export async function proxy(request: NextRequest) {
   let supabaseResponse = NextResponse.next({ request })
 
@@ -53,27 +59,46 @@ export async function proxy(request: NextRequest) {
     return NextResponse.redirect(loginUrl)
   }
 
-  // ── 2. Authenticated users on public routes → redirect to dashboard ───────
-  if (user && PUBLIC_ROUTES.includes(pathname)) {
-    const dashboardUrl = request.nextUrl.clone()
-    dashboardUrl.pathname = '/students'
-    return NextResponse.redirect(dashboardUrl)
-  }
-
-  // ── 3. Role-based access for Manager-only routes ──────────────────────────
-  if (user && MANAGER_ONLY_ROUTES.some((route) => pathname.startsWith(route))) {
+  // ── 2. Authenticated users checks ─────────────────────────────────────────
+  if (user) {
+    // 2a. Fetch user profile (tenant_id and role)
     const { data: profileData } = await supabase
       .from('profiles')
-      .select('role')
+      .select('role, tenant_id')
       .eq('id', user.id)
       .single()
 
-    const userRole = (profileData as { role: string } | null)?.role
+    const profile = profileData as { role: string; tenant_id: string } | null
 
-    if (!userRole || (userRole !== 'Manager' && userRole !== 'Head Manager')) {
-      const restrictedUrl = request.nextUrl.clone()
-      restrictedUrl.pathname = '/restricted'
-      return NextResponse.redirect(restrictedUrl)
+    // 2b. Restrict access based on domain/hostname mapping
+    const hostname = request.headers.get('host') || request.nextUrl.hostname
+    const cleanHostname = hostname.split(':')[0]
+    const expectedTenant = DOMAIN_TENANT_MAP[cleanHostname]
+
+    if (expectedTenant && profile && profile.tenant_id !== expectedTenant) {
+      // Force sign-out to clear the invalid session cookies
+      await supabase.auth.signOut()
+      const loginUrl = request.nextUrl.clone()
+      loginUrl.pathname = '/login'
+      loginUrl.searchParams.set('error', 'tenant_mismatch')
+      return NextResponse.redirect(loginUrl)
+    }
+
+    // 2c. Redirect to dashboard if trying to access public route while logged in
+    if (PUBLIC_ROUTES.includes(pathname)) {
+      const dashboardUrl = request.nextUrl.clone()
+      dashboardUrl.pathname = '/students'
+      return NextResponse.redirect(dashboardUrl)
+    }
+
+    // 2d. Role-based access for Manager-only routes
+    if (MANAGER_ONLY_ROUTES.some((route) => pathname.startsWith(route))) {
+      const userRole = profile?.role
+      if (!userRole || (userRole !== 'Manager' && userRole !== 'Head Manager')) {
+        const restrictedUrl = request.nextUrl.clone()
+        restrictedUrl.pathname = '/restricted'
+        return NextResponse.redirect(restrictedUrl)
+      }
     }
   }
 
