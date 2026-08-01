@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { useStudentDashboard } from '@/contexts/StudentDashboardContext'
 import { type Student } from '@/types/database'
@@ -50,6 +50,47 @@ export function DocumentsClient() {
   const [isModalOpen, setIsModalOpen] = useState(false)
   const modalTransition = useCssTransition(isModalOpen && !!selectedStudent, 220)
   const [modalUpdating, setModalUpdating] = useState(false)
+
+  // The modal has one fixed design. Rather than reflowing it on shorter
+  // screens, measure its natural size and zoom the whole thing down until it
+  // fits — so a 1366x768 laptop sees the same layout, just smaller.
+  const modalPanelRef = useRef<HTMLDivElement | null>(null)
+  const [modalZoom, setModalZoom] = useState(1)
+
+  useEffect(() => {
+    if (!modalTransition.shouldRender) {
+      setModalZoom(1)
+      return
+    }
+
+    const recalcZoom = () => {
+      const panel = modalPanelRef.current
+      if (!panel) return
+
+      // Measure at zoom 1 so the natural size is never read through a zoom
+      // we applied ourselves on a previous pass.
+      panel.style.zoom = '1'
+      const naturalHeight = panel.scrollHeight
+      const naturalWidth = panel.scrollWidth
+      panel.style.zoom = ''
+
+      // 32px accounts for the p-4 padding on the backdrop wrapper.
+      const availableHeight = window.innerHeight - 32
+      const availableWidth = window.innerWidth - 32
+
+      const next = Math.min(1, availableHeight / naturalHeight, availableWidth / naturalWidth)
+      // Never shrink past readability; below this the modal scrolls instead.
+      setModalZoom(Math.max(next, 0.65))
+    }
+
+    // Let the panel paint once before measuring it.
+    const raf = requestAnimationFrame(recalcZoom)
+    window.addEventListener('resize', recalcZoom)
+    return () => {
+      cancelAnimationFrame(raf)
+      window.removeEventListener('resize', recalcZoom)
+    }
+  }, [modalTransition.shouldRender, selectedStudent?.id])
 
   // Real payments done sum (fetched from payments table)
   const [studentPaymentsDone, setStudentPaymentsDone] = useState<number | null>(null)
@@ -1033,7 +1074,7 @@ export function DocumentsClient() {
 
       {/* Dynamic Manage Documents Modal */}
       {modalTransition.shouldRender && selectedStudent && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 overflow-auto">
             <div
               className={cn(
                 'fixed inset-0 bg-black/50 transition-opacity duration-220 ease-out',
@@ -1042,12 +1083,22 @@ export function DocumentsClient() {
               onClick={() => setIsModalOpen(false)}
             />
 
+            {/* Scale wrapper: the modal keeps one fixed design at every size —
+                on screens too short to fit it (e.g. 1366x768) the whole thing
+                is zoomed down proportionally instead of reflowing, so it looks
+                identical everywhere, just smaller. */}
             <div
               className={cn(
-                'relative w-full max-w-4xl max-h-[95vh] overflow-y-auto rounded-3xl border border-[var(--border)] bg-[var(--surface-elevated)] p-6 shadow-[var(--shadow-lg)] z-10 flex flex-col gap-6',
-                'transition-all duration-220 ease-[cubic-bezier(0.25,0.46,0.45,0.94)]',
+                'relative z-10 transition-all duration-220 ease-[cubic-bezier(0.25,0.46,0.45,0.94)]',
                 modalTransition.isVisible ? 'opacity-100 scale-100 translate-y-0' : 'opacity-0 scale-95 translate-y-[15px]'
               )}
+              style={{ zoom: modalZoom }}
+            >
+            <div
+              className={cn(
+                'w-[896px] max-w-[calc(100vw-2rem)] rounded-3xl border border-[var(--border)] bg-[var(--surface-elevated)] p-6 shadow-[var(--shadow-lg)] flex flex-col gap-6'
+              )}
+              ref={modalPanelRef}
             >
             {/* Close Button */}
             <button
@@ -1294,6 +1345,7 @@ export function DocumentsClient() {
                 <CheckCircle2 className="h-4.5 w-4.5" />
                 Done
               </button>
+            </div>
             </div>
             </div>
           </div>
