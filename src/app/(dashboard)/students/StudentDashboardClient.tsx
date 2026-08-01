@@ -4541,7 +4541,7 @@ export function StudentDashboardClient({ hidePhone = false }: { hidePhone?: bool
           <div
             ref={drawerRef}
             className={cn(
-              'relative w-full max-w-[calc(98vw+20px)] md:max-w-[calc(95vw+20px)] lg:max-w-[calc(90vw+20px)] xl:max-w-[calc(80vw+20px)] h-full bg-[var(--background)] border border-[var(--border)] rounded-2xl shadow-[var(--shadow-lg)] z-10 flex flex-col overflow-hidden pointer-events-auto',
+              'relative w-full max-w-[calc(98vw+20px)] md:max-w-[calc(96vw+20px)] lg:max-w-[calc(95vw+20px)] xl:max-w-[calc(80vw+20px)] h-full bg-[var(--background)] border border-[var(--border)] rounded-2xl shadow-[var(--shadow-lg)] z-10 flex flex-col overflow-hidden pointer-events-auto',
               'transition-transform ease-[cubic-bezier(0.16,1,0.3,1)]',
               activeDetailStudentId ? 'translate-x-0' : 'translate-x-full'
             )}

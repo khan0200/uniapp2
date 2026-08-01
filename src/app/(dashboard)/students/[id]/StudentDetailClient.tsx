@@ -92,14 +92,34 @@ export function StudentDetailClient({ studentId, onClose, onStudentIdChange }: S
     if (selectedStudent?.language_certificate_3) setShowCert3(true)
   }, [selectedStudent?.level2, selectedStudent?.language_certificate_2, selectedStudent?.language_certificate_3])
 
-  // Hiding a slot only affects local UI state, not the saved record — if the
-  // slot still holds data, confirm first since the value stays in the
-  // database but disappears from view until "+" is clicked again.
-  const confirmHideSlot = (hasData: boolean, hide: () => void) => {
-    if (hasData && !window.confirm('This field still has data saved. Hide it from view anyway? The data will not be deleted.')) {
+  // Removing an extra Level to Study / Language Certificate slot clears its
+  // saved value(s) so it doesn't silently come back on the next refresh —
+  // the earlier "hide without clearing" behavior left data in the DB, which
+  // the load-time effect above then used to re-show the slot.
+  const handleClearAndHideSlot = async (fields: string[], hide: () => void) => {
+    if (!selectedStudentState) return
+    const hasData = fields.some((f) => !!(selectedStudent as any)?.[f])
+    if (hasData && !window.confirm('This will clear the saved value for this field. Continue?')) {
       return
     }
+
     hide()
+
+    if (!hasData) return
+
+    const updateData: any = Object.fromEntries(fields.map((f) => [f, null]))
+    const { error: updateError } = await (supabase
+      .from('students') as any)
+      .update(updateData)
+      .eq('id', selectedStudent.id)
+
+    if (updateError) {
+      console.error('Error clearing field(s) on slot removal:', updateError)
+      return
+    }
+
+    setSelectedStudent((prev) => (prev ? { ...prev, ...updateData } : prev))
+    fetchStudents(true)
   }
 
   // tariffOptions/tariffPrices/levelOptions/groupOptions/leadByOptions come from
@@ -776,7 +796,7 @@ export function StudentDetailClient({ studentId, onClose, onStudentIdChange }: S
         <div
           className={cn(
             "bg-[var(--surface)] border border-[#E5E7EB] dark:border-[var(--border)] border-l-[3px] border-l-gray-250 dark:border-l-gray-700 rounded-[var(--radius-md)] px-2.5 flex flex-col justify-between animate-pulse",
-            options.compact ? 'min-h-[52px] py-1' : 'min-h-[65px] py-1.5'
+            options.compact ? 'min-h-[52px] py-1' : 'min-h-[65px] lg:min-h-[56px] xl:min-h-[65px] py-1.5 lg:py-1 xl:py-1.5'
           )}
         >
           <div className="h-2.5 w-16 bg-gray-200 dark:bg-gray-700 rounded mt-1" />
@@ -808,7 +828,7 @@ export function StudentDetailClient({ studentId, onClose, onStudentIdChange }: S
         className={cn(
           "group relative bg-[var(--surface)] border border-[#E5E7EB] dark:border-[var(--border)] border-l-[3px] rounded-[var(--radius-md)] px-2.5 flex flex-col justify-between text-[var(--foreground)] hover:bg-[var(--surface-elevated)] transition-all duration-200 cursor-pointer",
           stripeColor,
-          options.compact ? 'min-h-[52px] py-1' : 'min-h-[65px] py-1.5',
+          options.compact ? 'min-h-[52px] py-1' : 'min-h-[65px] lg:min-h-[56px] xl:min-h-[65px] py-1.5 lg:py-1 xl:py-1.5',
           isCopied && "animate-copy-press"
         )}
         title={copyable && value ? 'Single-click value to copy.' : undefined}
@@ -816,13 +836,14 @@ export function StudentDetailClient({ studentId, onClose, onStudentIdChange }: S
         {isMissing && (
           <span className="wave-dot" style={{ position: 'absolute', top: '50%', right: '6px', transform: 'translateY(-50%)', height: '8px', width: '8px', borderRadius: '9999px', backgroundColor: '#e11d48', color: '#e11d48' }} />
         )}
-        <div className="flex items-center justify-between gap-2">
-          <span className="text-[11px] uppercase tracking-wide glitter-label">
+        <div className="flex items-center justify-between gap-1.5">
+          <span className="text-[11px] uppercase tracking-wide glitter-label min-w-0 truncate" title={label}>
             {label}
           </span>
           <div className={cn(
             "opacity-0 group-hover:opacity-100 focus-within:opacity-100 transition-opacity shrink-0",
-            activeButtonsCount > 2 ? "grid grid-cols-2 gap-0.5" : "flex items-center gap-1.5"
+            "flex items-center",
+            activeButtonsCount > 2 ? "gap-0.5" : "gap-1.5"
           )}>
             {copyable && value && !isEditing && (
               <button
@@ -1005,7 +1026,7 @@ export function StudentDetailClient({ studentId, onClose, onStudentIdChange }: S
         className={cn(
           "group relative bg-[var(--surface)] border border-[#E5E7EB] dark:border-[var(--border)] border-l-[3px] rounded-[var(--radius-md)] px-2.5 flex flex-col justify-between text-[var(--foreground)] hover:bg-[var(--surface-elevated)] transition-all duration-200 cursor-pointer",
           isMissing ? 'border-l-rose-600' : 'border-l-[var(--accent)]',
-          options.compact ? 'min-h-[52px] py-1' : 'min-h-[65px] py-1.5',
+          options.compact ? 'min-h-[52px] py-1' : 'min-h-[65px] lg:min-h-[56px] xl:min-h-[65px] py-1.5 lg:py-1 xl:py-1.5',
           isCopied && "animate-copy-press"
         )}
         title={certVal && certVal !== 'NO CERTIFICATE' ? 'Single-click value to copy.' : undefined}
@@ -1013,11 +1034,12 @@ export function StudentDetailClient({ studentId, onClose, onStudentIdChange }: S
         {isMissing && (
           <span className="wave-dot" style={{ position: 'absolute', top: '50%', right: '6px', transform: 'translateY(-50%)', height: '8px', width: '8px', borderRadius: '9999px', backgroundColor: '#e11d48', color: '#e11d48' }} />
         )}
-        <div className="flex items-center justify-between gap-2">
-          <span className="text-[11px] uppercase tracking-wide glitter-label">{label}</span>
+        <div className="flex items-center justify-between gap-1.5">
+          <span className="text-[11px] uppercase tracking-wide glitter-label min-w-0 truncate" title={label}>{label}</span>
           <div className={cn(
             "opacity-0 group-hover:opacity-100 focus-within:opacity-100 transition-opacity shrink-0",
-            activeButtonsCount > 2 ? "grid grid-cols-2 gap-0.5" : "flex items-center gap-1.5"
+            "flex items-center",
+            activeButtonsCount > 2 ? "gap-0.5" : "gap-1.5"
           )}>
             {certVal && certVal !== 'NO CERTIFICATE' && !isEditing && (
               <button
@@ -1259,7 +1281,7 @@ export function StudentDetailClient({ studentId, onClose, onStudentIdChange }: S
             className={cn(
               "group relative bg-[var(--surface)] border border-[#E5E7EB] dark:border-[var(--border)] border-l-[3px] rounded-[var(--radius-md)] px-2.5 flex flex-col justify-between text-[var(--foreground)] hover:bg-[var(--surface-elevated)] transition-all duration-200 cursor-pointer",
               isMissing ? 'border-l-rose-600' : 'border-l-[var(--accent)]',
-              options.compact ? 'min-h-[52px] py-1' : 'min-h-[65px] py-1.5',
+              options.compact ? 'min-h-[52px] py-1' : 'min-h-[65px] lg:min-h-[56px] xl:min-h-[65px] py-1.5 lg:py-1 xl:py-1.5',
               isCopied && "animate-copy-press"
             )}
             title={uniVal ? 'Single-click value to copy.' : undefined}
@@ -1267,9 +1289,9 @@ export function StudentDetailClient({ studentId, onClose, onStudentIdChange }: S
             {isMissing && (
               <span className="wave-dot" style={{ position: 'absolute', top: '50%', right: '6px', transform: 'translateY(-50%)', height: '8px', width: '8px', borderRadius: '9999px', backgroundColor: '#e11d48', color: '#e11d48' }} />
             )}
-            <div className="flex items-center justify-between gap-2">
-              <span className="text-[10.5px] uppercase tracking-wide glitter-label">{label}</span>
-              <div className="flex items-center gap-1.5 opacity-0 group-hover:opacity-100 focus-within:opacity-100 transition-opacity">
+            <div className="flex items-center justify-between gap-1.5">
+              <span className="text-[10.5px] uppercase tracking-wide glitter-label min-w-0 truncate" title={label}>{label}</span>
+              <div className="flex items-center gap-1.5 shrink-0 opacity-0 group-hover:opacity-100 focus-within:opacity-100 transition-opacity">
                 {uniVal && !isEditing && (
                   <button
                     onClick={(e) => {
@@ -1471,7 +1493,7 @@ export function StudentDetailClient({ studentId, onClose, onStudentIdChange }: S
       return (
         <div
           className={cn(
-            "bg-[var(--surface)] border border-[#E5E7EB] dark:border-[var(--border)] border-l-[3px] border-l-gray-250 dark:border-l-gray-700 rounded-[var(--radius-md)] px-2.5 py-1.5 flex flex-col justify-between animate-pulse min-h-[65px]"
+            "bg-[var(--surface)] border border-[#E5E7EB] dark:border-[var(--border)] border-l-[3px] border-l-gray-250 dark:border-l-gray-700 rounded-[var(--radius-md)] px-2.5 py-1.5 lg:py-1 xl:py-1.5 flex flex-col justify-between animate-pulse min-h-[65px] lg:min-h-[56px] xl:min-h-[65px]"
           )}
         >
           <div className="h-2.5 w-16 bg-gray-200 dark:bg-gray-700 rounded mt-1" />
@@ -1485,7 +1507,7 @@ export function StudentDetailClient({ studentId, onClose, onStudentIdChange }: S
     return (
       <div
         className={cn(
-          "group relative bg-[var(--surface)] border border-[#E5E7EB] dark:border-[var(--border)] border-l-[3px] rounded-[var(--radius-md)] px-2.5 py-1.5 flex flex-col justify-between min-h-[65px] text-[var(--foreground)] hover:bg-[var(--surface-elevated)] transition-all duration-200 cursor-pointer",
+          "group relative bg-[var(--surface)] border border-[#E5E7EB] dark:border-[var(--border)] border-l-[3px] rounded-[var(--radius-md)] px-2.5 py-1.5 lg:py-1 xl:py-1.5 flex flex-col justify-between min-h-[65px] lg:min-h-[56px] xl:min-h-[65px] text-[var(--foreground)] hover:bg-[var(--surface-elevated)] transition-all duration-200 cursor-pointer",
           isMissing ? 'border-l-rose-600' : 'border-l-[var(--accent)]',
           isCopied && "animate-copy-press"
         )}
@@ -1494,14 +1516,14 @@ export function StudentDetailClient({ studentId, onClose, onStudentIdChange }: S
         {isMissing && (
           <span className="wave-dot" style={{ position: 'absolute', top: '50%', right: '6px', transform: 'translateY(-50%)', height: '8px', width: '8px', borderRadius: '9999px', backgroundColor: '#e11d48', color: '#e11d48' }} />
         )}
-        <div className="flex items-center justify-between gap-2">
-          <div className="flex items-center gap-1">
-            <span className="text-[11px] uppercase tracking-wide glitter-label">
+        <div className="flex items-center justify-between gap-1.5">
+          <div className="flex items-center gap-1 min-w-0">
+            <span className="text-[11px] uppercase tracking-wide glitter-label min-w-0 truncate" title={label}>
               {label}
             </span>
-            <span className="bg-[var(--border-subtle)] border border-[var(--border)] text-[9.5px] px-1.5 py-0.2 rounded font-bold text-[var(--foreground-muted)] uppercase">AUTO</span>
+            <span className="bg-[var(--border-subtle)] border border-[var(--border)] text-[9.5px] px-1.5 py-0.2 rounded font-bold text-[var(--foreground-muted)] uppercase shrink-0">AUTO</span>
           </div>
-          <div className="flex items-center gap-1.5 opacity-0 group-hover:opacity-100 focus-within:opacity-100 transition-opacity">
+          <div className="flex items-center gap-1.5 shrink-0 opacity-0 group-hover:opacity-100 focus-within:opacity-100 transition-opacity">
             {value && !isLoading && (
               <button
                 onClick={(e) => {
@@ -1725,11 +1747,11 @@ export function StudentDetailClient({ studentId, onClose, onStudentIdChange }: S
         </div>
 
         {/* Main Dashboard Layout (3-Column Grid) */}
-        <div className="grid grid-cols-1 lg:grid-cols-[1.45fr_1.25fr_0.75fr] gap-3 pb-1">
+        <div className="grid grid-cols-1 lg:grid-cols-[1.35fr_1.15fr_0.85fr] xl:grid-cols-[1.45fr_1.25fr_0.75fr] gap-3 lg:gap-2 xl:gap-3 pb-1">
           {/* Column 1: Passport Details & Contact */}
           <div className="flex flex-col gap-3">
             {/* Passport Details Block */}
-            <div className="bg-white/10 dark:bg-white/5 backdrop-blur-md border border-white/20 dark:border-white/10 rounded-[var(--radius-md)] p-3 shadow-[var(--shadow-sm)] flex flex-col gap-2.5">
+            <div className="bg-white/10 dark:bg-white/5 backdrop-blur-md border border-white/20 dark:border-white/10 rounded-[var(--radius-md)] p-3 lg:p-2 xl:p-3 shadow-[var(--shadow-sm)] flex flex-col gap-2.5 lg:gap-2 xl:gap-2.5">
               <div className="flex items-center justify-between gap-1.5 pb-1.5 border-b border-[var(--border)]">
                 <div className="flex items-center gap-1.5">
                   <User className="h-3.5 w-3.5 text-[var(--accent)]" />
@@ -1823,7 +1845,7 @@ export function StudentDetailClient({ studentId, onClose, onStudentIdChange }: S
             </div>
 
             {/* Contact Block */}
-            <div className="bg-white/10 dark:bg-white/5 backdrop-blur-md border border-white/20 dark:border-white/10 rounded-[var(--radius-md)] p-3 shadow-[var(--shadow-sm)] flex flex-col gap-2.5">
+            <div className="bg-white/10 dark:bg-white/5 backdrop-blur-md border border-white/20 dark:border-white/10 rounded-[var(--radius-md)] p-3 lg:p-2 xl:p-3 shadow-[var(--shadow-sm)] flex flex-col gap-2.5 lg:gap-2 xl:gap-2.5">
               <div className="flex items-center gap-1.5 pb-1.5 border-b border-[var(--border)]">
                 <Mail className="h-3.5 w-3.5 text-[var(--accent)]" />
                 <h3 className="text-[13px] font-semibold uppercase tracking-wide text-[#64748B]">
@@ -1852,75 +1874,68 @@ export function StudentDetailClient({ studentId, onClose, onStudentIdChange }: S
           {/* Column 2: Academic, Universities & Family */}
           <div className="flex flex-col gap-3">
             {/* Academic & Languages Block */}
-            <div className="bg-white/10 dark:bg-white/5 backdrop-blur-md border border-white/20 dark:border-white/10 rounded-[var(--radius-md)] p-3 shadow-[var(--shadow-sm)] flex flex-col gap-2.5">
+            <div className="bg-white/10 dark:bg-white/5 backdrop-blur-md border border-white/20 dark:border-white/10 rounded-[var(--radius-md)] p-3 lg:p-2 xl:p-3 shadow-[var(--shadow-sm)] flex flex-col gap-2.5 lg:gap-2 xl:gap-2.5">
               <div className="flex items-center gap-1.5 pb-1.5 border-b border-[var(--border)]">
                 <Layers className="h-3.5 w-3.5 text-[var(--accent)]" />
                 <h3 className="text-[13px] font-semibold uppercase tracking-wide text-[#64748B]">
                   Academic & Languages
                 </h3>
               </div>
-              <div className="flex flex-col gap-2">
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-1.5">
-                  {renderDetailCard('Tariff', 'tariff', selectedStudent.tariff, {
-                    type: 'select',
-                    selectOptions: ['Select', ...tariffOptions],
-                    badgeColor: 'bg-[#00875a] text-white',
-                    titleColor: 'text-[var(--accent)]'
-                  })}
-                  {renderDetailCard('Level to Study', 'level', selectedStudent.level, {
-                    type: 'select',
-                    selectOptions: ['Select', ...levelOptions],
-                    badgeColor: 'bg-[#0052cc] text-white',
-                    titleColor: 'text-[var(--accent)]',
-                    onAdd: showLevel2 ? undefined : () => setShowLevel2(true),
-                    addTitle: 'Add Level to Study 2'
-                  })}
-                </div>
+              {/* Single 2-column flow: each optional slot fills the next free
+                  cell instead of claiming its own row, so adding Level 2 /
+                  Cert 2 / Cert 3 never leaves a gap beside a lone card. */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-1.5">
+                {renderDetailCard('Tariff', 'tariff', selectedStudent.tariff, {
+                  type: 'select',
+                  selectOptions: ['Select', ...tariffOptions],
+                  badgeColor: 'bg-[#00875a] text-white',
+                  titleColor: 'text-[var(--accent)]'
+                })}
+                {renderDetailCard('Level to Study', 'level', selectedStudent.level, {
+                  type: 'select',
+                  selectOptions: ['Select', ...levelOptions],
+                  badgeColor: 'bg-[#0052cc] text-white',
+                  titleColor: 'text-[var(--accent)]',
+                  onAdd: showLevel2 ? undefined : () => setShowLevel2(true),
+                  addTitle: 'Add Level to Study 2'
+                })}
 
-                {showLevel2 && (
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-1.5">
-                    {renderDetailCard('Level to Study 2', 'level2', selectedStudent.level2, {
-                      type: 'select',
-                      selectOptions: ['Select', ...levelOptions],
-                      badgeColor: 'bg-[#ff9900] text-white',
-                      titleColor: 'text-[var(--accent)]',
-                      compact: true,
-                      onRemove: () => confirmHideSlot(!!selectedStudent.level2, () => setShowLevel2(false)),
-                      removeTitle: 'Hide Level to Study 2'
-                    })}
-                  </div>
-                )}
+                {showLevel2 && renderDetailCard('Level to Study 2', 'level2', selectedStudent.level2, {
+                  type: 'select',
+                  selectOptions: ['Select', ...levelOptions],
+                  badgeColor: 'bg-[#ff9900] text-white',
+                  titleColor: 'text-[var(--accent)]',
+                  onRemove: () => handleClearAndHideSlot(['level2'], () => setShowLevel2(false)),
+                  removeTitle: 'Remove Level to Study 2'
+                })}
 
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-1.5">
-                  {renderCertificateCard('Language Certificate 1', 'language_certificate', 'certificate_score', ['TOPIK', 'IELTS', 'TOEFL', 'CEFR', 'SAT', 'SKA', 'NO CERTIFICATE'], 'bg-[#de350b]', {
-                    onAdd: showCert2 ? undefined : () => setShowCert2(true),
-                    addTitle: 'Add Language Certificate 2'
-                  })}
-                  {showCert2 && renderCertificateCard('Language Certificate 2', 'language_certificate_2', 'certificate_score_2', ['TOPIK', 'IELTS', 'TOEFL', 'CEFR', 'SAT', 'SKA', 'NO CERTIFICATE'], 'bg-[#00b8d9]', {
-                    onAdd: showCert3 ? undefined : () => setShowCert3(true),
-                    addTitle: 'Add Language Certificate 3',
-                    onRemove: () => confirmHideSlot(!!selectedStudent.language_certificate_2 || !!selectedStudent.language_certificate_3, () => {
-                      setShowCert2(false)
-                      setShowCert3(false)
-                    }),
-                    removeTitle: 'Hide Language Certificate 2'
-                  })}
-                </div>
+                {renderCertificateCard('Language Certificate 1', 'language_certificate', 'certificate_score', ['TOPIK', 'IELTS', 'TOEFL', 'CEFR', 'SAT', 'SKA', 'NO CERTIFICATE'], 'bg-[#de350b]', {
+                  onAdd: showCert2 ? undefined : () => setShowCert2(true),
+                  addTitle: 'Add Language Certificate 2'
+                })}
 
-                {showCert3 && (
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-1.5">
-                    {renderCertificateCard('Language Certificate 3', 'language_certificate_3', 'certificate_score_3', ['TOPIK', 'IELTS', 'TOEFL', 'CEFR', 'SAT', 'SKA', 'NO CERTIFICATE'], 'bg-[#ff5630]', {
-                      compact: true,
-                      onRemove: () => confirmHideSlot(!!selectedStudent.language_certificate_3, () => setShowCert3(false)),
-                      removeTitle: 'Hide Language Certificate 3'
-                    })}
-                  </div>
-                )}
+                {showCert2 && renderCertificateCard('Language Certificate 2', 'language_certificate_2', 'certificate_score_2', ['TOPIK', 'IELTS', 'TOEFL', 'CEFR', 'SAT', 'SKA', 'NO CERTIFICATE'], 'bg-[#00b8d9]', {
+                  onAdd: showCert3 ? undefined : () => setShowCert3(true),
+                  addTitle: 'Add Language Certificate 3',
+                  onRemove: () => handleClearAndHideSlot(
+                    ['language_certificate_2', 'certificate_score_2'],
+                    () => { setShowCert2(false); setShowCert3(false) }
+                  ),
+                  removeTitle: 'Remove Language Certificate 2'
+                })}
+
+                {showCert3 && renderCertificateCard('Language Certificate 3', 'language_certificate_3', 'certificate_score_3', ['TOPIK', 'IELTS', 'TOEFL', 'CEFR', 'SAT', 'SKA', 'NO CERTIFICATE'], 'bg-[#ff5630]', {
+                  onRemove: () => handleClearAndHideSlot(
+                    ['language_certificate_3', 'certificate_score_3'],
+                    () => setShowCert3(false)
+                  ),
+                  removeTitle: 'Remove Language Certificate 3'
+                })}
               </div>
             </div>
 
             {/* Universities & Docs Block */}
-            <div className="bg-white/10 dark:bg-white/5 backdrop-blur-md border border-white/20 dark:border-white/10 rounded-[var(--radius-md)] p-3 shadow-[var(--shadow-sm)] flex flex-col gap-2.5">
+            <div className="bg-white/10 dark:bg-white/5 backdrop-blur-md border border-white/20 dark:border-white/10 rounded-[var(--radius-md)] p-3 lg:p-2 xl:p-3 shadow-[var(--shadow-sm)] flex flex-col gap-2.5 lg:gap-2 xl:gap-2.5">
               <div className="flex items-center gap-1.5 pb-1.5 border-b border-[var(--border)]">
                 <GraduationCap className="h-3.5 w-3.5 text-[var(--accent)]" />
                 <h3 className="text-[13px] font-semibold uppercase tracking-wide text-[#64748B]">
@@ -1935,7 +1950,7 @@ export function StudentDetailClient({ studentId, onClose, onStudentIdChange }: S
             </div>
 
             {/* Family Info Block */}
-            <div className="bg-white/10 dark:bg-white/5 backdrop-blur-md border border-white/20 dark:border-white/10 rounded-[var(--radius-md)] p-3 shadow-[var(--shadow-sm)] flex flex-col gap-2.5">
+            <div className="bg-white/10 dark:bg-white/5 backdrop-blur-md border border-white/20 dark:border-white/10 rounded-[var(--radius-md)] p-3 lg:p-2 xl:p-3 shadow-[var(--shadow-sm)] flex flex-col gap-2.5 lg:gap-2 xl:gap-2.5">
               <div className="flex items-center gap-1.5 pb-1.5 border-b border-[var(--border)]">
                 <User className="h-3.5 w-3.5 text-[var(--accent)]" />
                 <h3 className="text-[13px] font-semibold uppercase tracking-wide text-[#64748B]">
@@ -1956,7 +1971,7 @@ export function StudentDetailClient({ studentId, onClose, onStudentIdChange }: S
           {/* Column 3: System & Finance */}
           <div className="flex flex-col gap-3">
             {/* System & Finance Block */}
-            <div className="bg-white/10 dark:bg-white/5 backdrop-blur-md border border-white/20 dark:border-white/10 rounded-[var(--radius-md)] p-3 shadow-[var(--shadow-sm)] flex flex-col gap-2.5">
+            <div className="bg-white/10 dark:bg-white/5 backdrop-blur-md border border-white/20 dark:border-white/10 rounded-[var(--radius-md)] p-3 lg:p-2 xl:p-3 shadow-[var(--shadow-sm)] flex flex-col gap-2.5 lg:gap-2 xl:gap-2.5">
               <div className="flex items-center gap-1.5 pb-1.5 border-b border-[var(--border)]">
                 <Landmark className="h-3.5 w-3.5 text-[var(--accent)]" />
                 <h3 className="text-[13px] font-semibold uppercase tracking-wide text-[#64748B]">
@@ -1967,14 +1982,14 @@ export function StudentDetailClient({ studentId, onClose, onStudentIdChange }: S
                 {/* Office Location Card */}
                 {/* Office Card */}
                 {loading ? (
-                  <div className="bg-blue-500/20 rounded-[var(--radius-md)] p-2.5 min-h-[62px] animate-pulse flex flex-col justify-between">
+                  <div className="bg-blue-500/20 rounded-[var(--radius-md)] p-2.5 lg:p-2 xl:p-2.5 min-h-[62px] lg:min-h-[54px] xl:min-h-[62px] animate-pulse flex flex-col justify-between">
                     <div className="h-2.5 w-12 bg-blue-400/30 rounded" />
                     <div className="h-3.5 w-24 bg-blue-400/30 rounded" />
                   </div>
                 ) : (
                   <div
                     className={cn(
-                      "bg-blue-500 dark:bg-blue-600 rounded-[var(--radius-md)] p-2.5 text-white flex flex-col justify-between min-h-[62px] shadow-sm cursor-pointer transition-all duration-200",
+                      "bg-blue-500 dark:bg-blue-600 rounded-[var(--radius-md)] p-2.5 lg:p-2 xl:p-2.5 text-white flex flex-col justify-between min-h-[62px] lg:min-h-[54px] xl:min-h-[62px] shadow-sm cursor-pointer transition-all duration-200",
                       copiedField === 'office' && "animate-copy-press"
                     )}
                     title="Single-click value to copy."
@@ -2063,14 +2078,14 @@ export function StudentDetailClient({ studentId, onClose, onStudentIdChange }: S
 
                 {/* Student Balance Card */}
                 {loading ? (
-                  <div className="bg-emerald-500/20 rounded-[var(--radius-md)] p-2.5 min-h-[62px] animate-pulse flex flex-col justify-between">
+                  <div className="bg-emerald-500/20 rounded-[var(--radius-md)] p-2.5 lg:p-2 xl:p-2.5 min-h-[62px] lg:min-h-[54px] xl:min-h-[62px] animate-pulse flex flex-col justify-between">
                     <div className="h-2.5 w-12 bg-emerald-400/30 rounded" />
                     <div className="h-3.5 w-24 bg-emerald-400/30 rounded" />
                   </div>
                 ) : (
-                  <div 
+                  <div
                     className={cn(
-                      "rounded-[var(--radius-md)] p-2.5 text-white flex flex-col justify-between min-h-[62px] cursor-pointer transition-all duration-200",
+                      "rounded-[var(--radius-md)] p-2.5 lg:p-2 xl:p-2.5 text-white flex flex-col justify-between min-h-[62px] lg:min-h-[54px] xl:min-h-[62px] cursor-pointer transition-all duration-200",
                       selectedStudent.balance < 0 ? 'bg-rose-500 dark:bg-rose-600' : 'bg-emerald-500 dark:bg-emerald-600',
                       copiedField === 'balance' && "animate-copy-press"
                     )}
@@ -2110,14 +2125,14 @@ export function StudentDetailClient({ studentId, onClose, onStudentIdChange }: S
 
                 {/* Payments Done Card */}
                 {loading ? (
-                  <div className="bg-emerald-500/20 rounded-[var(--radius-md)] p-2.5 min-h-[62px] animate-pulse flex flex-col justify-between">
+                  <div className="bg-emerald-500/20 rounded-[var(--radius-md)] p-2.5 lg:p-2 xl:p-2.5 min-h-[62px] lg:min-h-[54px] xl:min-h-[62px] animate-pulse flex flex-col justify-between">
                     <div className="h-2.5 w-20 bg-emerald-400/30 rounded" />
                     <div className="h-3.5 w-24 bg-emerald-400/30 rounded" />
                   </div>
                 ) : (
-                  <div 
+                  <div
                     className={cn(
-                      "bg-emerald-500 dark:bg-emerald-600 rounded-[var(--radius-md)] p-2.5 text-white flex flex-col justify-between min-h-[62px] cursor-pointer transition-all duration-200",
+                      "bg-emerald-500 dark:bg-emerald-600 rounded-[var(--radius-md)] p-2.5 lg:p-2 xl:p-2.5 text-white flex flex-col justify-between min-h-[62px] lg:min-h-[54px] xl:min-h-[62px] cursor-pointer transition-all duration-200",
                       copiedField === 'payments_done' && "animate-copy-press"
                     )}
                     title="Single-click value to copy."
@@ -2156,14 +2171,14 @@ export function StudentDetailClient({ studentId, onClose, onStudentIdChange }: S
 
                 {/* Discount Card */}
                 {loading ? (
-                  <div className="bg-orange-500/20 rounded-[var(--radius-md)] p-2.5 min-h-[62px] animate-pulse flex flex-col justify-between">
+                  <div className="bg-orange-500/20 rounded-[var(--radius-md)] p-2.5 lg:p-2 xl:p-2.5 min-h-[62px] lg:min-h-[54px] xl:min-h-[62px] animate-pulse flex flex-col justify-between">
                     <div className="h-2.5 w-16 bg-orange-400/30 rounded" />
                     <div className="h-3.5 w-24 bg-orange-400/30 rounded" />
                   </div>
                 ) : (
-                  <div 
+                  <div
                     className={cn(
-                      "bg-orange-500 dark:bg-orange-600 rounded-[var(--radius-md)] p-2.5 text-white flex flex-col justify-between min-h-[62px] cursor-pointer transition-all duration-200",
+                      "bg-orange-500 dark:bg-orange-600 rounded-[var(--radius-md)] p-2.5 lg:p-2 xl:p-2.5 text-white flex flex-col justify-between min-h-[62px] lg:min-h-[54px] xl:min-h-[62px] cursor-pointer transition-all duration-200",
                       copiedField === 'discount' && "animate-copy-press"
                     )}
                     title="Single-click value to copy."
