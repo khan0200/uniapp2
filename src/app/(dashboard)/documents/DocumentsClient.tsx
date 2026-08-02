@@ -176,7 +176,9 @@ export function DocumentsClient() {
     if (s.university_1 && s.university_1.trim() !== "") used++
     if (s.university_2 && s.university_2.trim() !== "") used++
     if (s.university_3 && s.university_3.trim() !== "") used++
-    return Math.max(0, 3 - used)
+    if (s.university_4 && s.university_4.trim() !== "") used++
+    if (s.university_5 && s.university_5.trim() !== "") used++
+    return Math.max(0, 5 - used)
   }
 
   // Sorting (Alphanumeric sorting logic matching legacy compareStudentIds helper)

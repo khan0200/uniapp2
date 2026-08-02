@@ -336,6 +336,12 @@ export function ImportClient() {
     mapped.university_3 = isFirestore ? (getVal(['university3', 'university_3']) || null) : (getVal([excelMapping['university_3']]) || null)
     mapped.university_3_status = isFirestore ? (getVal(['university3Status', 'university_3_status']) || null) : (getVal([excelMapping['university_3_status']]) || null)
 
+    mapped.university_4 = isFirestore ? (getVal(['university4', 'university_4']) || null) : (getVal([excelMapping['university_4']]) || null)
+    mapped.university_4_status = isFirestore ? (getVal(['university4Status', 'university_4_status']) || null) : (getVal([excelMapping['university_4_status']]) || null)
+
+    mapped.university_5 = isFirestore ? (getVal(['university5', 'university_5']) || null) : (getVal([excelMapping['university_5']]) || null)
+    mapped.university_5_status = isFirestore ? (getVal(['university5Status', 'university_5_status']) || null) : (getVal([excelMapping['university_5_status']]) || null)
+
     // Financial
     mapped.balance = parseFloat(String(isFirestore ? (getVal(['balance']) || 0) : (getVal([excelMapping['balance']]) || 0))) || 0
     mapped.discount = parseFloat(String(isFirestore ? (getVal(['discount']) || 0) : (getVal([excelMapping['discount']]) || 0))) || 0
@@ -535,6 +541,10 @@ export function ImportClient() {
           matchHeader('university_2_status', ['university 2 status', 'otm 2 status', 'university2status'])
           matchHeader('university_3', ['university 3', 'universitet 3', 'otm 3', 'university3'])
           matchHeader('university_3_status', ['university 3 status', 'otm 3 status', 'university3status'])
+          matchHeader('university_4', ['university 4', 'universitet 4', 'otm 4', 'university4'])
+          matchHeader('university_4_status', ['university 4 status', 'otm 4 status', 'university4status'])
+          matchHeader('university_5', ['university 5', 'universitet 5', 'otm 5', 'university5'])
+          matchHeader('university_5_status', ['university 5 status', 'otm 5 status', 'university5status'])
           
           matchHeader('balance', ['balance', 'balans', 'qoldiq'])
           matchHeader('discount', ['discount', 'chegirma'])
@@ -1013,6 +1023,10 @@ export function ImportClient() {
                             { key: 'university_2_status', label: 'University 2 Status' },
                             { key: 'university_3', label: 'University 3' },
                             { key: 'university_3_status', label: 'University 3 Status' },
+                            { key: 'university_4', label: 'University 4' },
+                            { key: 'university_4_status', label: 'University 4 Status' },
+                            { key: 'university_5', label: 'University 5' },
+                            { key: 'university_5_status', label: 'University 5 Status' },
                             { key: 'balance', label: 'Balance' },
                             { key: 'discount', label: 'Discount' },
                             { key: 'father_name', label: 'Father Fullname' },

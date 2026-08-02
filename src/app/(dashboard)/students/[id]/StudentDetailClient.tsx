@@ -8,7 +8,7 @@ import {
   Building2, Landmark, Tag, Layers, 
   ChevronDown, Copy, ArrowLeft,
   Mail, Calendar, MapPin, User, CheckSquare, GraduationCap, Hourglass, X,
-  FileText, RefreshCw, Trash2, BookOpen, Maximize2, Minimize2
+  FileText, RefreshCw, Trash2, BookOpen, Maximize2, Minimize2, Eraser
 } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import { type Student, type StudentLevel, type StudentTariff, type Profile } from '@/types/database'
@@ -107,7 +107,7 @@ export function StudentDetailClient({ studentId, onClose, onStudentIdChange, isE
   // Major modal states
   const [isMajorModalOpen, setIsMajorModalOpen] = useState(false)
   const [majorModalLabel, setMajorModalLabel] = useState('')
-  const [majorEditingField, setMajorEditingField] = useState<'university_1_major' | 'university_2_major' | 'university_3_major' | null>(null)
+  const [majorEditingField, setMajorEditingField] = useState<'university_1_major' | 'university_2_major' | 'university_3_major' | 'university_4_major' | 'university_5_major' | null>(null)
   const [tempMajorValue, setTempMajorValue] = useState('')
   const [savingMajor, setSavingMajor] = useState(false)
 
@@ -135,12 +135,33 @@ export function StudentDetailClient({ studentId, onClose, onStudentIdChange, isE
   const [showLevel2, setShowLevel2] = useState(false)
   const [showCert2, setShowCert2] = useState(false)
   const [showCert3, setShowCert3] = useState(false)
+  const [showUni2, setShowUni2] = useState(false)
+  const [showUni3, setShowUni3] = useState(false)
+  const [showUni4, setShowUni4] = useState(false)
+  const [showUni5, setShowUni5] = useState(false)
 
   useEffect(() => {
     if (selectedStudent?.level2) setShowLevel2(true)
     if (selectedStudent?.language_certificate_2) setShowCert2(true)
     if (selectedStudent?.language_certificate_3) setShowCert3(true)
-  }, [selectedStudent?.level2, selectedStudent?.language_certificate_2, selectedStudent?.language_certificate_3])
+    if (selectedStudent?.university_2) setShowUni2(true)
+    if (selectedStudent?.university_3) setShowUni3(true)
+    if (selectedStudent?.university_4) setShowUni4(true)
+    if (selectedStudent?.university_5) setShowUni5(true)
+  }, [selectedStudent?.level2, selectedStudent?.language_certificate_2, selectedStudent?.language_certificate_3, selectedStudent?.university_2, selectedStudent?.university_3, selectedStudent?.university_4, selectedStudent?.university_5])
+
+  // Close active dropdowns when clicking outside
+  useEffect(() => {
+    const handleDocumentClick = (e: MouseEvent) => {
+      const target = e.target as Element;
+      if (target && target.closest && target.closest('.status-dropdown-area')) {
+        return;
+      }
+      setActiveStatusDropdown(null)
+    }
+    document.addEventListener('click', handleDocumentClick)
+    return () => document.removeEventListener('click', handleDocumentClick)
+  }, [])
 
   // Removing an extra Level to Study / Language Certificate slot clears its
   // saved value(s) so it doesn't silently come back on the next refresh —
@@ -157,7 +178,7 @@ export function StudentDetailClient({ studentId, onClose, onStudentIdChange, isE
 
     if (!hasData) return
 
-    const updateData: any = Object.fromEntries(fields.map((f) => [f, null]))
+    const updateData: any = Object.fromEntries(fields.map((f) => [f, f.includes('status') ? '' : null]))
     const { error: updateError } = await (supabase
       .from('students') as any)
       .update(updateData)
@@ -891,8 +912,7 @@ export function StudentDetailClient({ studentId, onClose, onStudentIdChange, isE
             {label}
           </span>
           <div className={cn(
-            "opacity-0 group-hover:opacity-100 focus-within:opacity-100 transition-opacity shrink-0",
-            "flex items-center",
+            "shrink-0 flex items-center",
             activeButtonsCount > 2 ? "gap-0.5" : "gap-1.5"
           )}>
             {copyable && value && !isEditing && (
@@ -1087,8 +1107,7 @@ export function StudentDetailClient({ studentId, onClose, onStudentIdChange, isE
         <div className="flex items-center justify-between gap-1.5">
           <span className="text-[11px] uppercase tracking-wide glitter-label min-w-0 truncate" title={label}>{label}</span>
           <div className={cn(
-            "opacity-0 group-hover:opacity-100 focus-within:opacity-100 transition-opacity shrink-0",
-            "flex items-center",
+            "shrink-0 flex items-center",
             activeButtonsCount > 2 ? "gap-0.5" : "gap-1.5"
           )}>
             {certVal && certVal !== 'NO CERTIFICATE' && !isEditing && (
@@ -1264,6 +1283,10 @@ export function StudentDetailClient({ studentId, onClose, onStudentIdChange, isE
         statusField: keyof Student,
         options: {
           compact?: boolean
+          onAdd?: () => void
+          addTitle?: string
+          onRemove?: () => void
+          removeTitle?: string
         } = {}
       ) => {
         const isEditing = editingField === uniField
@@ -1341,7 +1364,7 @@ export function StudentDetailClient({ studentId, onClose, onStudentIdChange, isE
             )}
             <div className="flex items-center justify-between gap-1.5">
               <span className="text-[10.5px] uppercase tracking-wide glitter-label min-w-0 truncate" title={label}>{label}</span>
-              <div className="flex items-center gap-1.5 shrink-0 opacity-0 group-hover:opacity-100 focus-within:opacity-100 transition-opacity">
+              <div className="flex items-center gap-1.5 shrink-0">
                 {uniVal && !isEditing && (
                   <button
                     onClick={(e) => {
@@ -1364,6 +1387,55 @@ export function StudentDetailClient({ studentId, onClose, onStudentIdChange, isE
                     title="Edit university selection"
                   >
                     <Pencil className="h-3 w-3" />
+                  </button>
+                )}
+                {uniVal && !isEditing && (
+                  <button
+                    onClick={async (e) => {
+                      e.stopPropagation();
+                      if (!window.confirm('Clear this university selection?')) return;
+                      try {
+                        const majorField = (uniField === 'university_1' ? 'university_1_major' : uniField === 'university_2' ? 'university_2_major' : uniField === 'university_3' ? 'university_3_major' : uniField === 'university_4' ? 'university_4_major' : 'university_5_major') as keyof Student;
+                        const updateData = { [uniField]: null, [statusField]: '', [majorField]: null };
+                        const nextStudent = { ...selectedStudent!, ...updateData };
+                        const syncedPick = syncMissingDocuments(nextStudent);
+                        const { error } = await (supabase.from('students') as any)
+                          .update({ ...updateData, pick_needed: syncedPick, jarayon_updated_at: new Date().toISOString() })
+                          .eq('id', selectedStudent!.id);
+                        if (error) throw error;
+                        setSelectedStudent({ ...nextStudent, pick_needed: syncedPick, jarayon_updated_at: new Date().toISOString() });
+                      } catch (err: any) {
+                        alert(`Failed to clear university: ${err.message}`);
+                      }
+                    }}
+                    className="p-0.5 hover:bg-[var(--border-subtle)] rounded transition-all cursor-pointer text-[var(--foreground-muted)] hover:text-red-600"
+                    title="Clear university selection"
+                  >
+                    <Eraser className="h-3 w-3" />
+                  </button>
+                )}
+                {options.onAdd && !isEditing && (
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      options.onAdd!();
+                    }}
+                    className="p-0.5 hover:bg-[var(--border-subtle)] rounded transition-all cursor-pointer text-[var(--foreground-muted)] hover:text-[var(--foreground)]"
+                    title={options.addTitle || 'Add another'}
+                  >
+                    <Plus className="h-3 w-3" />
+                  </button>
+                )}
+                {options.onRemove && !isEditing && (
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      options.onRemove!();
+                    }}
+                    className="p-0.5 hover:bg-[var(--border-subtle)] rounded transition-all cursor-pointer text-[var(--foreground-muted)] hover:text-red-600"
+                    title={options.removeTitle || 'Remove'}
+                  >
+                    <X className="h-3 w-3" />
                   </button>
                 )}
               </div>
@@ -1463,7 +1535,7 @@ export function StudentDetailClient({ studentId, onClose, onStudentIdChange, isE
                               setActiveStatusDropdown(activeStatusDropdown === String(uniField) ? null : String(uniField));
                             }}
                             className={cn(
-                              "inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[10.5px] font-extrabold uppercase border cursor-pointer hover:opacity-90 active:scale-95 transition-all shadow-sm select-none",
+                              "status-dropdown-area inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[10.5px] font-extrabold uppercase border cursor-pointer hover:opacity-90 active:scale-95 transition-all shadow-sm select-none",
                               getStatusBadgeClass(statusVal)
                             )}
                           >
@@ -1476,8 +1548,8 @@ export function StudentDetailClient({ studentId, onClose, onStudentIdChange, isE
                             <span 
                               onClick={(e) => {
                                 e.stopPropagation();
-                                const majorField = uniField === 'university_1' ? 'university_1_major' : uniField === 'university_2' ? 'university_2_major' : 'university_3_major';
-                                setMajorEditingField(majorField);
+                                const majorField = (uniField === 'university_1' ? 'university_1_major' : uniField === 'university_2' ? 'university_2_major' : uniField === 'university_3' ? 'university_3_major' : uniField === 'university_4' ? 'university_4_major' : 'university_5_major') as keyof Student;
+                                setMajorEditingField(majorField as any);
                                 setMajorModalLabel(label);
                                 setTempMajorValue((selectedStudent?.[majorField] as string) || '');
                                 setIsMajorModalOpen(true);
@@ -1485,7 +1557,7 @@ export function StudentDetailClient({ studentId, onClose, onStudentIdChange, isE
                               className="inline-flex items-center gap-1.5 ml-2 px-2 py-0.5 rounded-full text-[10.5px] font-bold border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900 text-[var(--accent)] hover:bg-[var(--border-subtle)] active:scale-95 transition-all shadow-sm select-none cursor-pointer"
                             >
                               <BookOpen className="h-3 w-3 shrink-0" />
-                              {((selectedStudent?.[uniField === 'university_1' ? 'university_1_major' : uniField === 'university_2' ? 'university_2_major' : 'university_3_major'] as string) || 'Add Major').toUpperCase()}
+                              {((selectedStudent?.[(uniField === 'university_1' ? 'university_1_major' : uniField === 'university_2' ? 'university_2_major' : uniField === 'university_3' ? 'university_3_major' : uniField === 'university_4' ? 'university_4_major' : 'university_5_major') as keyof Student] as string) || 'Add Major').toUpperCase()}
                             </span>
                           )}
 
@@ -1502,7 +1574,7 @@ export function StudentDetailClient({ studentId, onClose, onStudentIdChange, isE
                               
                               {/* Dropdown Popover */}
                               <div 
-                                className="absolute left-0 mt-6 w-36 bg-white dark:bg-[#1c1c1e] border border-[var(--border)] rounded-[var(--radius-md)] shadow-lg z-40 py-1 flex flex-col gap-0.5 animate-in fade-in slide-in-from-top-1 duration-100"
+                                className="status-dropdown-area absolute left-0 mt-6 w-36 bg-white dark:bg-[#1c1c1e] border border-[var(--border)] rounded-[var(--radius-md)] shadow-lg z-40 py-1 flex flex-col gap-0.5 animate-in fade-in slide-in-from-top-1 duration-100"
                                 onClick={(e) => e.stopPropagation()}
                               >
                                 <div className="px-2.5 py-1 text-[10.5px] uppercase font-bold tracking-wider text-[var(--foreground-muted)] border-b border-[var(--border)] mb-0.5 select-none">
@@ -1573,7 +1645,7 @@ export function StudentDetailClient({ studentId, onClose, onStudentIdChange, isE
             </span>
             <span className="bg-[var(--border-subtle)] border border-[var(--border)] text-[9.5px] px-1.5 py-0.2 rounded font-bold text-[var(--foreground-muted)] uppercase shrink-0">AUTO</span>
           </div>
-          <div className="flex items-center gap-1.5 shrink-0 opacity-0 group-hover:opacity-100 focus-within:opacity-100 transition-opacity">
+          <div className="flex items-center gap-1.5 shrink-0">
             {value && !isLoading && (
               <button
                 onClick={(e) => {
@@ -1997,17 +2069,41 @@ export function StudentDetailClient({ studentId, onClose, onStudentIdChange, isE
             </div>
 
             {/* Universities & Docs Block */}
-            <div className="bg-white/10 dark:bg-white/5 backdrop-blur-md border border-white/20 dark:border-white/10 rounded-[var(--radius-md)] p-3 shadow-[var(--shadow-sm)] flex flex-col gap-2.5">
+            <div className="relative z-20 bg-white/10 dark:bg-white/5 backdrop-blur-md border border-white/20 dark:border-white/10 rounded-[var(--radius-md)] p-3 shadow-[var(--shadow-sm)] flex flex-col gap-2.5">
               <div className="flex items-center gap-1.5 pb-1.5 border-b border-[var(--border)]">
                 <GraduationCap className="h-3.5 w-3.5 text-[var(--accent)]" />
                 <h3 className="text-[13px] font-semibold uppercase tracking-wide text-[#64748B]">
-                  Universities & Docs
+                  CHOSEN UNIVERSITIES
                 </h3>
               </div>
               <div className="grid grid-cols-1 gap-1.5">
-                {renderUniversityCardDetails('University 1', 'university_1', 'university_1_status')}
-                {renderUniversityCardDetails('University 2', 'university_2', 'university_2_status')}
-                {renderUniversityCardDetails('University 3', 'university_3', 'university_3_status', { compact: true })}
+                {renderUniversityCardDetails('University 1', 'university_1', 'university_1_status', {
+                  onAdd: showUni2 ? undefined : () => setShowUni2(true),
+                  addTitle: 'Add University 2'
+                })}
+                {showUni2 && renderUniversityCardDetails('University 2', 'university_2', 'university_2_status', {
+                  onAdd: showUni3 ? undefined : () => setShowUni3(true),
+                  addTitle: 'Add University 3',
+                  onRemove: () => handleClearAndHideSlot(['university_2', 'university_2_status', 'university_2_major'], () => { setShowUni2(false); setShowUni3(false); setShowUni4(false); setShowUni5(false); }),
+                  removeTitle: 'Remove University 2'
+                })}
+                {showUni3 && renderUniversityCardDetails('University 3', 'university_3', 'university_3_status', {
+                  onAdd: showUni4 ? undefined : () => setShowUni4(true),
+                  addTitle: 'Add University 4',
+                  onRemove: () => handleClearAndHideSlot(['university_3', 'university_3_status', 'university_3_major'], () => { setShowUni3(false); setShowUni4(false); setShowUni5(false); }),
+                  removeTitle: 'Remove University 3'
+                })}
+                {showUni4 && renderUniversityCardDetails('University 4', 'university_4', 'university_4_status', {
+                  onAdd: showUni5 ? undefined : () => setShowUni5(true),
+                  addTitle: 'Add University 5',
+                  onRemove: () => handleClearAndHideSlot(['university_4', 'university_4_status', 'university_4_major'], () => { setShowUni4(false); setShowUni5(false); }),
+                  removeTitle: 'Remove University 4'
+                })}
+                {showUni5 && renderUniversityCardDetails('University 5', 'university_5', 'university_5_status', {
+                  compact: true,
+                  onRemove: () => handleClearAndHideSlot(['university_5', 'university_5_status', 'university_5_major'], () => setShowUni5(false)),
+                  removeTitle: 'Remove University 5'
+                })}
               </div>
             </div>
 
@@ -2276,6 +2372,11 @@ export function StudentDetailClient({ studentId, onClose, onStudentIdChange, isE
                     </div>
                   </div>
                 )}
+
+                {renderDetailCard('Student ID', 'id', selectedStudent.id, { 
+                  titleColor: 'text-[var(--accent)]',
+                  valueClassName: 'font-mono'
+                })}
 
                 {renderDetailCard('Group', 'student_group', selectedStudent.student_group, {
                   type: 'select',

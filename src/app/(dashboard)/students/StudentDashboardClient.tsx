@@ -557,7 +557,7 @@ export function StudentDashboardClient({ hidePhone = false }: { hidePhone?: bool
       const nameMatch = student.full_name.toLowerCase().includes(q)
       const phoneMatch = !!(student.phone1?.includes(excelSearchQuery) || student.phone2?.includes(excelSearchQuery))
       const emailMatch = !!(student.email?.toLowerCase().includes(q))
-      const uniMatch = !!(student.university_1?.toLowerCase().includes(q) || student.university_2?.toLowerCase().includes(q) || student.university_3?.toLowerCase().includes(q))
+      const uniMatch = !!(student.university_1?.toLowerCase().includes(q) || student.university_2?.toLowerCase().includes(q) || student.university_3?.toLowerCase().includes(q) || student.university_4?.toLowerCase().includes(q) || student.university_5?.toLowerCase().includes(q))
       const certMatch = !!(student.language_certificate?.toLowerCase().includes(q) || student.certificate_score?.toLowerCase().includes(q))
 
       if (excelSearchType === 'all') {
@@ -1012,6 +1012,10 @@ export function StudentDashboardClient({ hidePhone = false }: { hidePhone?: bool
         'University 2 Status': s.university_2_status || '',
         'University 3': s.university_3 || '',
         'University 3 Status': s.university_3_status || '',
+        'University 4': s.university_4 || '',
+        'University 4 Status': s.university_4_status || '',
+        'University 5': s.university_5 || '',
+        'University 5 Status': s.university_5_status || '',
         Notes: s.notes || '',
         Priority: s.row_color || '',
         'Balance (UZS)': s.balance !== undefined ? s.balance : '',
@@ -2028,7 +2032,7 @@ export function StudentDashboardClient({ hidePhone = false }: { hidePhone?: bool
 
   // Render university stack
   const renderUniversities = (student: Student) => {
-    const unis = [student.university_1, student.university_2, student.university_3].filter(Boolean)
+    const unis = [student.university_1, student.university_2, student.university_3, student.university_4, student.university_5].filter(Boolean)
     if (unis.length === 0) return <span className="text-gray-400 dark:text-gray-600">—</span>
 
     return (

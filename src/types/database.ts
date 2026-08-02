@@ -61,6 +61,12 @@ export interface Student {
   university_3: string | null
   university_3_status: string | null
   university_3_major: string | null
+  university_4: string | null
+  university_4_status: string | null
+  university_4_major: string | null
+  university_5: string | null
+  university_5_status: string | null
+  university_5_major: string | null
 
   // 5. Financial Parameters
   balance: number
@@ -199,6 +205,12 @@ export type Database = {
           university_3?: string | null
           university_3_status?: string | null
           university_3_major?: string | null
+          university_4?: string | null
+          university_4_status?: string | null
+          university_4_major?: string | null
+          university_5?: string | null
+          university_5_status?: string | null
+          university_5_major?: string | null
           balance?: number
           discount?: number
           pick_needed?: string[]
@@ -271,6 +283,12 @@ export type Database = {
           university_3?: string | null
           university_3_status?: string | null
           university_3_major?: string | null
+          university_4?: string | null
+          university_4_status?: string | null
+          university_4_major?: string | null
+          university_5?: string | null
+          university_5_status?: string | null
+          university_5_major?: string | null
           balance?: number
           discount?: number
           pick_needed?: string[]
