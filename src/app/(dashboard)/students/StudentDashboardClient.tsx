@@ -1012,8 +1012,16 @@ export function StudentDashboardClient({ hidePhone = false }: { hidePhone?: bool
         'Lead by': s.lead_by || '',
         Office: s.office || '',
         'Educational Background': s.educational_background || '',
+        'Final School Name': s.final_school_name || '',
         major: s.major || '',
         GPA: formatGpa(s.gpa, s.gpa_system),
+        'Degree No': s.degree_no || '',
+        'Date of Entry': s.date_of_entry || '',
+        'Date of Graduation': s.graduation_expected ? 'EXPECTED' : (s.date_of_graduation || ''),
+        'School Address': s.school_address || '',
+        'School Website': s.school_website || '',
+        'School Phone': s.school_phone || '',
+        'School E-mail': s.school_email || '',
         'Father Fullname': s.father_name || '',
         'Father Phone': s.father_phone || '',
         'Mother Fullname': s.mother_name || '',
@@ -1060,8 +1068,16 @@ export function StudentDashboardClient({ hidePhone = false }: { hidePhone?: bool
         { wch: 15 }, // Lead by
         { wch: 15 }, // Office
         { wch: 35 }, // Educational Background
+        { wch: 35 }, // Final School Name
         { wch: 20 }, // major
         { wch: 10 }, // GPA
+        { wch: 18 }, // Degree No
+        { wch: 12 }, // Date of Entry
+        { wch: 12 }, // Date of Graduation
+        { wch: 40 }, // School Address
+        { wch: 25 }, // School Website
+        { wch: 15 }, // School Phone
+        { wch: 25 }, // School E-mail
         { wch: 35 }, // Father Fullname
         { wch: 15 }, // Father Phone
         { wch: 35 }, // Mother Fullname
