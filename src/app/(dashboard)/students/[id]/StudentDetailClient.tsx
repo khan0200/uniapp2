@@ -2731,12 +2731,6 @@ export function StudentDetailClient({ studentId, onClose, onStudentIdChange, isE
                   titleColor: 'text-[var(--accent)]'
                 })}
 
-                {renderDetailCard('Registration Date', 'created_at' as any, formatRegistrationDate(selectedStudent.created_at), { 
-                  titleColor: 'text-[var(--accent)]',
-                  editable: false,
-                  copyable: true
-                })}
-
               </div>
             </div>
           </div>
