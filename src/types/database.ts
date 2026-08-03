@@ -11,6 +11,20 @@ export interface Profile {
   updated_at: string
 }
 
+// Reusable school contact details, keyed by name. Auto-fills the Educational
+// Background form so the same institution isn't retyped for every student.
+export interface School {
+  id: string
+  name: string
+  address: string | null
+  website: string | null
+  phone: string | null
+  email: string | null
+  source: 'seed' | 'user'
+  created_at: string
+  updated_at: string
+}
+
 export type StudentLevel = 'COLLEGE' | 'BACHELOR' | 'MASTERS' | 'MASTER NO CERTIFICATE' | 'LANGUAGE COURSE'
 export type StudentTariff = 'STANDART' | 'PREMIUM' | 'VISA PLUS' | 'E-VISA' | 'REGIONAL VISA'
 export type StudentLanguageCertificate = 'TOPIK' | 'IELTS' | 'TOEFL' | 'CEFR' | 'SAT' | 'SKA' | 'NO CERTIFICATE'

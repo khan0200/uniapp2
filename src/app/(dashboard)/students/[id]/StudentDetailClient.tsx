@@ -11,7 +11,7 @@ import {
   FileText, RefreshCw, Trash2, BookOpen, Maximize2, Minimize2, Eraser
 } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
-import { type Student, type StudentLevel, type StudentTariff, type Profile } from '@/types/database'
+import { type Student, type StudentLevel, type StudentTariff, type Profile, type School } from '@/types/database'
 import { PageShell } from '@/components/ui/PageShell'
 import { useUser } from '@/contexts/UserContext'
 import { cn } from '@/lib/utils'
@@ -155,6 +155,23 @@ export function StudentDetailClient({ studentId, onClose, onStudentIdChange, isE
   // built-in lists so a custom entry only has to be typed once.
   const [customSchools, setCustomSchools] = useState<string[]>([])
   const [customMajors, setCustomMajors] = useState<string[]>([])
+  // Contact details per school, keyed by normalised name, for auto-fill.
+  const [schoolDirectory, setSchoolDirectory] = useState<Record<string, School>>({})
+
+  // Contact details for a known school, filled in only where the form is still
+  // blank — anything already typed is the user's and must not be overwritten.
+  const applySchoolDefaults = (schoolName: string, current: typeof tempSchool) => {
+    const known = schoolDirectory[normalizeSuggestion(schoolName)]
+    if (!known) return {}
+    const fill = (field: keyof typeof tempSchool, value: string | null) =>
+      current[field].trim() === '' && value ? { [field]: value } : {}
+    return {
+      ...fill('school_address', known.address),
+      ...fill('school_website', known.website),
+      ...fill('school_phone', known.phone),
+      ...fill('school_email', known.email)
+    }
+  }
 
   // Custom entries lead so a hand-typed name outranks the built-in catalogue.
   const schoolSuggestions = useMemo(
@@ -273,12 +290,21 @@ export function StudentDetailClient({ studentId, onClose, onStudentIdChange, isE
   // Fetch settings filter options not already covered by the shared context
   const fetchFilterOptions = async () => {
     try {
-      const [universitiesRes, coordinatorsRes, schoolsRes] = await Promise.all([
+      const [universitiesRes, coordinatorsRes, schoolsRes, directoryRes] = await Promise.all([
         supabase.from('universities').select('name'),
         supabase.from('coordinators').select('name'),
         // Previously saved schools/majors double as a growing suggestion list.
-        supabase.from('students').select('final_school_name, major')
+        supabase.from('students').select('final_school_name, major'),
+        supabase.from('schools').select('*')
       ])
+
+      if (directoryRes.data) {
+        const byName: Record<string, School> = {}
+        for (const row of directoryRes.data as School[]) {
+          byName[normalizeSuggestion(row.name)] = row
+        }
+        setSchoolDirectory(byName)
+      }
 
       if (universitiesRes.data && universitiesRes.data.length > 0) setUniversityOptions((universitiesRes.data as any[]).map(u => u.name))
       if (coordinatorsRes && coordinatorsRes.data && coordinatorsRes.data.length > 0) setCoordinatorOptions((coordinatorsRes.data as any[]).map(c => c.name))
@@ -3120,7 +3146,12 @@ export function StudentDetailClient({ studentId, onClose, onStudentIdChange, isE
                             type="text"
                             value={tempSchool[f.key]}
                             onChange={(e) => {
-                              setTempSchool(prev => ({ ...prev, [f.key]: e.target.value.toUpperCase() }))
+                              const next = e.target.value.toUpperCase()
+                              setTempSchool(prev => ({
+                                ...prev,
+                                [f.key]: next,
+                                ...(isSchool ? applySchoolDefaults(next, prev) : {})
+                              }))
                               setOpen(true)
                             }}
                             onFocus={() => setOpen(true)}
@@ -3135,7 +3166,11 @@ export function StudentDetailClient({ studentId, onClose, onStudentIdChange, isE
                                   key={suggestion}
                                   type="button"
                                   onClick={() => {
-                                    setTempSchool(prev => ({ ...prev, [f.key]: suggestion }))
+                                    setTempSchool(prev => ({
+                                      ...prev,
+                                      [f.key]: suggestion,
+                                      ...(isSchool ? applySchoolDefaults(suggestion, prev) : {})
+                                    }))
                                     setOpen(false)
                                   }}
                                   className="w-full text-left px-3.5 py-2 text-xs font-semibold hover:bg-[var(--surface-hover)] text-[var(--foreground)] transition-colors cursor-pointer"
@@ -3195,6 +3230,35 @@ export function StudentDetailClient({ studentId, onClose, onStudentIdChange, isE
                     setSelectedStudent({ ...selectedStudent, ...updates, pick_needed: syncedPick } as any);
                     // Make the just-saved values suggestable right away instead of
                     // waiting for the next fetch.
+                    // Remember this school's contact details for next time. Whatever
+                    // is in the form wins, so a correction here fixes the directory.
+                    const schoolName = tempSchool.final_school_name.trim()
+                    if (schoolName) {
+                      const entry = {
+                        name: schoolName,
+                        address: tempSchool.school_address.trim() || null,
+                        website: tempSchool.school_website.trim() || null,
+                        phone: tempSchool.school_phone.trim() || null,
+                        email: tempSchool.school_email.trim() || null,
+                        source: 'user',
+                        updated_at: new Date().toISOString()
+                      }
+                      const { data: saved, error: schoolErr } = await (supabase
+                        .from('schools') as any)
+                        .upsert(entry, { onConflict: 'name' })
+                        .select()
+                        .single()
+                      // A failed directory write must not lose the student's edits.
+                      if (schoolErr) {
+                        console.error('Could not save school directory entry:', schoolErr)
+                      } else if (saved) {
+                        setSchoolDirectory(prev => ({
+                          ...prev,
+                          [normalizeSuggestion(saved.name)]: saved as School
+                        }))
+                      }
+                    }
+
                     setCustomSchools(prev => dedupeSuggestions(
                       [...prev, tempSchool.final_school_name],
                       UNIVERSITY_SUGGESTIONS
