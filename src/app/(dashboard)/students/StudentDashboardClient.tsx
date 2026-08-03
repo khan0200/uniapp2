@@ -1114,15 +1114,15 @@ export function StudentDashboardClient({ hidePhone = false }: { hidePhone?: bool
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isExcelModalOpen])
 
-  // Reset the export field selection to the built-in defaults, open only the
-  // first accordion group, and clear the field search box, each time the
+  // Reset the export field selection to the built-in defaults, collapse all
+  // accordion groups, and clear the field search box, each time the
   // field-picker modal is (re)opened.
   useEffect(() => {
     if (isFieldPickerModalOpen) {
       setCheckedExcelFields(
         EXCEL_FIELD_GROUPS.flatMap(g => g.fields.filter(f => f.checked).map(f => f.key))
       )
-      setExpandedExcelGroup(EXCEL_FIELD_GROUPS[0].title)
+      setExpandedExcelGroup(null)
       setExcelFieldSearchQuery('')
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
