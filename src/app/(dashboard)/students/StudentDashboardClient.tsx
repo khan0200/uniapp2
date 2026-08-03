@@ -897,6 +897,15 @@ export function StudentDashboardClient({ hidePhone = false }: { hidePhone?: bool
     ws['!rows'] = rowHeights
   }
 
+  // GPA and its scale share one exported column, e.g. "3.95/5". Falls back to
+  // the bare score when no system is recorded, and to blank when there's no GPA.
+  const formatGpa = (gpa: string | null, system: string | null) => {
+    const score = (gpa || '').trim()
+    if (!score) return ''
+    const scale = (system || '').trim()
+    return scale ? `${score}/${scale}` : score
+  }
+
   // Download selected students as Excel
   const downloadSelectedAsExcel = async () => {
     if (selectedExcelIds.length === 0) {
@@ -940,6 +949,7 @@ export function StudentDashboardClient({ hidePhone = false }: { hidePhone?: bool
         Address: s.address || '',
         'Educational Background': s.educational_background || '',
         major: s.major || '',
+        GPA: formatGpa(s.gpa, s.gpa_system),
         'Father Fullname': s.father_name || '',
         'Father Phone': s.father_phone || '',
         'Mother Fullname': s.mother_name || '',
@@ -967,6 +977,7 @@ export function StudentDashboardClient({ hidePhone = false }: { hidePhone?: bool
         { wch: 40 }, // Address
         { wch: 35 }, // Educational Background
         { wch: 20 }, // major
+        { wch: 10 }, // GPA
         { wch: 35 }, // Father Fullname
         { wch: 15 }, // Father Phone
         { wch: 35 }, // Mother Fullname
@@ -1002,6 +1013,7 @@ export function StudentDashboardClient({ hidePhone = false }: { hidePhone?: bool
         Office: s.office || '',
         'Educational Background': s.educational_background || '',
         major: s.major || '',
+        GPA: formatGpa(s.gpa, s.gpa_system),
         'Father Fullname': s.father_name || '',
         'Father Phone': s.father_phone || '',
         'Mother Fullname': s.mother_name || '',
@@ -1049,6 +1061,7 @@ export function StudentDashboardClient({ hidePhone = false }: { hidePhone?: bool
         { wch: 15 }, // Office
         { wch: 35 }, // Educational Background
         { wch: 20 }, // major
+        { wch: 10 }, // GPA
         { wch: 35 }, // Father Fullname
         { wch: 15 }, // Father Phone
         { wch: 35 }, // Mother Fullname

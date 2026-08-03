@@ -41,15 +41,32 @@ export interface Student {
   level2: StudentLevel | null
   educational_background: string | null
   major: string | null
+  final_school_name: string | null
+  gpa: string | null
+  gpa_system: string | null
+  degree_no: string | null
+  date_of_entry: string | null
+  date_of_graduation: string | null
+  graduation_expected: boolean
+  school_address: string | null
+  school_website: string | null
+  school_phone: string | null
+  school_email: string | null
   tariff: StudentTariff | null
 
   // 3. Language Certificates (Supports up to 3)
   language_certificate: StudentLanguageCertificate | null
   certificate_score: string | null
+  certificate_test_date: string | null
+  certificate_valid_date: string | null
   language_certificate_2: StudentLanguageCertificate | null
   certificate_score_2: string | null
+  certificate_2_test_date: string | null
+  certificate_2_valid_date: string | null
   language_certificate_3: StudentLanguageCertificate | null
   certificate_score_3: string | null
+  certificate_3_test_date: string | null
+  certificate_3_valid_date: string | null
 
   // 4. University Selection & Statuses
   university_1: string | null
@@ -189,13 +206,30 @@ export type Database = {
           level2?: StudentLevel | null
           educational_background?: string | null
           major?: string | null
+          final_school_name?: string | null
+          gpa?: string | null
+          gpa_system?: string | null
+          degree_no?: string | null
+          date_of_entry?: string | null
+          date_of_graduation?: string | null
+          graduation_expected?: boolean
+          school_address?: string | null
+          school_website?: string | null
+          school_phone?: string | null
+          school_email?: string | null
           tariff?: StudentTariff | null
           language_certificate?: StudentLanguageCertificate | null
           certificate_score?: string | null
+          certificate_test_date?: string | null
+          certificate_valid_date?: string | null
           language_certificate_2?: StudentLanguageCertificate | null
           certificate_score_2?: string | null
+          certificate_2_test_date?: string | null
+          certificate_2_valid_date?: string | null
           language_certificate_3?: StudentLanguageCertificate | null
           certificate_score_3?: string | null
+          certificate_3_test_date?: string | null
+          certificate_3_valid_date?: string | null
           university_1?: string | null
           university_1_status?: string
           university_1_major?: string | null
@@ -267,13 +301,30 @@ export type Database = {
           level2?: StudentLevel | null
           educational_background?: string | null
           major?: string | null
+          final_school_name?: string | null
+          gpa?: string | null
+          gpa_system?: string | null
+          degree_no?: string | null
+          date_of_entry?: string | null
+          date_of_graduation?: string | null
+          graduation_expected?: boolean
+          school_address?: string | null
+          school_website?: string | null
+          school_phone?: string | null
+          school_email?: string | null
           tariff?: StudentTariff | null
           language_certificate?: StudentLanguageCertificate | null
           certificate_score?: string | null
+          certificate_test_date?: string | null
+          certificate_valid_date?: string | null
           language_certificate_2?: StudentLanguageCertificate | null
           certificate_score_2?: string | null
+          certificate_2_test_date?: string | null
+          certificate_2_valid_date?: string | null
           language_certificate_3?: StudentLanguageCertificate | null
           certificate_score_3?: string | null
+          certificate_3_test_date?: string | null
+          certificate_3_valid_date?: string | null
           university_1?: string | null
           university_1_status?: string
           university_1_major?: string | null
