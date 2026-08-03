@@ -450,7 +450,15 @@ export function StudentDashboardClient({ hidePhone = false }: { hidePhone?: bool
 
   const { profile: loggedInProfile } = useUser()
 
+  // Field-picker modal: opened from the student-selection modal's Download
+  // button, lets the user check/uncheck which columns end up in the workbook.
+  const [isFieldPickerModalOpen, setIsFieldPickerModalOpen] = useState(false)
+  const [checkedExcelFields, setCheckedExcelFields] = useState<string[]>([])
+  const [expandedExcelGroup, setExpandedExcelGroup] = useState<string | null>(null)
+  const [excelFieldSearchQuery, setExcelFieldSearchQuery] = useState('')
+
   const excelModalTransition = useCssTransition(isExcelModalOpen, 220)
+  const fieldPickerModalTransition = useCssTransition(isFieldPickerModalOpen, 220)
 
   const certOptions = ['NO CERTIFICATE', 'EXPECTED', 'TOPIK', 'SKA', 'IELTS', 'TOEFL', 'SAT', 'CEFR']
 
@@ -493,7 +501,6 @@ export function StudentDashboardClient({ hidePhone = false }: { hidePhone?: bool
   const [isExcelLeadDropdownOpen, setIsExcelLeadDropdownOpen] = useState(false)
 
   const [selectedExcelIds, setSelectedExcelIds] = useState<string[]>([])
-  const [excelExportMode, setExcelExportMode] = useState<'full' | 'partial'>('full')
 
   const showExcelScoreFilter = excelSelectedCerts.length === 1 && (excelSelectedCerts[0] === 'TOPIK' || excelSelectedCerts[0] === 'IELTS')
   const excelActiveCertForScore = showExcelScoreFilter ? excelSelectedCerts[0] : null
@@ -906,10 +913,126 @@ export function StudentDashboardClient({ hidePhone = false }: { hidePhone?: bool
     return scale ? `${score}/${scale}` : score
   }
 
-  // Download selected students as Excel
+  // A certificate name and its score share one exported column, e.g. "TOPIK 3".
+  // Falls back to the bare name (or score) when only one side is present.
+  const formatCertificate = (cert: string | null, score: string | null) => {
+    const name = (cert || '').trim()
+    const points = (score || '').trim()
+    if (name && points) return `${name} ${points}`
+    return name || points
+  }
+
+  // Every column the Excel export can produce, grouped for the field-picker
+  // accordion. `checked` is each field's default state when the modal opens.
+  // Family/Given Name mirror the detail page: derived by splitting Full Name
+  // on the first space rather than stored separately.
+  type ExcelField = { key: string; label: string; checked: boolean; get: (s: Student) => any }
+  const EXCEL_FIELD_GROUPS: { title: string; fields: ExcelField[] }[] = [
+    {
+      title: 'Passport Details',
+      fields: [
+        { key: 'full_name', label: 'Full Name', checked: true, get: (s) => s.full_name || '' },
+        { key: 'family_name', label: 'Family Name', checked: true, get: (s) => (s.full_name ? s.full_name.split(' ')[0] || '' : '') },
+        { key: 'given_name', label: 'Given Name', checked: true, get: (s) => (s.full_name ? s.full_name.split(' ').slice(1).join(' ') || '' : '') },
+        { key: 'korean_name', label: 'Korean Name', checked: true, get: (s) => s.korean_name || '' },
+        { key: 'gender', label: 'Sex', checked: true, get: (s) => s.gender || '' },
+        { key: 'birthday', label: 'Birthday', checked: true, get: (s) => s.birthday || '' },
+        { key: 'passport', label: 'Passport', checked: true, get: (s) => s.passport || '' },
+        { key: 'passport_issue_date', label: 'Date of Issue', checked: true, get: (s) => s.passport_issue_date || '' },
+        { key: 'passport_expire_date', label: 'Date of Expiration', checked: true, get: (s) => s.passport_expire_date || '' },
+      ]
+    },
+    {
+      title: 'Contact',
+      fields: [
+        { key: 'phone1', label: 'Phone 1', checked: true, get: (s) => s.phone1 || '' },
+        { key: 'phone2', label: 'Phone 2', checked: true, get: (s) => s.phone2 || '' },
+        { key: 'email', label: 'Email', checked: true, get: (s) => s.email || '' },
+        { key: 'address', label: 'Address', checked: true, get: (s) => s.address || '' },
+      ]
+    },
+    {
+      title: 'Educational Background',
+      fields: [
+        { key: 'final_school_name', label: 'Final School Name', checked: true, get: (s) => s.final_school_name || '' },
+        { key: 'major', label: 'Major', checked: true, get: (s) => s.major || '' },
+        { key: 'gpa', label: 'GPA', checked: true, get: (s) => formatGpa(s.gpa, s.gpa_system) },
+        { key: 'degree_no', label: 'Degree No', checked: false, get: (s) => s.degree_no || '' },
+        { key: 'date_of_entry', label: 'Date of Entry', checked: false, get: (s) => s.date_of_entry || '' },
+        { key: 'date_of_graduation', label: 'Date of Graduation', checked: false, get: (s) => (s.graduation_expected ? 'EXPECTED' : (s.date_of_graduation || '')) },
+        { key: 'school_address', label: 'School Address', checked: false, get: (s) => s.school_address || '' },
+        { key: 'school_website', label: 'School Website', checked: false, get: (s) => s.school_website || '' },
+        { key: 'school_phone', label: 'School Phone', checked: false, get: (s) => s.school_phone || '' },
+        { key: 'school_email', label: 'School E-mail', checked: false, get: (s) => s.school_email || '' },
+      ]
+    },
+    {
+      title: 'Academic & Languages',
+      fields: [
+        { key: 'tariff', label: 'Tariff', checked: false, get: (s) => s.tariff || '' },
+        { key: 'level', label: 'Level to Study', checked: true, get: (s) => s.level || '' },
+        { key: 'level2', label: 'Level to Study 2', checked: false, get: (s) => s.level2 || '' },
+        { key: 'language_certificate', label: 'Language Certificate', checked: true, get: (s) => formatCertificate(s.language_certificate, s.certificate_score) },
+        { key: 'language_certificate_2', label: 'Language Certificate 2', checked: false, get: (s) => formatCertificate(s.language_certificate_2, s.certificate_score_2) },
+        { key: 'language_certificate_3', label: 'Language Certificate 3', checked: false, get: (s) => formatCertificate(s.language_certificate_3, s.certificate_score_3) },
+      ]
+    },
+    {
+      title: 'Chosen Universities',
+      fields: [
+        { key: 'university_1', label: 'University 1', checked: false, get: (s) => s.university_1 || '' },
+        { key: 'university_2', label: 'University 2', checked: false, get: (s) => s.university_2 || '' },
+        { key: 'university_3', label: 'University 3', checked: false, get: (s) => s.university_3 || '' },
+        { key: 'university_4', label: 'University 4', checked: false, get: (s) => s.university_4 || '' },
+        { key: 'university_5', label: 'University 5', checked: false, get: (s) => s.university_5 || '' },
+      ]
+    },
+    {
+      title: 'Family Info',
+      fields: [
+        { key: 'father_name', label: 'Father Fullname', checked: true, get: (s) => s.father_name || '' },
+        { key: 'mother_name', label: 'Mother Fullname', checked: true, get: (s) => s.mother_name || '' },
+        { key: 'father_phone', label: 'Father Phone', checked: true, get: (s) => s.father_phone || '' },
+        { key: 'mother_phone', label: 'Mother Phone', checked: true, get: (s) => s.mother_phone || '' },
+        { key: 'father_job', label: 'Father Job', checked: false, get: (s) => s.father_job || '' },
+        { key: 'mother_job', label: 'Mother Job', checked: false, get: (s) => s.mother_job || '' },
+        { key: 'notes', label: 'Notes', checked: true, get: (s) => s.notes || '' },
+      ]
+    },
+    {
+      title: 'System & Finance',
+      fields: [
+        { key: 'id', label: 'Student ID', checked: true, get: (s) => s.id || '' },
+        { key: 'student_group', label: 'Group', checked: false, get: (s) => s.student_group || '' },
+        { key: 'lead_by', label: 'Lead by', checked: false, get: (s) => s.lead_by || '' },
+        { key: 'office', label: 'Office', checked: false, get: (s) => s.office || '' },
+        { key: 'row_color', label: 'Priority', checked: false, get: (s) => s.row_color || '' },
+        { key: 'balance', label: 'Balance (UZS)', checked: false, get: (s) => (s.balance !== undefined ? s.balance : '') },
+        { key: 'discount', label: 'Discount (UZS)', checked: false, get: (s) => (s.discount !== undefined ? s.discount : '') },
+      ]
+    },
+  ]
+
+  // A column's default width, chosen from the field key/label so every
+  // exported column stays reasonably readable regardless of which are picked.
+  const excelColWidth = (key: string, label: string) => {
+    const narrow = ['gpa', 'gender', 'balance', 'discount']
+    const wide = ['full_name', 'given_name', 'korean_name', 'address', 'school_address', 'father_name', 'mother_name', 'final_school_name']
+    if (narrow.includes(key)) return { wch: 10 }
+    if (wide.includes(key)) return { wch: 35 }
+    if (key === 'notes') return { wch: 30 }
+    return { wch: Math.max(12, Math.min(25, label.length + 4)) }
+  }
+
+  // Download selected students as Excel, including only the fields checked
+  // in the field-picker modal.
   const downloadSelectedAsExcel = async () => {
     if (selectedExcelIds.length === 0) {
       alert('Please select at least one student!')
+      return
+    }
+    if (checkedExcelFields.length === 0) {
+      alert('Please select at least one field to export!')
       return
     }
 
@@ -922,178 +1045,30 @@ export function StudentDashboardClient({ hidePhone = false }: { hidePhone?: bool
       .filter((s) => selectedExcelIds.includes(s.id))
       .sort((a, b) => compareStudentIds(a, b, sortOrder))
 
-    let excelData: Record<string, any>[]
-    let colWidths: { wch: number }[]
+    // Preserve the catalogue's group/field order, filtered to checked keys.
+    // Student ID always leads (right after No), regardless of which group it
+    // lives in for the picker's accordion.
+    const allChecked = EXCEL_FIELD_GROUPS
+      .flatMap(g => g.fields)
+      .filter(f => checkedExcelFields.includes(f.key))
+    const idField = allChecked.find(f => f.key === 'id')
+    const orderedFields = [
+      ...(idField ? [idField] : []),
+      ...allChecked.filter(f => f.key !== 'id')
+    ]
 
-    if (excelExportMode === 'partial') {
-      // ── Partial export: personal / contact / certificate columns only ──
-      excelData = selectedStudents.map((s, index) => ({
-        No: index + 1,
-        'Student ID': s.id || '',
-        'Full Name': s.full_name || '',
-        'Korean Name': s.korean_name || '',
-        'Phone 1': s.phone1 || '',
-        'Phone 2': s.phone2 || '',
-        Email: s.email || '',
-        Birthday: s.birthday || '',
-        Sex: s.gender || '',
-        Passport: s.passport || '',
-        'Date of Issue': s.passport_issue_date || '',
-        'Date of Expiration': s.passport_expire_date || '',
-        'Language Certificate 1': s.language_certificate || '',
-        'Score 1': s.certificate_score || '',
-        'Language Certificate 2': s.language_certificate_2 || '',
-        'Score 2': s.certificate_score_2 || '',
-        'Language Certificate 3': s.language_certificate_3 || '',
-        'Score 3': s.certificate_score_3 || '',
-        Address: s.address || '',
-        'Educational Background': s.educational_background || '',
-        major: s.major || '',
-        GPA: formatGpa(s.gpa, s.gpa_system),
-        'Father Fullname': s.father_name || '',
-        'Father Phone': s.father_phone || '',
-        'Mother Fullname': s.mother_name || '',
-        'Mother Phone': s.mother_phone || '',
-      }))
-      colWidths = [
-        { wch: 5 },  // No
-        { wch: 12 }, // Student ID
-        { wch: 35 }, // Full Name
-        { wch: 35 }, // Korean Name
-        { wch: 15 }, // Phone 1
-        { wch: 15 }, // Phone 2
-        { wch: 25 }, // Email
-        { wch: 12 }, // Birthday
-        { wch: 6 },  // Sex
-        { wch: 12 }, // Passport
-        { wch: 12 }, // Date of Issue
-        { wch: 12 }, // Date of Expiration
-        { wch: 20 }, // Language Certificate 1
-        { wch: 8 },  // Score 1
-        { wch: 20 }, // Language Certificate 2
-        { wch: 8 },  // Score 2
-        { wch: 20 }, // Language Certificate 3
-        { wch: 8 },  // Score 3
-        { wch: 40 }, // Address
-        { wch: 35 }, // Educational Background
-        { wch: 20 }, // major
-        { wch: 10 }, // GPA
-        { wch: 35 }, // Father Fullname
-        { wch: 15 }, // Father Phone
-        { wch: 35 }, // Mother Fullname
-        { wch: 15 }, // Mother Phone
-      ]
-    } else {
-      // ── Full export: all columns ──
-      excelData = selectedStudents.map((s, index) => ({
-        No: index + 1,
-        'Student ID': s.id || '',
-        'Full Name': s.full_name || '',
-        'Korean Name': s.korean_name || '',
-        'Phone 1': s.phone1 || '',
-        'Phone 2': s.phone2 || '',
-        Email: s.email || '',
-        Birthday: s.birthday || '',
-        Sex: s.gender || '',
-        Passport: s.passport || '',
-        'Date of Issue': s.passport_issue_date || '',
-        'Date of Expiration': s.passport_expire_date || '',
-        'Language Certificate 1': s.language_certificate || '',
-        'Score 1': s.certificate_score || '',
-        'Language Certificate 2': s.language_certificate_2 || '',
-        'Score 2': s.certificate_score_2 || '',
-        'Language Certificate 3': s.language_certificate_3 || '',
-        'Score 3': s.certificate_score_3 || '',
-        Address: s.address || '',
-        'Education Level 1': s.level || '',
-        'Education Level 2': s.level2 || '',
-        Tariff: s.tariff || '',
-        Group: s.student_group || '',
-        'Lead by': s.lead_by || '',
-        Office: s.office || '',
-        'Educational Background': s.educational_background || '',
-        'Final School Name': s.final_school_name || '',
-        major: s.major || '',
-        GPA: formatGpa(s.gpa, s.gpa_system),
-        'Degree No': s.degree_no || '',
-        'Date of Entry': s.date_of_entry || '',
-        'Date of Graduation': s.graduation_expected ? 'EXPECTED' : (s.date_of_graduation || ''),
-        'School Address': s.school_address || '',
-        'School Website': s.school_website || '',
-        'School Phone': s.school_phone || '',
-        'School E-mail': s.school_email || '',
-        'Father Fullname': s.father_name || '',
-        'Father Phone': s.father_phone || '',
-        'Mother Fullname': s.mother_name || '',
-        'Mother Phone': s.mother_phone || '',
-        'University 1': s.university_1 || '',
-        'University 1 Status': s.university_1_status || '',
-        'University 2': s.university_2 || '',
-        'University 2 Status': s.university_2_status || '',
-        'University 3': s.university_3 || '',
-        'University 3 Status': s.university_3_status || '',
-        'University 4': s.university_4 || '',
-        'University 4 Status': s.university_4_status || '',
-        'University 5': s.university_5 || '',
-        'University 5 Status': s.university_5_status || '',
-        Notes: s.notes || '',
-        Priority: s.row_color || '',
-        'Balance (UZS)': s.balance !== undefined ? s.balance : '',
-        'Discount (UZS)': s.discount !== undefined ? s.discount : '',
-      }))
-      colWidths = [
-        { wch: 5 },  // No
-        { wch: 12 }, // Student ID
-        { wch: 35 }, // Full Name
-        { wch: 35 }, // Korean Name
-        { wch: 15 }, // Phone 1
-        { wch: 15 }, // Phone 2
-        { wch: 25 }, // Email
-        { wch: 12 }, // Birthday
-        { wch: 6 },  // Sex
-        { wch: 12 }, // Passport
-        { wch: 12 }, // Date of Issue
-        { wch: 12 }, // Date of Expiration
-        { wch: 20 }, // Language Certificate 1
-        { wch: 8 },  // Score 1
-        { wch: 20 }, // Language Certificate 2
-        { wch: 8 },  // Score 2
-        { wch: 20 }, // Language Certificate 3
-        { wch: 8 },  // Score 3
-        { wch: 40 }, // Address
-        { wch: 20 }, // Education Level 1
-        { wch: 20 }, // Education Level 2
-        { wch: 15 }, // Tariff
-        { wch: 15 }, // Group
-        { wch: 15 }, // Lead by
-        { wch: 15 }, // Office
-        { wch: 35 }, // Educational Background
-        { wch: 35 }, // Final School Name
-        { wch: 20 }, // major
-        { wch: 10 }, // GPA
-        { wch: 18 }, // Degree No
-        { wch: 12 }, // Date of Entry
-        { wch: 12 }, // Date of Graduation
-        { wch: 40 }, // School Address
-        { wch: 25 }, // School Website
-        { wch: 15 }, // School Phone
-        { wch: 25 }, // School E-mail
-        { wch: 35 }, // Father Fullname
-        { wch: 15 }, // Father Phone
-        { wch: 35 }, // Mother Fullname
-        { wch: 15 }, // Mother Phone
-        { wch: 30 }, // University 1
-        { wch: 18 }, // University 1 Status
-        { wch: 30 }, // University 2
-        { wch: 18 }, // University 2 Status
-        { wch: 30 }, // University 3
-        { wch: 18 }, // University 3 Status
-        { wch: 30 }, // Notes
-        { wch: 12 }, // Priority
-        { wch: 15 }, // Balance (UZS)
-        { wch: 15 }, // Discount (UZS)
-      ]
-    }
+    const excelData = selectedStudents.map((s, index) => {
+      const row: Record<string, any> = { No: index + 1 }
+      for (const field of orderedFields) {
+        row[field.label] = field.get(s)
+      }
+      return row
+    })
+
+    const colWidths = [
+      { wch: 5 }, // No
+      ...orderedFields.map(f => excelColWidth(f.key, f.label))
+    ]
 
     // Create workbook and worksheet
     const ws = XLSX.utils.json_to_sheet(excelData)
@@ -1106,13 +1081,13 @@ export function StudentDashboardClient({ hidePhone = false }: { hidePhone?: bool
 
     // Generate filename
     const dateStr = new Date().toISOString().split('T')[0]
-    const suffix = excelExportMode === 'partial' ? '_Partial' : '_Full'
-    const filename = `Students_Export${suffix}_${dateStr}.xlsx`
+    const filename = `Students_Export_${dateStr}.xlsx`
 
     // Download
     XLSX.writeFile(wb, filename)
 
     // Close modal
+    setIsFieldPickerModalOpen(false)
     setIsExcelModalOpen(false)
   }
 
@@ -1139,6 +1114,20 @@ export function StudentDashboardClient({ hidePhone = false }: { hidePhone?: bool
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isExcelModalOpen])
 
+  // Reset the export field selection to the built-in defaults, open only the
+  // first accordion group, and clear the field search box, each time the
+  // field-picker modal is (re)opened.
+  useEffect(() => {
+    if (isFieldPickerModalOpen) {
+      setCheckedExcelFields(
+        EXCEL_FIELD_GROUPS.flatMap(g => g.fields.filter(f => f.checked).map(f => f.key))
+      )
+      setExpandedExcelGroup(EXCEL_FIELD_GROUPS[0].title)
+      setExcelFieldSearchQuery('')
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isFieldPickerModalOpen])
+
   // Dismiss active action tag tooltip on global click
   useEffect(() => {
     if (!activeTooltip) return
@@ -1152,6 +1141,25 @@ export function StudentDashboardClient({ hidePhone = false }: { hidePhone?: bool
   const handleToggleExcelStudent = (id: string) => {
     setSelectedExcelIds(prev =>
       prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]
+    )
+  }
+
+  const handleToggleExcelField = (key: string) => {
+    setCheckedExcelFields(prev =>
+      prev.includes(key) ? prev.filter(x => x !== key) : [...prev, key]
+    )
+  }
+
+  const handleToggleExcelGroup = (title: string) => {
+    setExpandedExcelGroup(prev => (prev === title ? null : title))
+  }
+
+  // Check/uncheck every field in a group at once, via the group header checkbox.
+  const handleToggleExcelGroupFields = (fields: ExcelField[]) => {
+    const keys = fields.map(f => f.key)
+    const allChecked = keys.every(k => checkedExcelFields.includes(k))
+    setCheckedExcelFields(prev =>
+      allChecked ? prev.filter(k => !keys.includes(k)) : Array.from(new Set([...prev, ...keys]))
     )
   }
 
@@ -4502,44 +4510,10 @@ export function StudentDashboardClient({ hidePhone = false }: { hidePhone?: bool
                 </table>
               </div>
 
-              {/* ── Footer: Export Mode Toggle + Action Buttons ──── */}
+              {/* ── Footer: Action Buttons ──── */}
               <div className="mt-5 pt-4 border-t border-[var(--border)] flex flex-col gap-3">
 
-                {/* Full / Partial segmented toggle */}
-                <div className="flex items-center gap-3">
-                  <span className="text-[10px] font-bold uppercase tracking-wider text-[var(--foreground-muted)] shrink-0">
-                    Export Mode
-                  </span>
-                  <div className="flex rounded-[var(--radius-md)] border border-[var(--border)] bg-[var(--surface)] p-0.5 gap-0.5 shadow-inner">
-                    <button
-                      type="button"
-                      onClick={() => setExcelExportMode('full')}
-                      className={`px-4 py-1.5 rounded-[calc(var(--radius-md)-2px)] text-[11px] font-bold uppercase tracking-wider transition-all cursor-pointer select-none ${excelExportMode === 'full'
-                          ? 'bg-emerald-600 text-white shadow-sm'
-                          : 'text-[var(--foreground-muted)] hover:text-[var(--foreground)] hover:bg-[var(--border-subtle)]'
-                        }`}
-                    >
-                      Full
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => setExcelExportMode('partial')}
-                      className={`px-4 py-1.5 rounded-[calc(var(--radius-md)-2px)] text-[11px] font-bold uppercase tracking-wider transition-all cursor-pointer select-none ${excelExportMode === 'partial'
-                          ? 'bg-emerald-600 text-white shadow-sm'
-                          : 'text-[var(--foreground-muted)] hover:text-[var(--foreground)] hover:bg-[var(--border-subtle)]'
-                        }`}
-                    >
-                      Partial
-                    </button>
-                  </div>
-                  <span className="text-[10px] text-[var(--foreground-subtle)] italic">
-                    {excelExportMode === 'full'
-                      ? 'All columns — complete student record'
-                      : 'Personal & contact info only (25 cols)'}
-                  </span>
-                </div>
-
-                {/* Cancel + Download row */}
+                {/* Cancel + Continue row */}
                 <div className="flex justify-end gap-3">
                   <button
                     type="button"
@@ -4550,15 +4524,174 @@ export function StudentDashboardClient({ hidePhone = false }: { hidePhone?: bool
                   </button>
                   <button
                     type="button"
-                    onClick={downloadSelectedAsExcel}
+                    onClick={() => setIsFieldPickerModalOpen(true)}
                     disabled={selectedExcelIds.length === 0}
                     className="flex items-center justify-center gap-1.5 px-4 py-2 bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 text-white text-xs font-bold uppercase tracking-wider rounded-[var(--radius-md)] transition-all cursor-pointer select-none"
                     style={{ boxShadow: '0 4px 12px rgba(16, 185, 129, 0.2)' }}
                   >
                     <FileSpreadsheet className="h-4 w-4" />
-                    Download {excelExportMode === 'partial' ? 'Partial' : 'Full'} Excel
+                    Choose Fields to Export
                   </button>
                 </div>
+              </div>
+            </div>
+          </div>
+      )}
+
+      {/* Field Picker Modal — accordion of exportable columns, opened from the
+          student-selection modal's Download button. */}
+      {fieldPickerModalTransition.shouldRender && (
+          <div className="fixed inset-0 z-[60] flex items-center justify-center p-4">
+            {/* Backdrop Overlay */}
+            <div
+              onClick={() => setIsFieldPickerModalOpen(false)}
+              className={cn(
+                'fixed inset-0 bg-black/50 transition-opacity duration-220 ease-out',
+                fieldPickerModalTransition.isVisible ? 'opacity-100' : 'opacity-0'
+              )}
+            />
+
+            {/* Modal Panel */}
+            <div
+              className={cn(
+                'relative w-full max-w-2xl overflow-hidden rounded-[var(--radius-lg)] border border-[var(--border)] bg-[var(--surface-elevated)] p-6 shadow-[var(--shadow-lg)] z-10 flex flex-col max-h-[90vh]',
+                'transition-all duration-220 ease-[cubic-bezier(0.25,0.46,0.45,0.94)]',
+                fieldPickerModalTransition.isVisible ? 'opacity-100 scale-100 translate-y-0' : 'opacity-0 scale-95 translate-y-[15px]'
+              )}
+            >
+              {/* Close Button */}
+              <button
+                onClick={() => setIsFieldPickerModalOpen(false)}
+                className="absolute right-4 top-4 rounded-[var(--radius-sm)] p-1.5 text-[var(--foreground-muted)] hover:bg-[var(--border-subtle)] hover:text-[var(--foreground)] transition-all cursor-pointer"
+              >
+                <X className="h-5 w-5" />
+              </button>
+
+              <h2 className="text-xl font-bold text-[var(--foreground)] mb-1 flex items-center gap-2">
+                <FileSpreadsheet className="h-5 w-5 text-emerald-600 dark:text-emerald-400" />
+                Choose Fields to Export
+              </h2>
+              <p className="text-xs text-[var(--foreground-muted)] mb-3">
+                Pick which columns to include in the workbook for {selectedExcelIds.length} selected student{selectedExcelIds.length === 1 ? '' : 's'}.
+              </p>
+
+              {/* ── Field search ───────────────── */}
+              <div className="relative mb-3">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-[var(--foreground-subtle)]" />
+                <input
+                  type="text"
+                  value={excelFieldSearchQuery}
+                  onChange={(e) => setExcelFieldSearchQuery(e.target.value)}
+                  placeholder="Search fields..."
+                  className="w-full bg-[var(--surface)] border border-[var(--border)] text-[var(--foreground)] pl-9 pr-3 py-2 rounded-[var(--radius-md)] outline-none focus:border-[var(--accent)] transition-colors text-xs"
+                />
+              </div>
+
+              {/* ── Accordion of field groups ───────────────── */}
+              <div className="flex-1 overflow-y-auto border border-[var(--border)] rounded-[var(--radius-md)] bg-[var(--surface)] shadow-inner divide-y divide-[var(--border)]">
+                {(() => {
+                  const query = excelFieldSearchQuery.trim().toLowerCase()
+                  const isSearching = query.length > 0
+                  const visibleGroups = isSearching
+                    ? EXCEL_FIELD_GROUPS
+                      .map(group => ({ ...group, fields: group.fields.filter(f => f.label.toLowerCase().includes(query)) }))
+                      .filter(group => group.fields.length > 0)
+                    : EXCEL_FIELD_GROUPS
+
+                  if (isSearching && visibleGroups.length === 0) {
+                    return (
+                      <div className="px-4 py-8 text-center text-xs text-[var(--foreground-subtle)] italic">
+                        No fields match "{excelFieldSearchQuery.trim()}".
+                      </div>
+                    )
+                  }
+
+                  return visibleGroups.map(group => {
+                    // While searching, every matching group stays open regardless
+                    // of the single-open accordion state; otherwise only the
+                    // explicitly expanded group renders its fields.
+                    const isOpen = isSearching || expandedExcelGroup === group.title
+                    const keys = group.fields.map(f => f.key)
+                    const checkedCount = keys.filter(k => checkedExcelFields.includes(k)).length
+                    const allChecked = checkedCount === keys.length
+                    const someChecked = checkedCount > 0 && !allChecked
+                    return (
+                      <div key={group.title}>
+                        <button
+                          type="button"
+                          onClick={() => handleToggleExcelGroup(group.title)}
+                          disabled={isSearching}
+                          className="w-full flex items-center justify-between px-4 py-3 hover:bg-[var(--border-subtle)] transition-colors cursor-pointer disabled:cursor-default"
+                        >
+                          <div className="flex items-center gap-3">
+                            <input
+                              type="checkbox"
+                              checked={allChecked}
+                              ref={(input) => {
+                                if (input) input.indeterminate = someChecked
+                              }}
+                              onClick={(e) => e.stopPropagation()}
+                              onChange={() => handleToggleExcelGroupFields(group.fields)}
+                              className="h-3.5 w-3.5 rounded border-[var(--border)] text-blue-600 focus:ring-blue-500 cursor-pointer"
+                            />
+                            <span className="font-bold text-xs uppercase tracking-wider text-[var(--foreground)]">
+                              {group.title}
+                            </span>
+                            <span className="px-1.5 py-0.5 rounded-full text-[9px] font-bold bg-[var(--border-subtle)] text-[var(--foreground-muted)]">
+                              {checkedCount}/{keys.length}
+                            </span>
+                          </div>
+                          {!isSearching && (
+                            isOpen ? (
+                              <ChevronUp className="h-4 w-4 text-[var(--foreground-muted)]" />
+                            ) : (
+                              <ChevronDown className="h-4 w-4 text-[var(--foreground-muted)]" />
+                            )
+                          )}
+                        </button>
+                        {isOpen && (
+                          <div className="px-4 pb-3 grid grid-cols-2 gap-x-4 gap-y-2">
+                            {group.fields.map(field => (
+                              <label
+                                key={field.key}
+                                className="flex items-center gap-2 text-xs font-medium text-[var(--foreground)] cursor-pointer select-none py-0.5"
+                              >
+                                <input
+                                  type="checkbox"
+                                  checked={checkedExcelFields.includes(field.key)}
+                                  onChange={() => handleToggleExcelField(field.key)}
+                                  className="h-3.5 w-3.5 rounded border-[var(--border)] text-blue-600 focus:ring-blue-500 cursor-pointer"
+                                />
+                                {field.label}
+                              </label>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    )
+                  })
+                })()}
+              </div>
+
+              {/* Cancel + Download row */}
+              <div className="flex justify-end gap-3 mt-5 pt-4 border-t border-[var(--border)]">
+                <button
+                  type="button"
+                  onClick={() => setIsFieldPickerModalOpen(false)}
+                  className="px-4 py-2 border border-[var(--border)] rounded-[var(--radius-md)] bg-transparent text-[var(--foreground-muted)] hover:bg-[var(--border-subtle)] hover:text-[var(--foreground)] text-xs font-bold uppercase tracking-wider transition-all cursor-pointer"
+                >
+                  Back
+                </button>
+                <button
+                  type="button"
+                  onClick={downloadSelectedAsExcel}
+                  disabled={checkedExcelFields.length === 0}
+                  className="flex items-center justify-center gap-1.5 px-4 py-2 bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 text-white text-xs font-bold uppercase tracking-wider rounded-[var(--radius-md)] transition-all cursor-pointer select-none"
+                  style={{ boxShadow: '0 4px 12px rgba(16, 185, 129, 0.2)' }}
+                >
+                  <FileSpreadsheet className="h-4 w-4" />
+                  Download Excel ({checkedExcelFields.length} fields)
+                </button>
               </div>
             </div>
           </div>
