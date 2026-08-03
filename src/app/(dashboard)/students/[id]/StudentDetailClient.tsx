@@ -158,18 +158,24 @@ export function StudentDetailClient({ studentId, onClose, onStudentIdChange, isE
   // Contact details per school, keyed by normalised name, for auto-fill.
   const [schoolDirectory, setSchoolDirectory] = useState<Record<string, School>>({})
 
-  // Contact details for a known school, filled in only where the form is still
-  // blank — anything already typed is the user's and must not be overwritten.
-  const applySchoolDefaults = (schoolName: string, current: typeof tempSchool) => {
+  // Contact details for a known school. While typing, fields are only filled
+  // where still blank — anything already typed is the user's and must not be
+  // overwritten. On a deliberate pick from the suggestion list, `replace`
+  // instead swaps the contact fields to match the newly chosen school (or
+  // clears them if it has no known data), so a previous school's contact
+  // details don't linger after switching.
+  const applySchoolDefaults = (schoolName: string, current: typeof tempSchool, replace = false) => {
     const known = schoolDirectory[normalizeSuggestion(schoolName)]
-    if (!known) return {}
-    const fill = (field: keyof typeof tempSchool, value: string | null) =>
-      current[field].trim() === '' && value ? { [field]: value } : {}
+    if (!known && !replace) return {}
+    const fill = (field: keyof typeof tempSchool, value: string | null | undefined) => {
+      if (replace) return { [field]: value || '' }
+      return current[field].trim() === '' && value ? { [field]: value } : {}
+    }
     return {
-      ...fill('school_address', known.address),
-      ...fill('school_website', known.website),
-      ...fill('school_phone', known.phone),
-      ...fill('school_email', known.email)
+      ...fill('school_address', known?.address),
+      ...fill('school_website', known?.website),
+      ...fill('school_phone', known?.phone),
+      ...fill('school_email', known?.email)
     }
   }
 
@@ -3169,7 +3175,7 @@ export function StudentDetailClient({ studentId, onClose, onStudentIdChange, isE
                                     setTempSchool(prev => ({
                                       ...prev,
                                       [f.key]: suggestion,
-                                      ...(isSchool ? applySchoolDefaults(suggestion, prev) : {})
+                                      ...(isSchool ? applySchoolDefaults(suggestion, prev, true) : {})
                                     }))
                                     setOpen(false)
                                   }}
