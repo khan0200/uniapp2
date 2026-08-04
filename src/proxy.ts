@@ -11,7 +11,7 @@ const PUBLIC_ROUTES = ['/login']
 // Mapping from production domains to expected tenant IDs
 const DOMAIN_TENANT_MAP: Record<string, string> = {
   'crm.unibridge.uz': 'unibridge',
-  'sodiqcrm.vercel.app': 'sodiq',
+  'crm.sodiqedu.uz': 'sodiq',
 }
 
 export async function proxy(request: NextRequest) {
