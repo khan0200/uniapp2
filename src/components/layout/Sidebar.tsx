@@ -35,7 +35,7 @@ const NAV_ITEMS: NavItem[] = [
   { href: '/status', icon: ClipboardList, label: 'Status' },
   { href: '/documents', icon: FileText, label: 'Documents' },
   { href: '/payments', icon: CreditCard, label: 'Payments', roles: ['Manager', 'Head Manager'] },
-  { href: 'https://visatokorea.vercel.app/cabinet.html', icon: ShieldCheck, label: 'VisaCheck', target: '_blank' },
+  { href: 'https://www.salomkorea.uz/cabinet', icon: ShieldCheck, label: 'VisaCheck', target: '_blank' },
   { href: '/settings', icon: Settings, label: 'Settings', roles: ['Manager', 'Head Manager'] },
 ]
 
