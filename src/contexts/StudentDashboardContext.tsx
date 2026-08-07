@@ -2,6 +2,7 @@
 
 import { createContext, useContext, useState, useEffect, useRef, type ReactNode } from 'react'
 import { createClient } from '@/lib/supabase/client'
+import { useRealtimeTable } from '@/lib/supabase/useRealtimeTable'
 import { useUser } from '@/contexts/UserContext'
 import { type Student } from '@/types/database'
 
@@ -362,6 +363,63 @@ export function StudentDashboardProvider({ children }: { children: ReactNode }) 
       console.error('Error refreshing student:', err)
     }
   }
+
+  // Live sync: apply changes made by other devices/users as they happen.
+  //
+  // Every page that shows students (list, documents, payments) reads from this
+  // one `students` array, so a single subscription here keeps all of them fresh
+  // without anyone reloading the browser.
+  //
+  // These patches are keyed by id and mirror the shape of the optimistic
+  // updates callers already apply locally, so an echo of this client's own
+  // write just re-sets the row to the value it already holds — harmless.
+  useRealtimeTable<Student>('students', {
+    onInsert: (row) => {
+      setStudents(prev => (
+        // The insert may echo a row this client added optimistically.
+        prev.some(s => s.id === row.id) ? prev : [row, ...prev]
+      ))
+    },
+    onUpdate: (row) => {
+      setStudents(prev => {
+        const index = prev.findIndex(s => s.id === row.id)
+        // A row that isn't loaded yet (e.g. it just became visible to us)
+        // still belongs in the list.
+        if (index === -1) return [row, ...prev]
+        const next = [...prev]
+        next[index] = row
+        return next
+      })
+    },
+    onDelete: (row) => {
+      if (!row?.id) return
+      setStudents(prev => prev.filter(s => s.id !== row.id))
+    },
+  }, { enabled: !!profile })
+
+  // Realtime only delivers events while the socket is actually connected, so a
+  // laptop that slept or dropped wifi comes back missing whatever happened in
+  // between. Re-pull once on wake/reconnect to close that gap. This runs as a
+  // background fetch (no spinner) since the list is already on screen.
+  const fetchStudentsRef = useRef(fetchStudents)
+  useEffect(() => {
+    fetchStudentsRef.current = fetchStudents
+  })
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return
+
+    const resync = () => {
+      if (document.visibilityState === 'visible') fetchStudentsRef.current()
+    }
+
+    document.addEventListener('visibilitychange', resync)
+    window.addEventListener('online', resync)
+    return () => {
+      document.removeEventListener('visibilitychange', resync)
+      window.removeEventListener('online', resync)
+    }
+  }, [])
 
   // Pre-fetch students and options once on mount of the dashboard provider
   useEffect(() => {

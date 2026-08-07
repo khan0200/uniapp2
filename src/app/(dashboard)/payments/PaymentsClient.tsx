@@ -9,6 +9,7 @@ import {
   Pencil, Trash2, Printer, CreditCard, Wallet, LayoutGrid, Table, FileSpreadsheet
 } from 'lucide-react'
 import { useStudentDashboard } from '@/contexts/StudentDashboardContext'
+import { useRealtimeTable } from '@/lib/supabase/useRealtimeTable'
 import { cn } from '@/lib/utils'
 import { useCssTransition } from '@/hooks/useCssTransition'
 import { useUser } from '@/contexts/UserContext'
@@ -208,6 +209,24 @@ export function PaymentsClient() {
   useEffect(() => {
     fetchData()
   }, [])
+
+  // Live sync payments across devices. Student rows (and the balances shown
+  // alongside these payments) are kept fresh by the subscription in
+  // StudentDashboardContext, so only the payments list is handled here.
+  useRealtimeTable<Payment>('payments', {
+    onInsert: (row) => {
+      setPayments(prev => (
+        prev.some(p => p.id === row.id) ? prev : [row, ...prev]
+      ))
+    },
+    onUpdate: (row) => {
+      setPayments(prev => prev.map(p => p.id === row.id ? row : p))
+    },
+    onDelete: (row) => {
+      if (!row?.id) return
+      setPayments(prev => prev.filter(p => p.id !== row.id))
+    },
+  })
 
   useEffect(() => {
     function handleClickOutside(event: MouseEvent) {
