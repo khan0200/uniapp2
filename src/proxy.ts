@@ -46,17 +46,41 @@ export async function proxy(request: NextRequest) {
   )
 
   // Refresh session — IMPORTANT: Do not add logic between createServerClient and getUser
-  const {
-    data: { user },
-  } = await supabase.auth.getUser()
+  let user = null
+  let authError = null
+
+  try {
+    const { data, error } = await supabase.auth.getUser()
+    user = data?.user || null
+    authError = error
+  } catch (err: any) {
+    authError = err
+  }
 
   const { pathname } = request.nextUrl
+
+  // Clear stale cookies on auth failure (e.g. refresh_token_not_found)
+  if (authError || !user) {
+    const allCookies = request.cookies.getAll()
+    allCookies.forEach(({ name }) => {
+      if (name.startsWith('sb-') || name.includes('auth-token')) {
+        supabaseResponse.cookies.delete(name)
+      }
+    })
+  }
 
   // ── 1. Unauthenticated users ──────────────────────────────────────────────
   if (!user && !PUBLIC_ROUTES.includes(pathname)) {
     const loginUrl = request.nextUrl.clone()
     loginUrl.pathname = '/login'
-    return NextResponse.redirect(loginUrl)
+    const redirectRes = NextResponse.redirect(loginUrl)
+    const allCookies = request.cookies.getAll()
+    allCookies.forEach(({ name }) => {
+      if (name.startsWith('sb-') || name.includes('auth-token')) {
+        redirectRes.cookies.delete(name)
+      }
+    })
+    return redirectRes
   }
 
   // ── 2. Authenticated users checks ─────────────────────────────────────────
@@ -107,9 +131,9 @@ export async function proxy(request: NextRequest) {
 
 export const config = {
   matcher: [
-    /*
-     * Match all request paths EXCEPT static files and Next.js internals.
-     */
     '/((?!_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)',
   ],
 }
+
+export default proxy
+

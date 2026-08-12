@@ -8,7 +8,8 @@ import {
   Building2, Landmark, Tag, Layers, 
   ChevronDown, Copy, ArrowLeft,
   Mail, Calendar, MapPin, User, CheckSquare, GraduationCap, Hourglass, X,
-  FileText, RefreshCw, Trash2, BookOpen, Maximize2, Minimize2, Eraser
+  FileText, RefreshCw, Trash2, BookOpen, Maximize2, Minimize2, Eraser,
+  Folder, ExternalLink
 } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import { type Student, type StudentLevel, type StudentTariff, type Profile, type School } from '@/types/database'
@@ -17,6 +18,7 @@ import { useUser } from '@/contexts/UserContext'
 import { cn } from '@/lib/utils'
 import { useStudentDashboard } from '@/contexts/StudentDashboardContext'
 import { syncMissingDocuments } from '@/lib/validation'
+import { GoogleDriveViewerModal } from '@/components/modals/GoogleDriveViewerModal'
 
 interface StudentDetailClientProps {
   studentId: string
@@ -102,7 +104,46 @@ export function StudentDetailClient({ studentId, onClose, onStudentIdChange, isE
   const [editValue, setEditValue] = useState<any>('')
   const [copiedField, setCopiedField] = useState<string | null>(null)
   const [isDeleting, setIsDeleting] = useState(false)
+  const [isCreatingDriveFolder, setIsCreatingDriveFolder] = useState(false)
+  const [isDriveViewerOpen, setIsDriveViewerOpen] = useState(false)
   const [activeStatusDropdown, setActiveStatusDropdown] = useState<string | null>(null)
+
+  const handleGoogleDriveAction = async () => {
+    if (selectedStudent?.google_drive_url || selectedStudent?.google_drive_folder_id) {
+      setIsDriveViewerOpen(true)
+      return
+    }
+
+    if (!selectedStudent?.id) return
+
+    setIsCreatingDriveFolder(true)
+    try {
+      const res = await fetch('/api/drive/create-student-folder', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          studentId: selectedStudent.id,
+          studentName: selectedStudent.full_name,
+          passport: selectedStudent.passport,
+        }),
+      })
+
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error || 'Failed to create Google Drive folder')
+
+      setSelectedStudent((prev: any) => ({
+        ...prev,
+        google_drive_url: data.folderUrl,
+        google_drive_folder_id: data.folderId,
+      }))
+
+      setIsDriveViewerOpen(true)
+    } catch (err: any) {
+      alert(`Google Drive Error: ${err.message}`)
+    } finally {
+      setIsCreatingDriveFolder(false)
+    }
+  }
 
   // Major modal states
   const [isMajorModalOpen, setIsMajorModalOpen] = useState(false)
@@ -2044,6 +2085,24 @@ export function StudentDetailClient({ studentId, onClose, onStudentIdChange, isE
                     <span className="hidden sm:inline">Fill By Document</span>
                   </button>
                   <button
+                    disabled={isCreatingDriveFolder}
+                    onClick={handleGoogleDriveAction}
+                    className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-700 dark:text-emerald-300 border border-emerald-500/30 rounded-[var(--radius-md)] text-[12.5px] font-bold transition-all duration-200 shadow-xs active:scale-95 cursor-pointer disabled:opacity-50"
+                    title={selectedStudent?.google_drive_url ? 'Open Student Google Drive Folder' : 'Create Google Drive Folder'}
+                  >
+                    {isCreatingDriveFolder ? (
+                      <Loader2 className="h-3.5 w-3.5 animate-spin text-emerald-600 dark:text-emerald-400 shrink-0" />
+                    ) : (
+                      <Folder className="h-3.5 w-3.5 text-emerald-600 dark:text-emerald-400 shrink-0" />
+                    )}
+                    <span>
+                      {selectedStudent?.google_drive_url ? 'See documents' : 'Create folder'}
+                    </span>
+                    {selectedStudent?.google_drive_url && (
+                      <ExternalLink className="h-3 w-3 text-emerald-600 dark:text-emerald-400 opacity-80 shrink-0 ml-0.5" />
+                    )}
+                  </button>
+                  <button
                     disabled={isDeleting}
                     onClick={selectedStudent.is_deleted ? handleRestoreStudent : handleDeleteStudent}
                     className={cn(
@@ -3361,6 +3420,16 @@ export function StudentDetailClient({ studentId, onClose, onStudentIdChange, isE
           </div>
         </div>
       )}
+
+      {/* Google Drive Documents Viewer Modal */}
+      <GoogleDriveViewerModal
+        isOpen={isDriveViewerOpen}
+        onClose={() => setIsDriveViewerOpen(false)}
+        studentName={selectedStudent?.full_name || ''}
+        studentId={selectedStudent?.id || ''}
+        folderId={selectedStudent?.google_drive_folder_id}
+        folderUrl={selectedStudent?.google_drive_url}
+      />
     </PageShell>
   )
 }

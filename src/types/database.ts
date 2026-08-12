@@ -136,6 +136,8 @@ export interface Student {
   embassy_father_docs: string[] | null
   embassy_mother_docs: string[] | null
   embassy_sponsor_notes: string | null
+  google_drive_url?: string | null
+  google_drive_folder_id?: string | null
   tenant_id: string
   created_by: string | null
   creator?: { id: string; full_name: string | null; email: string } | null
@@ -291,6 +293,8 @@ export type Database = {
           embassy_father_docs?: string[] | null
           embassy_mother_docs?: string[] | null
           embassy_sponsor_notes?: string | null
+          google_drive_url?: string | null
+          google_drive_folder_id?: string | null
         }
         Update: {
           id?: string
@@ -386,6 +390,8 @@ export type Database = {
           embassy_father_docs?: string[] | null
           embassy_mother_docs?: string[] | null
           embassy_sponsor_notes?: string | null
+          google_drive_url?: string | null
+          google_drive_folder_id?: string | null
         }
       }
     }

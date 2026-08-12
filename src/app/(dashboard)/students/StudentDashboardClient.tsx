@@ -323,6 +323,8 @@ export function StudentDashboardClient({ hidePhone = false }: { hidePhone?: bool
     setIsExcelModalOpen,
     tariffOptions,
     levelOptions,
+    groupOptions,
+    leadByOptions,
     customTagsRegistry,
     setCustomTagsRegistry,
     foldersOptions,
@@ -1191,6 +1193,12 @@ export function StudentDashboardClient({ hidePhone = false }: { hidePhone?: bool
   const [studentId, setStudentId] = useState('')
   const [fullName, setFullName] = useState('')
   const [office, setOffice] = useState<string>('')
+  const [tariff, setTariff] = useState<string>('')
+  const [level, setLevel] = useState<string>('')
+  const [university1, setUniversity1] = useState<string>('')
+  const [studentGroup, setStudentGroup] = useState<string>('')
+  const [leadBy, setLeadBy] = useState<string>('')
+  const [coordinator, setCoordinator] = useState<string>('')
   const [popoverAnchor, setPopoverAnchor] = useState<{ studentId: string; rect: DOMRect } | null>(null)
   const popoverTransition = useCssTransition(!!popoverAnchor, 220)
   // Keep the last non-null anchor around while the close animation plays,
@@ -1745,6 +1753,12 @@ export function StudentDashboardClient({ hidePhone = false }: { hidePhone?: bool
           full_name: fullName.trim().toUpperCase(),
           korean_name: translatedKoreanName,
           office: office,
+          tariff: tariff || null,
+          level: (level as any) || null,
+          university_1: university1 ? university1.trim().toUpperCase() : null,
+          student_group: studentGroup ? studentGroup.trim().toUpperCase() : null,
+          lead_by: leadBy ? leadBy.trim().toUpperCase() : null,
+          coordinator: coordinator ? coordinator.trim().toUpperCase() : null,
           tenant_id: loggedInProfile?.tenant_id,
           created_by: loggedInProfile?.id,
           // Explicitly set default fields to avoid RLS/constraint issue
@@ -1762,7 +1776,7 @@ export function StudentDashboardClient({ hidePhone = false }: { hidePhone?: bool
             email: null,
             passport: null,
             address: null,
-            level: null,
+            level: (level as any) || null,
             pick_needed: []
           } as unknown as Student),
           has_mc: false,
@@ -1776,9 +1790,7 @@ export function StudentDashboardClient({ hidePhone = false }: { hidePhone?: bool
           gender: null,
           birthday: null,
           phone1: null,
-          level: null,
           level2: null,
-          tariff: null,
           language_certificate: null,
           language_certificate_2: null,
           language_certificate_3: null
@@ -1791,6 +1803,16 @@ export function StudentDashboardClient({ hidePhone = false }: { hidePhone?: bool
         throw insertError
       }
 
+      // Background trigger to auto-create Google Drive folder for new student
+      fetch('/api/drive/create-student-folder', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          studentId: studentId.trim().toUpperCase(),
+          studentName: fullName.trim().toUpperCase(),
+        }),
+      }).catch(err => console.warn('Background Drive creation failed:', err))
+
       // Send Telegram Notification
       const safeName = fullName ? fullName.trim().replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;') : 'Unknown'
       const safeOffice = office ? office.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;') : '-'
@@ -1801,6 +1823,12 @@ export function StudentDashboardClient({ hidePhone = false }: { hidePhone?: bool
       setStudentId('')
       setFullName('')
       setOffice(officeOptions[0] || '')
+      setTariff('')
+      setLevel('')
+      setUniversity1('')
+      setStudentGroup('')
+      setLeadBy('')
+      setCoordinator('')
 
       await fetchStudents(true)
 
@@ -3034,12 +3062,29 @@ export function StudentDashboardClient({ hidePhone = false }: { hidePhone?: bool
           isOpen={isModalOpen}
           onClose={() => setIsModalOpen(false)}
           officeOptions={officeOptions}
+          tariffOptions={tariffOptions}
+          levelOptions={levelOptions}
+          groupOptions={groupOptions}
+          leadByOptions={leadByOptions}
+          universityOptions={universityOptions}
           studentId={studentId}
           setStudentId={setStudentId}
           fullName={fullName}
           setFullName={setFullName}
           office={office}
           setOffice={setOffice}
+          tariff={tariff}
+          setTariff={setTariff}
+          level={level}
+          setLevel={setLevel}
+          university1={university1}
+          setUniversity1={setUniversity1}
+          studentGroup={studentGroup}
+          setStudentGroup={setStudentGroup}
+          leadBy={leadBy}
+          setLeadBy={setLeadBy}
+          coordinator={coordinator}
+          setCoordinator={setCoordinator}
           submitting={submitting}
           modalError={modalError}
           modalSuccess={modalSuccess}
