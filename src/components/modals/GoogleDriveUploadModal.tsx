@@ -26,24 +26,24 @@ interface GoogleDriveUploadModalProps {
 }
 
 const NAME_SUGGESTIONS = [
-  'International Passport',
-  'Student ID',
-  'Mother Passport',
-  'Father passport',
-  'Birth certificate',
-  'Birth certificate translation',
-  'Mariage Certificate',
-  'Mariage Certificate translation',
-  'Divorce certificate',
-  'Diploma',
-  'Apostille',
-  'Death certificate',
+  'FOREIGN PASSPORT',
+  'STUDENT ID',
+  'MOTHER PASSPORT',
+  'FATHER PASSPORT',
+  'BIRTH CERTIFICATE',
+  'BIRTH CERTIFICATE TRANSLATION',
+  'MARRIAGE CERTIFICATE',
+  'MARRIAGE CERTIFICATE TRANSLATION',
+  'DIVORCE CERTIFICATE',
+  'DIPLOMA',
+  'APOSTILLE',
+  'DEATH CERTIFICATE',
   'TOPIK',
   'IELTS',
   'SKA',
   'SAT',
-  'Photo',
-  'Certificate',
+  'PHOTO',
+  'CERTIFICATE',
 ]
 
 function formatFileSize(bytes: number): string {
