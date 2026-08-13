@@ -1926,7 +1926,13 @@ export function GoogleDriveViewerModal({
         onClose={() => setIsUploadModalOpen(false)}
         folderId={activeFolderId || ''}
         folderName={folderHistory.length > 0 ? folderHistory[folderHistory.length - 1].name : studentName}
-        onUploadSuccess={() => fetchFolderFiles()}
+        onUploadSuccess={() => {
+          fetchFolderFiles()
+          // Google Drive takes a few seconds to generate PDF/Image thumbnails.
+          // Trigger a delayed fetch to update the UI with the new thumbnails automatically.
+          setTimeout(() => fetchFolderFiles(), 4000)
+          setTimeout(() => fetchFolderFiles(), 8000)
+        }}
       />
     </>
   )
