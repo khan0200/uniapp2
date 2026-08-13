@@ -363,10 +363,10 @@ export function GoogleDriveUploadModal({
               </div>
 
               {/* ── NAME SUGGESTION PICKER (Right below the file we are uploading) ── */}
-              <div className="p-3.5 border border-[var(--border)] rounded-2xl bg-[var(--surface)] space-y-2.5">
+              <div className="p-3.5 border border-blue-100 dark:border-blue-900/50 rounded-2xl bg-blue-50/40 dark:bg-blue-950/20 space-y-2.5">
                 <div className="flex items-center justify-between">
-                  <span className="text-[11px] font-bold text-[var(--foreground-muted)] flex items-center gap-1.5 uppercase tracking-wider">
-                    <Tag className="h-3.5 w-3.5 text-[var(--accent)]" />
+                  <span className="text-[11px] font-bold text-blue-800/70 dark:text-blue-300/70 flex items-center gap-1.5 uppercase tracking-wider">
+                    <Tag className="h-3.5 w-3.5 text-blue-500" />
                     Name Suggestions (Optional)
                   </span>
                 </div>
@@ -396,7 +396,7 @@ export function GoogleDriveUploadModal({
                           'px-2 sm:px-2.5 py-1 rounded-lg text-[10px] sm:text-[11px] font-semibold transition-all cursor-pointer select-none border',
                           isSelected
                             ? 'bg-[var(--accent)] text-white border-[var(--accent)] shadow-xs font-bold'
-                            : 'bg-[var(--surface-elevated)] hover:bg-[var(--border-subtle)] text-[var(--foreground)] border-[var(--border)] hover:border-[var(--accent)]/40'
+                            : 'bg-indigo-50/80 hover:bg-indigo-100 text-indigo-700 border-indigo-200/60 dark:bg-indigo-500/10 dark:hover:bg-indigo-500/25 dark:text-indigo-300 dark:border-indigo-500/20 hover:border-indigo-300 dark:hover:border-indigo-400/50'
                         )}
                       >
                         {suggestion}
