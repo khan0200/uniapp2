@@ -1984,13 +1984,13 @@ function DocumentThumbnailCard({
   if (hasThumbnailLink && !isFailed) {
     const proxyUrl = `/api/drive/thumbnail?fileId=${file.id}&size=400`
     return (
-      <div className="relative w-full h-full bg-zinc-900 overflow-hidden flex items-center justify-center">
+      <div className="relative w-full h-full bg-[var(--surface-elevated)] overflow-hidden flex items-center justify-center p-1.5">
         <img
           src={proxyUrl}
           referrerPolicy="no-referrer"
           alt=""
           onError={() => setFailedThumbnails(prev => ({ ...prev, [file.id]: true }))}
-          className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105"
+          className="w-full h-full object-contain drop-shadow-md transition-transform duration-300 group-hover:scale-105"
         />
         {ext && (
           <span className="absolute bottom-2 left-2 text-[9px] font-black bg-black/75 text-white px-2 py-0.5 rounded-md backdrop-blur-md tracking-wider border border-white/10 shadow-sm">
