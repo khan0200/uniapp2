@@ -22,6 +22,8 @@ import { SidebarItem } from './SidebarItem'
 import { ThemeToggle } from './ThemeToggle'
 import { cn } from '@/lib/utils'
 
+import { SidebarUploadProgress } from './SidebarUploadProgress'
+
 interface NavItem {
   href: string
   icon: typeof Users
@@ -115,6 +117,10 @@ export function Sidebar() {
 
       {/* ── Footer ─────────────────────────────────────────── */}
       <div className="flex-shrink-0 border-t border-border dark:border-white/5 p-2 flex flex-col items-center gap-4 pb-4">
+        
+        {/* Global Upload Progress Indicator */}
+        <SidebarUploadProgress />
+
         {/* Theme toggle (Always collapsed/centered) */}
         <div className="flex justify-center w-full">
           <ThemeToggle collapsed={true} />

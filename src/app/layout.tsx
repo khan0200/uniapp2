@@ -4,7 +4,6 @@ import './globals.css'
 import { ThemeProvider } from '@/components/providers/ThemeProvider'
 import { UserProvider } from '@/contexts/UserContext'
 import { UploadProvider } from '@/contexts/UploadContext'
-import { GlobalUploadProgress } from '@/components/ui/GlobalUploadProgress'
 
 const plusJakartaSans = Plus_Jakarta_Sans({
   subsets: ['latin'],
@@ -33,7 +32,6 @@ export default function RootLayout({
         <ThemeProvider>
           <UserProvider>
             <UploadProvider>
-              <GlobalUploadProgress />
               {children}
             </UploadProvider>
           </UserProvider>
