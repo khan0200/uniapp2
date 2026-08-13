@@ -613,41 +613,41 @@ export function GoogleDriveViewerModal({
               </p>
             </div>
           )}
-          {/* ── TOP HEADER ── */}
-          <div className="shrink-0 flex items-center justify-between gap-3 px-5 py-3.5 border-b border-[var(--border)] bg-[var(--surface)]">
-            {/* Left: Student info & Breadcrumb */}
-            <div className="flex items-center gap-3 min-w-0">
+          {/* ── TOP HEADER (Enterprise Business UI) ── */}
+          <div className="shrink-0 flex items-center justify-between gap-4 px-6 py-4 border-b border-[var(--border)] bg-[var(--surface-elevated)]">
+            {/* Left: Student Identity & Breadcrumb */}
+            <div className="flex items-center gap-3.5 min-w-0">
               {folderHistory.length > 0 ? (
                 <button
                   onClick={handleGoBack}
-                  className="h-9 w-9 rounded-xl bg-[var(--surface-elevated)] border border-[var(--border)] hover:bg-[var(--border-subtle)] flex items-center justify-center text-[var(--foreground)] shrink-0 transition-all cursor-pointer"
-                  title="Go back to parent folder"
+                  className="h-10 w-10 rounded-xl bg-[var(--surface)] border border-[var(--border)] hover:bg-[var(--border-subtle)] flex items-center justify-center text-[var(--foreground)] shrink-0 transition-all cursor-pointer shadow-xs"
+                  title="Go back"
                 >
                   <ArrowLeft className="h-4 w-4" />
                 </button>
               ) : (
-                <div className="h-9 w-9 rounded-xl bg-gradient-to-br from-emerald-400 to-teal-600 flex items-center justify-center shadow-md shrink-0">
-                  <Folder className="h-4.5 w-4.5 text-white" style={{ height: '1.125rem', width: '1.125rem' }} />
+                <div className="h-10 w-10 rounded-xl bg-slate-900 dark:bg-slate-800 text-white flex items-center justify-center shadow-xs shrink-0 border border-slate-700/50">
+                  <Folder className="h-5 w-5 text-slate-200 fill-slate-200/20" />
                 </div>
               )}
 
-              <div className="min-w-0">
-                <div className="flex items-center gap-2 flex-wrap">
-                  <h2 className="text-[13px] font-bold text-[var(--foreground)] truncate uppercase tracking-wide leading-tight">
+              <div className="min-w-0 flex flex-col justify-center">
+                <div className="flex items-center gap-2">
+                  <h2 className="text-sm font-bold text-[var(--foreground)] truncate tracking-tight">
                     {studentName}
                   </h2>
-                  <span className="text-[10px] font-bold text-emerald-700 dark:text-emerald-400 bg-emerald-500/10 border border-emerald-500/20 px-2 py-0.5 rounded-full font-mono shrink-0">
+                  <span className="text-[11px] font-mono font-semibold text-[var(--foreground-muted)] bg-[var(--surface)] border border-[var(--border)] px-2 py-0.5 rounded-md shrink-0">
                     {studentId}
                   </span>
                 </div>
 
-                {/* BREADCRUMB TRAIL */}
-                <div className="flex items-center gap-1 text-[11px] text-[var(--foreground-muted)] mt-0.5 overflow-x-auto scrollbar-none max-w-md">
+                {/* Breadcrumb Trail */}
+                <div className="flex items-center gap-1 text-[11px] text-[var(--foreground-muted)] mt-0.5 overflow-x-auto scrollbar-none max-w-lg">
                   <button
                     onClick={() => handleBreadcrumbClick(-1)}
                     className={cn(
-                      "hover:text-[var(--foreground)] transition-colors shrink-0 cursor-pointer font-semibold",
-                      folderHistory.length === 0 ? "text-emerald-600 dark:text-emerald-400 font-bold" : ""
+                      "hover:text-[var(--foreground)] transition-colors shrink-0 cursor-pointer font-medium",
+                      folderHistory.length === 0 ? "text-[var(--foreground)] font-semibold" : ""
                     )}
                   >
                     Root Folder
@@ -658,8 +658,8 @@ export function GoogleDriveViewerModal({
                       <button
                         onClick={() => handleBreadcrumbClick(idx)}
                         className={cn(
-                          "hover:text-[var(--foreground)] transition-colors truncate max-w-[120px] cursor-pointer",
-                          idx === folderHistory.length - 1 ? "text-emerald-600 dark:text-emerald-400 font-bold" : "font-medium"
+                          "hover:text-[var(--foreground)] transition-colors truncate max-w-[140px] cursor-pointer",
+                          idx === folderHistory.length - 1 ? "text-[var(--foreground)] font-semibold" : "font-medium"
                         )}
                         title={item.name}
                       >
@@ -669,8 +669,8 @@ export function GoogleDriveViewerModal({
                   ))}
                   {!loading && (
                     <>
-                      <span className="opacity-40">•</span>
-                      <span className="font-semibold text-emerald-600 dark:text-emerald-400 shrink-0">
+                      <span className="opacity-30">•</span>
+                      <span className="font-medium text-[var(--foreground-subtle)] shrink-0">
                         {files.length} item{files.length !== 1 ? 's' : ''}
                       </span>
                     </>
@@ -679,265 +679,183 @@ export function GoogleDriveViewerModal({
               </div>
             </div>
 
-            {/* Right: Toolbar */}
-            <div className="flex items-center gap-1.5 shrink-0">
-              {/* Search */}
-              <div className="relative hidden sm:flex items-center">
-                <Search className="h-3.5 w-3.5 absolute left-2.5 text-[var(--foreground-subtle)] pointer-events-none" />
-                <input
-                  type="text"
-                  placeholder="Search files..."
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  className="w-40 pl-8 pr-2.5 py-1.5 rounded-xl border border-[var(--border)] bg-[var(--surface-elevated)] text-[var(--foreground)] text-xs placeholder-[var(--foreground-subtle)] focus:outline-none focus:border-[var(--accent)] focus:ring-1 focus:ring-[var(--accent)]/30 transition-all"
-                />
-                {searchQuery && (
-                  <button onClick={() => setSearchQuery('')} className="absolute right-2 text-[var(--foreground-subtle)] hover:text-[var(--foreground)]">
-                    <X className="h-3 w-3" />
-                  </button>
-                )}
-              </div>
-
-              {/* Divider */}
-              <div className="w-px h-6 bg-[var(--border)] mx-1" />
-
-              {/* Select mode toggle */}
+            {/* Right: Primary Action Buttons & Window Controls */}
+            <div className="flex items-center gap-2 shrink-0">
+              {/* Select Mode */}
               <button
                 onClick={() => {
                   if (selectionMode) { clearSelection() } else { setSelectionMode(true) }
                 }}
                 title={selectionMode ? 'Exit selection mode' : 'Select items'}
                 className={cn(
-                  'inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer',
+                  'inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer border shadow-2xs',
                   selectionMode
-                    ? 'bg-violet-600 hover:bg-violet-500 text-white'
-                    : 'bg-[var(--surface)] border border-[var(--border)] text-[var(--foreground-muted)] hover:text-[var(--foreground)] hover:bg-[var(--border-subtle)]'
+                    ? 'bg-slate-900 text-white border-slate-900 dark:bg-slate-100 dark:text-slate-900'
+                    : 'bg-[var(--surface-elevated)] border-[var(--border)] text-[var(--foreground)] hover:bg-[var(--border-subtle)]'
                 )}
               >
                 <CheckSquare className="h-3.5 w-3.5" />
-                <span className="hidden md:inline">{selectionMode ? 'Selecting' : 'Select'}</span>
+                <span className="hidden sm:inline">{selectionMode ? 'Done' : 'Select'}</span>
               </button>
 
               {/* New Folder */}
               <button
                 onClick={() => setIsCreateFolderOpen(true)}
-                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold transition-all active:scale-95 cursor-pointer bg-[var(--surface)] border border-[var(--border)] text-[var(--foreground-muted)] hover:text-[var(--foreground)] hover:bg-[var(--border-subtle)]"
-                title="Create a new subfolder"
+                className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer bg-[var(--surface-elevated)] border border-[var(--border)] text-[var(--foreground)] hover:bg-[var(--border-subtle)] shadow-2xs"
+                title="Create new subfolder"
               >
-                <FolderOpen className="h-3.5 w-3.5 text-amber-500 fill-amber-500/10" />
-                <span className="hidden md:inline">New Folder</span>
+                <FolderOpen className="h-3.5 w-3.5 text-[var(--foreground-muted)]" />
+                <span className="hidden sm:inline">New Folder</span>
               </button>
 
-              {/* Upload */}
+              {/* Upload Button */}
               <button
                 disabled={isUploading}
                 onClick={() => setIsUploadModalOpen(true)}
-                className={cn(
-                  'inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold transition-all active:scale-95 cursor-pointer',
-                  'bg-emerald-600 hover:bg-emerald-500 text-white shadow-sm disabled:opacity-60'
-                )}
-                title="Upload documents to current folder"
+                className="inline-flex items-center gap-1.5 px-4 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer bg-slate-900 hover:bg-slate-800 dark:bg-slate-100 dark:hover:bg-slate-200 text-white dark:text-slate-900 shadow-2xs disabled:opacity-60"
+                title="Upload documents"
               >
                 {isUploading ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Upload className="h-3.5 w-3.5" />}
-                <span className="hidden md:inline">{isUploading ? 'Uploading…' : 'Upload'}</span>
+                <span>{isUploading ? 'Uploading…' : 'Upload'}</span>
               </button>
 
-              {/* View Mode Switcher */}
-              <div className="flex bg-[var(--surface)] border border-[var(--border)] rounded-xl p-0.5 gap-0.5">
-                {(['grid', 'table'] as const).map((mode) => (
+              <div className="w-px h-5 bg-[var(--border)] mx-1" />
+
+              {/* Window controls */}
+              <div className="flex items-center gap-1">
+                {[
+                  { icon: <RefreshCw className={cn('h-3.5 w-3.5', loading && 'animate-spin')} />, action: () => fetchFolderFiles(), title: 'Refresh' },
+                  {
+                    icon: isExpanded ? <Minimize2 className="h-3.5 w-3.5" /> : <Maximize2 className="h-3.5 w-3.5" />,
+                    action: () => setIsExpanded(v => !v),
+                    title: isExpanded ? 'Restore' : 'Full screen'
+                  },
+                ].map(({ icon, action, title }, i) => (
                   <button
-                    key={mode}
-                    type="button"
-                    onClick={() => setViewMode(mode)}
-                    className={cn(
-                      'flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer',
-                      viewMode === mode
-                        ? 'bg-[var(--accent)] text-white shadow-xs'
-                        : 'text-[var(--foreground-muted)] hover:text-[var(--foreground)] hover:bg-[var(--border-subtle)]'
-                    )}
-                    title={mode === 'grid' ? 'Grid view' : 'Table view'}
+                    key={i}
+                    onClick={action}
+                    title={title}
+                    className="p-1.5 rounded-lg text-[var(--foreground-muted)] hover:text-[var(--foreground)] hover:bg-[var(--border-subtle)] transition-all cursor-pointer"
                   >
-                    {mode === 'grid' ? <LayoutGrid className="h-3.5 w-3.5" /> : <List className="h-3.5 w-3.5" />}
-                    <span className="hidden sm:inline capitalize">{mode}</span>
+                    {icon}
                   </button>
                 ))}
+
+                {directUrl && (
+                  <a
+                    href={directUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="p-1.5 rounded-lg text-[var(--foreground-muted)] hover:text-[var(--foreground)] hover:bg-[var(--border-subtle)] transition-all cursor-pointer"
+                    title="Open in Google Drive"
+                  >
+                    <ExternalLink className="h-3.5 w-3.5" />
+                  </a>
+                )}
+
+                <button
+                  onClick={onClose}
+                  className="p-1.5 rounded-lg text-[var(--foreground-muted)] hover:text-rose-500 hover:bg-rose-500/10 transition-all cursor-pointer ml-1"
+                  title="Close"
+                >
+                  <X className="h-4 w-4" />
+                </button>
               </div>
-
-              {/* Icon buttons */}
-              {[
-                { icon: <RefreshCw className={cn('h-4 w-4', loading && 'animate-spin')} />, action: () => fetchFolderFiles(), title: 'Refresh' },
-                {
-                  icon: isExpanded ? <Minimize2 className="h-4 w-4" /> : <Maximize2 className="h-4 w-4" />,
-                  action: () => setIsExpanded(v => !v),
-                  title: isExpanded ? 'Restore' : 'Full screen'
-                },
-              ].map(({ icon, action, title }, i) => (
-                <button
-                  key={i}
-                  onClick={action}
-                  title={title}
-                  className="p-1.5 rounded-lg text-[var(--foreground-muted)] hover:text-[var(--foreground)] hover:bg-[var(--border-subtle)] transition-all cursor-pointer"
-                >
-                  {icon}
-                </button>
-              ))}
-
-              {/* Open in Drive */}
-              {directUrl && (
-                <a
-                  href={directUrl}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="p-1.5 rounded-lg text-[var(--foreground-muted)] hover:text-[var(--foreground)] hover:bg-[var(--border-subtle)] transition-all cursor-pointer"
-                  title="Open current folder in Google Drive"
-                >
-                  <ExternalLink className="h-4 w-4" />
-                </a>
-              )}
-
-              <div className="w-px h-6 bg-[var(--border)] mx-0.5" />
-
-              {/* Close */}
-              <button
-                onClick={onClose}
-                className="p-1.5 rounded-lg text-[var(--foreground-muted)] hover:text-rose-500 hover:bg-rose-500/10 transition-all cursor-pointer"
-                title="Close"
-              >
-                <X className="h-4.5 w-4.5" style={{ height: '1.125rem', width: '1.125rem' }} />
-              </button>
             </div>
           </div>
 
-          {/* Mobile Search */}
-          <div className="sm:hidden px-4 py-2 border-b border-[var(--border)] bg-[var(--surface)]">
-            <div className="relative flex items-center">
-              <Search className="h-3.5 w-3.5 absolute left-2.5 text-[var(--foreground-subtle)] pointer-events-none" />
-              <input
-                type="text"
-                placeholder="Search files..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-full pl-8 pr-3 py-1.5 rounded-xl border border-[var(--border)] bg-[var(--surface-elevated)] text-[var(--foreground)] text-xs placeholder-[var(--foreground-subtle)] focus:outline-none focus:border-[var(--accent)] transition-all"
-              />
-            </div>
-          </div>
-
-          {/* ── BULK ACTION TOOLBAR ── */}
-          {selectionMode && (
-            <div className="shrink-0 flex items-center gap-3 px-5 py-2.5 bg-violet-500/10 border-b border-violet-500/20">
-              {/* Select All / Deselect All */}
-              <button
-                onClick={allSelected ? deselectAll : selectAll}
-                className="flex items-center gap-2 text-xs font-bold text-violet-600 dark:text-violet-400 hover:text-violet-500 cursor-pointer transition-colors"
-              >
-                {allSelected
-                  ? <CheckCheck className="h-4 w-4" />
-                  : <Square className="h-4 w-4" />
-                }
-                {allSelected ? 'Deselect All' : 'Select All'}
-              </button>
-
-              <span className="text-[11px] font-semibold text-[var(--foreground-muted)]">
-                {selectedIds.size} of {filteredFiles.length} selected
-              </span>
-
-              <div className="flex-1" />
-
-              {/* Move button */}
-              {someSelected && (
-                <button
-                  onClick={() => setShowMoveModal(true)}
-                  disabled={isBulkMoving}
-                  className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold bg-blue-600 hover:bg-blue-500 text-white transition-all disabled:opacity-50 cursor-pointer"
-                >
-                  {isBulkMoving ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <MoveRight className="h-3.5 w-3.5" />}
-                  Move {selectedIds.size > 0 ? `(${selectedIds.size})` : ''}
-                </button>
-              )}
-
-              {/* Download ZIP button */}
-              {someSelected && (
-                <button
-                  onClick={handleBulkDownload}
-                  disabled={isDownloadingZip}
-                  className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold bg-emerald-600 hover:bg-emerald-500 text-white transition-all disabled:opacity-50 cursor-pointer"
-                  title="Download selected files as ZIP"
-                >
-                  {isDownloadingZip ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Download className="h-3.5 w-3.5" />}
-                  {isDownloadingZip ? 'Zipping…' : `ZIP (${selectedIds.size})`}
-                </button>
-              )}
-
-              {/* Delete button */}
-              {someSelected && (
-                <button
-                  onClick={handleBulkDelete}
-                  disabled={isBulkDeleting}
-                  className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold bg-rose-600 hover:bg-rose-500 text-white transition-all disabled:opacity-50 cursor-pointer"
-                >
-                  {isBulkDeleting ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Trash2 className="h-3.5 w-3.5" />}
-                  Delete {selectedIds.size > 0 ? `(${selectedIds.size})` : ''}
-                </button>
-              )}
-
-              <button
-                onClick={clearSelection}
-                className="p-1.5 rounded-lg text-[var(--foreground-muted)] hover:text-[var(--foreground)] hover:bg-[var(--border-subtle)] transition-all cursor-pointer"
-                title="Exit selection mode"
-              >
-                <X className="h-4 w-4" />
-              </button>
-            </div>
-          )}
-
-          {/* ── SORT & FILTER BAR ── */}
+          {/* ── SECONDARY CONTROL BAR (Search, Filters, View Mode) ── */}
           {!selectionMode && (
-            <div className="shrink-0 flex items-center gap-2 px-5 py-2 border-b border-[var(--border)] bg-[var(--surface)] overflow-x-auto scrollbar-none">
-              {/* Sort controls */}
-              <div className="flex items-center gap-1.5 shrink-0">
-                <SortAsc className="h-3.5 w-3.5 text-[var(--foreground-muted)]" />
-                <select
-                  value={sortBy}
-                  onChange={e => setSortBy(e.target.value as any)}
-                  className="text-[11px] font-semibold bg-transparent text-[var(--foreground-muted)] border-none outline-none cursor-pointer"
-                >
-                  <option value="name">Name</option>
-                  <option value="date">Date</option>
-                  <option value="size">Size</option>
-                  <option value="type">Type</option>
-                </select>
-                <button
-                  onClick={() => setSortDir(d => d === 'asc' ? 'desc' : 'asc')}
-                  className="p-0.5 rounded text-[var(--foreground-muted)] hover:text-[var(--foreground)] transition-colors cursor-pointer"
-                  title={sortDir === 'asc' ? 'Sort Descending' : 'Sort Ascending'}
-                >
-                  {sortDir === 'asc' ? <SortAsc className="h-3.5 w-3.5" /> : <SortDesc className="h-3.5 w-3.5" />}
-                </button>
+            <div className="shrink-0 flex items-center justify-between gap-3 px-6 py-2.5 border-b border-[var(--border)] bg-[var(--surface)]">
+              {/* Left: Search & Filter Tabs */}
+              <div className="flex items-center gap-3 min-w-0 flex-1">
+                {/* Search Bar */}
+                <div className="relative flex items-center shrink-0">
+                  <Search className="h-3.5 w-3.5 absolute left-3 text-[var(--foreground-subtle)] pointer-events-none" />
+                  <input
+                    type="text"
+                    placeholder="Filter files..."
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    className="w-44 sm:w-56 pl-8 pr-7 py-1.5 rounded-lg border border-[var(--border)] bg-[var(--surface-elevated)] text-[var(--foreground)] text-xs placeholder-[var(--foreground-subtle)] focus:outline-none focus:border-[var(--foreground-muted)] transition-all"
+                  />
+                  {searchQuery && (
+                    <button onClick={() => setSearchQuery('')} className="absolute right-2 text-[var(--foreground-subtle)] hover:text-[var(--foreground)]">
+                      <X className="h-3 w-3" />
+                    </button>
+                  )}
+                </div>
+
+                <div className="w-px h-4 bg-[var(--border)] shrink-0 hidden sm:block" />
+
+                {/* Category Filter Pills */}
+                <div className="flex items-center gap-1 overflow-x-auto scrollbar-none">
+                  {(['all', 'folders', 'images', 'pdfs', 'docs', 'sheets', 'other'] as const).map(type => (
+                    <button
+                      key={type}
+                      onClick={() => setFilterType(type)}
+                      className={cn(
+                        'px-2.5 py-1 rounded-md text-[11px] font-medium capitalize transition-all cursor-pointer shrink-0',
+                        filterType === type
+                          ? 'bg-slate-900 text-white dark:bg-slate-100 dark:text-slate-900 shadow-2xs font-semibold'
+                          : 'text-[var(--foreground-muted)] hover:text-[var(--foreground)] hover:bg-[var(--border-subtle)]'
+                      )}
+                    >
+                      {type}
+                    </button>
+                  ))}
+                </div>
               </div>
 
-              <div className="w-px h-4 bg-[var(--border)] shrink-0" />
+              {/* Right: Sort & View Mode Switcher */}
+              <div className="flex items-center gap-3 shrink-0">
+                {/* Sort dropdown */}
+                <div className="flex items-center gap-1.5 text-xs text-[var(--foreground-muted)]">
+                  <span className="text-[11px] font-medium text-[var(--foreground-subtle)]">Sort:</span>
+                  <div className="flex items-center gap-1 bg-[var(--surface-elevated)] border border-[var(--border)] rounded-md px-2 py-1">
+                    <select
+                      value={sortBy}
+                      onChange={e => setSortBy(e.target.value as any)}
+                      className="text-[11px] font-semibold bg-transparent text-[var(--foreground)] border-none outline-none cursor-pointer pr-1"
+                    >
+                      <option value="name">Name</option>
+                      <option value="date">Date</option>
+                      <option value="size">Size</option>
+                      <option value="type">Type</option>
+                    </select>
+                    <button
+                      onClick={() => setSortDir(d => d === 'asc' ? 'desc' : 'asc')}
+                      className="text-[var(--foreground-muted)] hover:text-[var(--foreground)] transition-colors cursor-pointer"
+                      title={sortDir === 'asc' ? 'Sort Descending' : 'Sort Ascending'}
+                    >
+                      {sortDir === 'asc' ? <SortAsc className="h-3 w-3" /> : <SortDesc className="h-3 w-3" />}
+                    </button>
+                  </div>
+                </div>
 
-              {/* Filter pills */}
-              <div className="flex items-center gap-1 shrink-0">
-                <Filter className="h-3 w-3 text-[var(--foreground-muted)]" />
-                {(['all', 'folders', 'images', 'pdfs', 'docs', 'sheets', 'other'] as const).map(type => (
-                  <button
-                    key={type}
-                    onClick={() => setFilterType(type)}
-                    className={cn(
-                      'px-2 py-0.5 rounded-lg text-[10px] font-bold capitalize transition-all cursor-pointer border',
-                      filterType === type
-                        ? 'bg-[var(--accent)] text-white border-[var(--accent)]'
-                        : 'bg-transparent text-[var(--foreground-muted)] border-[var(--border)] hover:border-[var(--accent)]/50 hover:text-[var(--foreground)]'
-                    )}
-                  >
-                    {type}
-                  </button>
-                ))}
+                <div className="w-px h-4 bg-[var(--border)] shrink-0" />
+
+                {/* View Mode Segmented Switcher */}
+                <div className="flex bg-[var(--surface-elevated)] border border-[var(--border)] rounded-lg p-0.5">
+                  {(['grid', 'table'] as const).map((mode) => (
+                    <button
+                      key={mode}
+                      type="button"
+                      onClick={() => setViewMode(mode)}
+                      className={cn(
+                        'flex items-center gap-1 px-2.5 py-1 rounded-md text-[11px] font-medium transition-all cursor-pointer',
+                        viewMode === mode
+                          ? 'bg-slate-900 text-white dark:bg-slate-100 dark:text-slate-900 shadow-2xs font-semibold'
+                          : 'text-[var(--foreground-muted)] hover:text-[var(--foreground)]'
+                      )}
+                      title={mode === 'grid' ? 'Grid view' : 'Table view'}
+                    >
+                      {mode === 'grid' ? <LayoutGrid className="h-3 w-3" /> : <List className="h-3 w-3" />}
+                      <span className="capitalize">{mode}</span>
+                    </button>
+                  ))}
+                </div>
               </div>
-
-              <div className="flex-1" />
-              <span className="text-[10px] text-[var(--foreground-muted)] font-semibold shrink-0">{filteredFiles.length} item{filteredFiles.length !== 1 ? 's' : ''}</span>
             </div>
           )}
 
