@@ -62,7 +62,8 @@ export function Header() {
     return (
       <header
         className={cn(
-          'flex flex-col md:flex-row flex-shrink-0 justify-between items-stretch md:items-center gap-3 md:gap-4 px-4 md:px-6 relative',
+          'flex flex-col md:flex-row flex-shrink-0 items-stretch md:items-center gap-3 md:gap-4 px-4 md:px-6 relative',
+          pathname === '/documents' ? 'justify-center' : 'justify-between',
           'h-auto py-2.5 md:h-14 md:py-0',
           'border-b border-[var(--border)] bg-[var(--surface)]/80 backdrop-blur-md',
           'sticky top-0 z-20'
@@ -107,9 +108,9 @@ export function Header() {
         <div
           className={cn(
             "flex items-center gap-2.5 z-30",
-            "w-full h-auto",
-            "md:flex-1 md:min-w-0 md:mx-3",
-            "max-w-full md:max-w-[450px]"
+            pathname === '/documents'
+              ? "flex-1 max-w-2xl mx-auto"
+              : "w-full h-auto md:flex-1 md:min-w-0 md:mx-3 max-w-full md:max-w-[450px]"
           )}
         >
           <div 
