@@ -6,8 +6,10 @@ import {
   Maximize2, Minimize2, MoreVertical, Download, Pencil, Trash2,
   FileText, Image as ImageIcon, FileSpreadsheet, File,
   Upload, AlertTriangle, Search, Eye, ChevronRight, ArrowLeft, FolderOpen,
-  CheckSquare, Square, MoveRight, CheckCheck,
+  CheckSquare, Square, MoveRight, CheckCheck, SortAsc, SortDesc,
+  Filter, CloudUpload,
 } from 'lucide-react'
+import JSZip from 'jszip'
 import { cn } from '@/lib/utils'
 import { useCssTransition } from '@/hooks/useCssTransition'
 import { GoogleDriveUploadModal } from './GoogleDriveUploadModal'
@@ -100,6 +102,25 @@ export function GoogleDriveViewerModal({
   const [createFolderName, setCreateFolderName] = useState('')
   const [isCreatingFolder, setIsCreatingFolder] = useState(false)
 
+  // ── Sort & Filter ──
+  const [sortBy, setSortBy] = useState<'name' | 'date' | 'size' | 'type'>('name')
+  const [sortDir, setSortDir] = useState<'asc' | 'desc'>('asc')
+  const [filterType, setFilterType] = useState<'all' | 'folders' | 'images' | 'pdfs' | 'docs' | 'sheets' | 'other'>('all')
+
+  // ── Folder Statistics ──
+  const [folderStats, setFolderStats] = useState<Record<string, { fileCount: number; totalSize: number; lastModifiedTime: string | null }>>({})
+
+  // ── Drag & Drop Upload (external OS files) ──
+  const [isDragOverWindow, setIsDragOverWindow] = useState(false)
+  const dragCounter = useRef(0)
+
+  // ── Bulk ZIP Download ──
+  const [isDownloadingZip, setIsDownloadingZip] = useState(false)
+
+  // ── Right-Click Context Menu ──
+  const [contextMenuFile, setContextMenuFile] = useState<DriveFile | null>(null)
+  const [contextMenuPos, setContextMenuPos] = useState<{ x: number; y: number } | null>(null)
+
   // ── Bulk Selection ──
   const [selectionMode, setSelectionMode] = useState(false)
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set())
@@ -146,6 +167,7 @@ export function GoogleDriveViewerModal({
     if (!idToFetch) return
     setLoading(true)
     setError(null)
+    setFolderStats({}) // reset folder stats on navigation
     try {
       const res = await fetch('/api/drive/list-files', {
         method: 'POST',
@@ -154,7 +176,30 @@ export function GoogleDriveViewerModal({
       })
       const data = await res.json()
       if (!res.ok) throw new Error(data.error || 'Failed to load folder contents')
-      setFiles(data.files || [])
+      const fetchedFiles: DriveFile[] = data.files || []
+      setFiles(fetchedFiles)
+
+      // Fire parallel folder-stats requests for each subfolder
+      const subfolders = fetchedFiles.filter(f => f.mimeType.includes('folder'))
+      if (subfolders.length > 0) {
+        const statsResults = await Promise.allSettled(
+          subfolders.map(sf =>
+            fetch('/api/drive/folder-stats', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ folderId: sf.id }),
+            }).then(r => r.json()).then(d => ({ id: sf.id, ...d }))
+          )
+        )
+        const statsMap: Record<string, { fileCount: number; totalSize: number; lastModifiedTime: string | null }> = {}
+        for (const r of statsResults) {
+          if (r.status === 'fulfilled' && r.value?.success) {
+            const { id, fileCount, totalSize, lastModifiedTime } = r.value
+            statsMap[id] = { fileCount, totalSize, lastModifiedTime }
+          }
+        }
+        setFolderStats(statsMap)
+      }
     } catch (err: any) {
       setError(err.message || 'Error fetching drive files.')
     } finally {
@@ -425,20 +470,111 @@ export function GoogleDriveViewerModal({
     }
   }
 
-  const filteredFiles = files.filter(f =>
-    f.name.toLowerCase().includes(searchQuery.toLowerCase().trim())
-  )
+  // ── Sort & Filter logic ──
+  const filteredFiles = files
+    .filter(f => f.name.toLowerCase().includes(searchQuery.toLowerCase().trim()))
+    .filter(f => {
+      if (filterType === 'all') return true
+      if (filterType === 'folders') return f.mimeType.includes('folder')
+      if (filterType === 'images') return f.mimeType.includes('image')
+      if (filterType === 'pdfs') return f.mimeType.includes('pdf')
+      if (filterType === 'docs') return f.mimeType.includes('document') || f.mimeType.includes('word') || f.name.match(/\.(doc|docx)$/i)
+      if (filterType === 'sheets') return f.mimeType.includes('sheet') || f.mimeType.includes('excel') || f.mimeType.includes('csv') || f.name.match(/\.(xls|xlsx|csv)$/i)
+      if (filterType === 'other') return !f.mimeType.includes('folder') && !f.mimeType.includes('image') && !f.mimeType.includes('pdf') && !f.mimeType.includes('document') && !f.mimeType.includes('word') && !f.mimeType.includes('sheet') && !f.mimeType.includes('excel')
+      return true
+    })
+    .sort((a, b) => {
+      let cmp = 0
+      if (sortBy === 'name') cmp = a.name.localeCompare(b.name)
+      else if (sortBy === 'date') cmp = (a.modifiedTime || '').localeCompare(b.modifiedTime || '')
+      else if (sortBy === 'size') cmp = (a.size || 0) - (b.size || 0)
+      else if (sortBy === 'type') cmp = a.mimeType.localeCompare(b.mimeType)
+      return sortDir === 'asc' ? cmp : -cmp
+    })
 
   const folders = filteredFiles.filter(f => f.mimeType.includes('folder'))
   const allSelected = filteredFiles.length > 0 && selectedIds.size === filteredFiles.length
   const someSelected = selectedIds.size > 0
+
+  // ── Bulk ZIP Download handler ──
+  const handleBulkDownload = async () => {
+    const selectedFiles = filteredFiles.filter(f => selectedIds.has(f.id) && !f.mimeType.includes('folder'))
+    if (selectedFiles.length === 0) return
+    setIsDownloadingZip(true)
+    try {
+      const zip = new JSZip()
+      await Promise.all(
+        selectedFiles.map(async file => {
+          const res = await fetch(`/api/drive/download-file?fileId=${file.id}`)
+          if (!res.ok) return
+          const blob = await res.blob()
+          zip.file(file.name, blob)
+        })
+      )
+      const content = await zip.generateAsync({ type: 'blob' })
+      const url = URL.createObjectURL(content)
+      const a = document.createElement('a')
+      a.href = url
+      a.download = `${studentName.replace(/\s+/g, '_')}_files.zip`
+      a.click()
+      URL.revokeObjectURL(url)
+    } catch (err: any) {
+      alert(`Download Error: ${err.message}`)
+    } finally {
+      setIsDownloadingZip(false)
+    }
+  }
+
+  // ── OS Drag & Drop Upload handlers ──
+  const handleWindowDragEnter = (e: React.DragEvent) => {
+    if (e.dataTransfer.types.includes('Files')) {
+      e.preventDefault()
+      dragCounter.current += 1
+      setIsDragOverWindow(true)
+    }
+  }
+  const handleWindowDragOver = (e: React.DragEvent) => {
+    if (e.dataTransfer.types.includes('Files')) e.preventDefault()
+  }
+  const handleWindowDragLeave = (e: React.DragEvent) => {
+    dragCounter.current -= 1
+    if (dragCounter.current <= 0) {
+      dragCounter.current = 0
+      setIsDragOverWindow(false)
+    }
+  }
+  const handleWindowDrop = async (e: React.DragEvent) => {
+    e.preventDefault()
+    dragCounter.current = 0
+    setIsDragOverWindow(false)
+    const droppedFiles = Array.from(e.dataTransfer.files)
+    if (droppedFiles.length === 0 || !activeFolderId) return
+    setIsUploading(true)
+    try {
+      await Promise.all(droppedFiles.map(async file => {
+        const formData = new FormData()
+        formData.append('file', file)
+        formData.append('folderId', activeFolderId)
+        await fetch('/api/drive/upload-file', { method: 'POST', body: formData })
+      }))
+      await fetchFolderFiles()
+    } catch (err: any) {
+      alert(`Upload Error: ${err.message}`)
+    } finally {
+      setIsUploading(false)
+    }
+  }
 
   if (!shouldRender) return null
 
   return (
     <>
       <div
-        onClick={() => setActiveMenuFileId(null)}
+        onClick={() => { setActiveMenuFileId(null); setContextMenuFile(null); setContextMenuPos(null) }}
+        onDragEnter={handleWindowDragEnter}
+        onDragOver={handleWindowDragOver}
+        onDragLeave={handleWindowDragLeave}
+        onDrop={handleWindowDrop}
         className={cn(
           'fixed inset-0 z-50 flex items-end sm:items-center justify-center transition-all duration-250',
           isExpanded ? 'p-0' : 'p-0 sm:p-4 md:p-8'
@@ -465,6 +601,18 @@ export function GoogleDriveViewerModal({
             isVisible ? 'opacity-100 scale-100 translate-y-0' : 'opacity-0 scale-[0.97] translate-y-4'
           )}
         >
+          {/* ── DRAG & DROP UPLOAD OVERLAY ── */}
+          {isDragOverWindow && (
+            <div className="absolute inset-0 z-50 flex flex-col items-center justify-center bg-emerald-950/80 backdrop-blur-md rounded-2xl border-2 border-dashed border-emerald-400 pointer-events-none">
+              <div className="h-20 w-20 rounded-3xl bg-emerald-500/20 border border-emerald-400/50 flex items-center justify-center mb-4 animate-bounce">
+                <CloudUpload className="h-10 w-10 text-emerald-400" />
+              </div>
+              <p className="text-2xl font-bold text-emerald-300">Drop to Upload</p>
+              <p className="text-sm text-emerald-400 mt-1">
+                Files will be uploaded to: <span className="font-semibold">{folderHistory.length > 0 ? folderHistory[folderHistory.length - 1].name : 'Root Folder'}</span>
+              </p>
+            </div>
+          )}
           {/* ── TOP HEADER ── */}
           <div className="shrink-0 flex items-center justify-between gap-3 px-5 py-3.5 border-b border-[var(--border)] bg-[var(--surface)]">
             {/* Left: Student info & Breadcrumb */}
@@ -707,6 +855,19 @@ export function GoogleDriveViewerModal({
                 </button>
               )}
 
+              {/* Download ZIP button */}
+              {someSelected && (
+                <button
+                  onClick={handleBulkDownload}
+                  disabled={isDownloadingZip}
+                  className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold bg-emerald-600 hover:bg-emerald-500 text-white transition-all disabled:opacity-50 cursor-pointer"
+                  title="Download selected files as ZIP"
+                >
+                  {isDownloadingZip ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Download className="h-3.5 w-3.5" />}
+                  {isDownloadingZip ? 'Zipping…' : `ZIP (${selectedIds.size})`}
+                </button>
+              )}
+
               {/* Delete button */}
               {someSelected && (
                 <button
@@ -726,6 +887,57 @@ export function GoogleDriveViewerModal({
               >
                 <X className="h-4 w-4" />
               </button>
+            </div>
+          )}
+
+          {/* ── SORT & FILTER BAR ── */}
+          {!selectionMode && (
+            <div className="shrink-0 flex items-center gap-2 px-5 py-2 border-b border-[var(--border)] bg-[var(--surface)] overflow-x-auto scrollbar-none">
+              {/* Sort controls */}
+              <div className="flex items-center gap-1.5 shrink-0">
+                <SortAsc className="h-3.5 w-3.5 text-[var(--foreground-muted)]" />
+                <select
+                  value={sortBy}
+                  onChange={e => setSortBy(e.target.value as any)}
+                  className="text-[11px] font-semibold bg-transparent text-[var(--foreground-muted)] border-none outline-none cursor-pointer"
+                >
+                  <option value="name">Name</option>
+                  <option value="date">Date</option>
+                  <option value="size">Size</option>
+                  <option value="type">Type</option>
+                </select>
+                <button
+                  onClick={() => setSortDir(d => d === 'asc' ? 'desc' : 'asc')}
+                  className="p-0.5 rounded text-[var(--foreground-muted)] hover:text-[var(--foreground)] transition-colors cursor-pointer"
+                  title={sortDir === 'asc' ? 'Sort Descending' : 'Sort Ascending'}
+                >
+                  {sortDir === 'asc' ? <SortAsc className="h-3.5 w-3.5" /> : <SortDesc className="h-3.5 w-3.5" />}
+                </button>
+              </div>
+
+              <div className="w-px h-4 bg-[var(--border)] shrink-0" />
+
+              {/* Filter pills */}
+              <div className="flex items-center gap-1 shrink-0">
+                <Filter className="h-3 w-3 text-[var(--foreground-muted)]" />
+                {(['all', 'folders', 'images', 'pdfs', 'docs', 'sheets', 'other'] as const).map(type => (
+                  <button
+                    key={type}
+                    onClick={() => setFilterType(type)}
+                    className={cn(
+                      'px-2 py-0.5 rounded-lg text-[10px] font-bold capitalize transition-all cursor-pointer border',
+                      filterType === type
+                        ? 'bg-[var(--accent)] text-white border-[var(--accent)]'
+                        : 'bg-transparent text-[var(--foreground-muted)] border-[var(--border)] hover:border-[var(--accent)]/50 hover:text-[var(--foreground)]'
+                    )}
+                  >
+                    {type}
+                  </button>
+                ))}
+              </div>
+
+              <div className="flex-1" />
+              <span className="text-[10px] text-[var(--foreground-muted)] font-semibold shrink-0">{filteredFiles.length} item{filteredFiles.length !== 1 ? 's' : ''}</span>
             </div>
           )}
 
@@ -813,6 +1025,12 @@ export function GoogleDriveViewerModal({
                           setPreviewFile(file)
                         }
                       }}
+                      onContextMenu={(e) => {
+                        e.preventDefault()
+                        e.stopPropagation()
+                        setContextMenuFile(file)
+                        setContextMenuPos({ x: e.clientX, y: e.clientY })
+                      }}
                     >
                       {/* Selection checkbox overlay */}
                       {(selectionMode || isSelected) && (
@@ -843,11 +1061,18 @@ export function GoogleDriveViewerModal({
                       {/* Thumbnail / Header Area */}
                       <div className="relative h-36 w-full overflow-hidden bg-[var(--surface)] flex items-center justify-center">
                         {isFolder ? (
-                          <div className="flex flex-col items-center gap-2 w-full h-full justify-center bg-gradient-to-b from-amber-500/20 to-amber-500/5">
+                          <div className="flex flex-col items-center gap-1.5 w-full h-full justify-center bg-gradient-to-b from-amber-500/20 to-amber-500/5 px-3">
                             <Folder className="h-12 w-12 text-amber-500 fill-amber-500/30 transition-transform group-hover:scale-110" />
-                            <span className="text-[10px] font-bold text-amber-700 dark:text-amber-400 bg-amber-500/10 px-2 py-0.5 rounded-full border border-amber-500/20">
-                              Subfolder
-                            </span>
+                            {folderStats[file.id] ? (
+                              <div className="flex flex-col items-center gap-0.5">
+                                <span className="text-[9px] font-bold text-amber-700 dark:text-amber-400">
+                                  {folderStats[file.id].fileCount} file{folderStats[file.id].fileCount !== 1 ? 's' : ''}
+                                  {folderStats[file.id].totalSize > 0 && ` • ${formatFileSize(folderStats[file.id].totalSize)}`}
+                                </span>
+                              </div>
+                            ) : (
+                              <span className="text-[10px] font-bold text-amber-700 dark:text-amber-400 bg-amber-500/10 px-2 py-0.5 rounded-full border border-amber-500/20">Subfolder</span>
+                            )}
                           </div>
                         ) : (
                           <DocumentThumbnailCard
@@ -877,6 +1102,12 @@ export function GoogleDriveViewerModal({
                           <p className="text-[11px] font-semibold text-[var(--foreground)] break-words leading-snug">
                             {file.name}
                           </p>
+                          {isFolder && folderStats[file.id] && (
+                            <p className="text-[9px] text-[var(--foreground-muted)] font-semibold mt-0.5">
+                              {folderStats[file.id].fileCount} items
+                              {folderStats[file.id].totalSize > 0 && ` • ${formatFileSize(folderStats[file.id].totalSize)}`}
+                            </p>
+                          )}
                           {!isFolder && file.size != null && (
                             <p className="text-[10px] text-[var(--foreground-muted)] font-mono mt-1">
                               {formatFileSize(file.size)}
@@ -972,6 +1203,12 @@ export function GoogleDriveViewerModal({
                                 setPreviewFile(file)
                               }
                             }}
+                            onContextMenu={(e) => {
+                              e.preventDefault()
+                              e.stopPropagation()
+                              setContextMenuFile(file)
+                              setContextMenuPos({ x: e.clientX, y: e.clientY })
+                            }}
                             className={cn(
                               "transition-colors cursor-pointer group select-none",
                               isDragTarget
@@ -1035,6 +1272,23 @@ export function GoogleDriveViewerModal({
                                   >
                                     <FolderOpen className="h-3.5 w-3.5" />
                                     <span>Open</span>
+                                  </button>
+                                )}
+
+
+
+                                {/* Move */}
+                                {!isFolder && (
+                                  <button
+                                    type="button"
+                                    title="Move"
+                                    onClick={() => {
+                                      setSelectedIds(new Set([file.id]))
+                                      setShowMoveModal(true)
+                                    }}
+                                    className="p-1.5 rounded-lg text-[var(--foreground-muted)] hover:text-blue-500 hover:bg-blue-500/10 transition-all cursor-pointer"
+                                  >
+                                    <MoveRight className="h-3.5 w-3.5" />
                                   </button>
                                 )}
 
@@ -1166,16 +1420,43 @@ export function GoogleDriveViewerModal({
                   }}
                 />
               </div>
-            ) : (
-              <div className="w-full h-full max-w-6xl max-h-[90vh] bg-zinc-900 rounded-2xl overflow-hidden shadow-2xl border border-zinc-800 flex flex-col">
-                <iframe
-                  src={`https://drive.google.com/file/d/${previewFile.id}/preview`}
-                  className="w-full h-full border-none rounded-2xl bg-white dark:bg-zinc-950"
-                  title={previewFile.name}
-                  allow="autoplay"
-                />
-              </div>
-            )}
+            ) : (() => {
+              // Determine preview iframe URL based on file type
+              const isGoogleNative = previewFile.mimeType.includes('google-apps')
+              const isOfficeFile = /\.(docx?|xlsx?|pptx?|odt|ods|odp|csv)$/i.test(previewFile.name)
+              let iframeSrc: string
+
+              if (isGoogleNative) {
+                // Google Docs/Sheets/Slides: use /preview suffix
+                iframeSrc = (previewFile.webViewLink || `https://drive.google.com/file/d/${previewFile.id}/view`)
+                  .replace('/edit', '/preview').replace('/view', '/preview')
+              } else if (isOfficeFile && previewFile.webContentLink) {
+                // Office files uploaded as raw: use Google Docs Viewer
+                iframeSrc = `https://docs.google.com/viewer?url=${encodeURIComponent(previewFile.webContentLink)}&embedded=true`
+              } else {
+                // Default: Drive file preview
+                iframeSrc = `https://drive.google.com/file/d/${previewFile.id}/preview`
+              }
+
+              return (
+                <div className="w-full h-full max-w-6xl max-h-[90vh] bg-zinc-900 rounded-2xl overflow-hidden shadow-2xl border border-zinc-800 flex flex-col">
+                  {isOfficeFile && (
+                    <div className="shrink-0 flex items-center gap-2 px-4 py-2 bg-zinc-800 border-b border-zinc-700">
+                      <Eye className="h-3.5 w-3.5 text-zinc-400" />
+                      <span className="text-[11px] text-zinc-400 font-semibold">
+                        Previewing via Google Docs Viewer
+                      </span>
+                    </div>
+                  )}
+                  <iframe
+                    src={iframeSrc}
+                    className="w-full flex-1 border-none bg-white dark:bg-zinc-950"
+                    title={previewFile.name}
+                    allow="autoplay"
+                  />
+                </div>
+              )
+            })()}
           </div>
         </div>
       )}
@@ -1538,6 +1819,56 @@ export function GoogleDriveViewerModal({
             </button>
           </div>
         </ModalDialog>
+      )}
+
+      {/* ── RIGHT-CLICK CONTEXT MENU ── */}
+      {contextMenuFile && contextMenuPos && (
+        <div
+          style={{ top: contextMenuPos.y, left: contextMenuPos.x }}
+          className="fixed z-[100] transform -translate-x-2 -translate-y-2"
+          onClick={(e) => e.stopPropagation()}
+        >
+          <FileActionMenu
+            file={contextMenuFile}
+            onOpenFolder={contextMenuFile.mimeType.includes('folder') ? () => {
+              const file = contextMenuFile
+              setContextMenuFile(null)
+              setContextMenuPos(null)
+              handleOpenFolder(file)
+            } : undefined}
+            onRename={() => {
+              const file = contextMenuFile
+              setContextMenuFile(null)
+              setContextMenuPos(null)
+              setFileToRename(file)
+              setNewFileName(file.name)
+            }}
+            onDelete={() => {
+              const file = contextMenuFile
+              setContextMenuFile(null)
+              setContextMenuPos(null)
+              setFileToDelete(file)
+            }}
+            onSelect={() => {
+              const file = contextMenuFile
+              setContextMenuFile(null)
+              setContextMenuPos(null)
+              setSelectionMode(true)
+              setSelectedIds(new Set([file.id]))
+            }}
+            onMove={!contextMenuFile.mimeType.includes('folder') ? () => {
+              const file = contextMenuFile
+              setContextMenuFile(null)
+              setContextMenuPos(null)
+              setSelectedIds(new Set([file.id]))
+              setShowMoveModal(true)
+            } : undefined}
+            onClose={() => {
+              setContextMenuFile(null)
+              setContextMenuPos(null)
+            }}
+          />
+        </div>
       )}
 
       {/* ── DEDICATED UPLOAD MENU MODAL ── */}
