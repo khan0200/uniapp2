@@ -420,11 +420,19 @@ export function GoogleDriveUploadModal({
                   {/* ── NAME SUGGESTION PICKER (Right below the file we are uploading) ── */}
                   {item.isRenaming && (
                     <div className="p-3.5 ml-8 border border-blue-100 dark:border-blue-900/50 rounded-2xl bg-blue-50/40 dark:bg-blue-950/20 space-y-2.5">
-                      <div className="flex items-center justify-between">
+                      <div className="flex items-center justify-between mb-1">
                         <span className="text-[11px] font-bold text-blue-800/70 dark:text-blue-300/70 flex items-center gap-1.5 uppercase tracking-wider">
                           <Tag className="h-3.5 w-3.5 text-blue-500" />
                           Name Suggestions (Optional)
                         </span>
+                        <button
+                          type="button"
+                          onClick={() => toggleRenaming(item.id)}
+                          className="px-3 py-1 bg-blue-100 hover:bg-blue-200 text-blue-700 dark:bg-blue-900/40 dark:hover:bg-blue-900/60 dark:text-blue-300 text-[10px] font-bold rounded-lg transition-colors cursor-pointer flex items-center gap-1"
+                        >
+                          <CheckCircle2 className="h-3 w-3" />
+                          Done
+                        </button>
                       </div>
 
                       {/* Manual Editable Name Input */}
