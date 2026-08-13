@@ -602,7 +602,7 @@ export function GoogleDriveViewerModal({
             'transition-all duration-250 ease-[cubic-bezier(0.16,1,0.3,1)]',
             isExpanded
               ? 'w-screen h-screen rounded-none'
-              : 'w-full max-w-5xl h-[90vh] sm:h-[85vh] rounded-2xl shadow-[0_32px_80px_rgba(0,0,0,0.4)]',
+              : 'w-full max-w-6xl h-[90vh] sm:h-[85vh] rounded-2xl shadow-[0_32px_80px_rgba(0,0,0,0.4)]',
             isVisible ? 'opacity-100 scale-100 translate-y-0' : 'opacity-0 scale-[0.97] translate-y-4'
           )}
         >
@@ -974,7 +974,7 @@ export function GoogleDriveViewerModal({
               </div>
             ) : viewMode === 'grid' ? (
               /* ── GRID VIEW ── */
-              <div className="p-5 grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
+              <div className="p-5 grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-3.5">
                 {filteredFiles.map((file) => {
                   const isFolder = file.mimeType.includes('folder')
                   const ext = getFileExtension(file.name, file.mimeType)
