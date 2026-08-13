@@ -1091,12 +1091,12 @@ export function GoogleDriveViewerModal({
                           />
                         )}
 
-                        {/* Hover overlay (hidden in selection mode) */}
-                        {!selectionMode && (
+                        {/* Hover overlay (hidden in selection mode) — no pill label */}
+                        {!selectionMode && isFolder && (
                           <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent opacity-0 group-hover:opacity-100 transition-all duration-200 flex items-end justify-center pb-3">
                             <span className="flex items-center gap-1.5 text-white text-[11px] font-bold bg-white/20 backdrop-blur-md px-3 py-1.5 rounded-full border border-white/20">
-                              {isFolder ? <FolderOpen className="h-3 w-3" /> : <Eye className="h-3 w-3" />}
-                              {isFolder ? 'Open Folder' : 'Preview'}
+                              <FolderOpen className="h-3 w-3" />
+                              Open Folder
                             </span>
                           </div>
                         )}
