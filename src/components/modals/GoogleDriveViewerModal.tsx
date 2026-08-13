@@ -864,6 +864,69 @@ export function GoogleDriveViewerModal({
             </div>
           )}
 
+          {/* ── BULK ACTION TOOLBAR (When Selection Mode is Active) ── */}
+          {selectionMode && (
+            <div className="shrink-0 flex items-center justify-between gap-3 px-6 py-2.5 bg-slate-900 text-white dark:bg-slate-950 border-b border-slate-800">
+              <div className="flex items-center gap-3">
+                <button
+                  onClick={allSelected ? deselectAll : selectAll}
+                  className="flex items-center gap-2 text-xs font-semibold text-slate-300 hover:text-white cursor-pointer transition-colors"
+                >
+                  {allSelected ? <CheckCheck className="h-4 w-4 text-emerald-400" /> : <Square className="h-4 w-4 text-slate-400" />}
+                  <span>{allSelected ? 'Deselect All' : 'Select All'}</span>
+                </button>
+                <span className="text-[11px] font-semibold text-slate-400">
+                  {selectedIds.size} of {filteredFiles.length} selected
+                </span>
+              </div>
+
+              <div className="flex items-center gap-2">
+                {someSelected && (
+                  <>
+                    {/* Bulk Move */}
+                    <button
+                      onClick={() => setShowMoveModal(true)}
+                      disabled={isBulkMoving}
+                      className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold bg-blue-600 hover:bg-blue-500 text-white transition-all disabled:opacity-50 cursor-pointer shadow-2xs"
+                    >
+                      {isBulkMoving ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <MoveRight className="h-3.5 w-3.5" />}
+                      <span>Move ({selectedIds.size})</span>
+                    </button>
+
+                    {/* Bulk ZIP Download */}
+                    <button
+                      onClick={handleBulkDownload}
+                      disabled={isDownloadingZip}
+                      className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold bg-emerald-600 hover:bg-emerald-500 text-white transition-all disabled:opacity-50 cursor-pointer shadow-2xs"
+                      title="Download selected files as ZIP"
+                    >
+                      {isDownloadingZip ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Download className="h-3.5 w-3.5" />}
+                      <span>{isDownloadingZip ? 'Zipping…' : `ZIP (${selectedIds.size})`}</span>
+                    </button>
+
+                    {/* Bulk Delete */}
+                    <button
+                      onClick={handleBulkDelete}
+                      disabled={isBulkDeleting}
+                      className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg text-xs font-semibold bg-rose-600 hover:bg-rose-500 text-white transition-all disabled:opacity-50 cursor-pointer shadow-2xs"
+                    >
+                      {isBulkDeleting ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Trash2 className="h-3.5 w-3.5" />}
+                      <span>Delete ({selectedIds.size})</span>
+                    </button>
+                  </>
+                )}
+
+                <button
+                  onClick={clearSelection}
+                  className="p-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 transition-all cursor-pointer ml-1"
+                  title="Exit selection mode"
+                >
+                  <X className="h-4 w-4" />
+                </button>
+              </div>
+            </div>
+          )}
+
           {/* ── CONTENT AREA ── */}
           <div className="flex-1 overflow-y-auto">
             {loading ? (
@@ -928,7 +991,7 @@ export function GoogleDriveViewerModal({
                       onDragLeave={isFolder ? handleDragLeave : undefined}
                       onDrop={isFolder ? (e) => handleDrop(e, file) : undefined}
                       className={cn(
-                        "group relative flex flex-col bg-[var(--surface-elevated)] border rounded-2xl overflow-hidden hover:shadow-lg transition-all duration-200 cursor-pointer select-none",
+                        "group relative flex flex-col bg-[var(--surface-elevated)] border rounded-2xl hover:shadow-lg transition-all duration-200 cursor-pointer select-none z-0 hover:z-20",
                         isFolder
                           ? cn(
                               "border-blue-900/30 hover:border-blue-800 bg-blue-950/5 dark:bg-blue-950/20 dark:border-blue-800/40",
@@ -982,7 +1045,7 @@ export function GoogleDriveViewerModal({
                       )}
 
                       {/* Thumbnail / Header Area */}
-                      <div className="relative h-36 w-full overflow-hidden bg-[var(--surface)] flex items-center justify-center">
+                      <div className="relative h-36 w-full overflow-hidden rounded-t-2xl bg-[var(--surface)] flex items-center justify-center">
                         {isFolder ? (
                           <div className="flex flex-col items-center gap-1.5 w-full h-full justify-center bg-gradient-to-b from-blue-950/25 via-slate-900/10 to-blue-950/5 px-3">
                             <Folder className="h-12 w-12 text-blue-900 dark:text-blue-400 fill-blue-950/30 transition-transform group-hover:scale-110" />
@@ -1826,7 +1889,7 @@ function FileActionMenu({
   onClose: () => void
 }) {
   return (
-    <div className="absolute right-0 top-8 w-40 py-1 bg-[var(--surface-elevated)] border border-[var(--border)] rounded-2xl shadow-2xl z-30 text-xs animate-in fade-in slide-in-from-top-1 duration-100 overflow-hidden">
+    <div className="absolute right-0 top-8 w-44 py-1.5 bg-[var(--surface-elevated)] border border-[var(--border)] rounded-xl shadow-2xl z-50 text-xs animate-in fade-in slide-in-from-top-1 duration-100 overflow-hidden">
       {onOpenFolder && (
         <button
           onClick={onOpenFolder}
