@@ -37,7 +37,7 @@ interface GoogleDriveViewerModalProps {
 }
 
 function getFileIcon(mimeType: string, className = 'h-5 w-5') {
-  if (mimeType.includes('folder')) return <Folder className={cn(className, 'text-amber-500 fill-amber-500/20')} />
+  if (mimeType.includes('folder')) return <Folder className={cn(className, 'text-blue-900 dark:text-blue-400 fill-blue-900/20 dark:fill-blue-400/20')} />
   if (mimeType.includes('image')) return <ImageIcon className={cn(className, 'text-sky-500')} />
   if (mimeType.includes('pdf')) return <FileText className={cn(className, 'text-rose-500')} />
   if (mimeType.includes('sheet') || mimeType.includes('csv') || mimeType.includes('excel'))
@@ -48,7 +48,7 @@ function getFileIcon(mimeType: string, className = 'h-5 w-5') {
 }
 
 function getFileColor(mimeType: string): string {
-  if (mimeType.includes('folder')) return 'from-amber-500/20 to-amber-500/5 border-amber-500/30'
+  if (mimeType.includes('folder')) return 'from-blue-950/20 to-blue-900/5 border-blue-900/30'
   if (mimeType.includes('image')) return 'from-sky-500/20 to-sky-500/5 border-sky-500/20'
   if (mimeType.includes('pdf')) return 'from-rose-500/20 to-rose-500/5 border-rose-500/20'
   if (mimeType.includes('sheet') || mimeType.includes('csv') || mimeType.includes('excel'))
@@ -484,6 +484,11 @@ export function GoogleDriveViewerModal({
       return true
     })
     .sort((a, b) => {
+      const isAFolder = a.mimeType.includes('folder')
+      const isBFolder = b.mimeType.includes('folder')
+      if (isAFolder && !isBFolder) return -1
+      if (!isAFolder && isBFolder) return 1
+
       let cmp = 0
       if (sortBy === 'name') cmp = a.name.localeCompare(b.name)
       else if (sortBy === 'date') cmp = (a.modifiedTime || '').localeCompare(b.modifiedTime || '')
@@ -926,8 +931,8 @@ export function GoogleDriveViewerModal({
                         "group relative flex flex-col bg-[var(--surface-elevated)] border rounded-2xl overflow-hidden hover:shadow-lg transition-all duration-200 cursor-pointer select-none",
                         isFolder
                           ? cn(
-                              "border-amber-500/30 hover:border-amber-500 bg-amber-500/5",
-                              isDragTarget && "border-amber-400 bg-amber-500/20 scale-[1.03] shadow-xl ring-2 ring-amber-400/50"
+                              "border-blue-900/30 hover:border-blue-800 bg-blue-950/5 dark:bg-blue-950/20 dark:border-blue-800/40",
+                              isDragTarget && "border-blue-600 bg-blue-900/30 scale-[1.03] shadow-xl ring-2 ring-blue-500/50"
                             )
                           : "border-[var(--border)] hover:border-[var(--accent)]/50",
                         isSelected && "ring-2 ring-violet-500 border-violet-500/50"
@@ -979,17 +984,17 @@ export function GoogleDriveViewerModal({
                       {/* Thumbnail / Header Area */}
                       <div className="relative h-36 w-full overflow-hidden bg-[var(--surface)] flex items-center justify-center">
                         {isFolder ? (
-                          <div className="flex flex-col items-center gap-1.5 w-full h-full justify-center bg-gradient-to-b from-amber-500/20 to-amber-500/5 px-3">
-                            <Folder className="h-12 w-12 text-amber-500 fill-amber-500/30 transition-transform group-hover:scale-110" />
+                          <div className="flex flex-col items-center gap-1.5 w-full h-full justify-center bg-gradient-to-b from-blue-950/25 via-slate-900/10 to-blue-950/5 px-3">
+                            <Folder className="h-12 w-12 text-blue-900 dark:text-blue-400 fill-blue-950/30 transition-transform group-hover:scale-110" />
                             {folderStats[file.id] ? (
                               <div className="flex flex-col items-center gap-0.5">
-                                <span className="text-[9px] font-bold text-amber-700 dark:text-amber-400">
+                                <span className="text-[10px] font-bold text-blue-950 dark:text-blue-300">
                                   {folderStats[file.id].fileCount} file{folderStats[file.id].fileCount !== 1 ? 's' : ''}
                                   {folderStats[file.id].totalSize > 0 && ` • ${formatFileSize(folderStats[file.id].totalSize)}`}
                                 </span>
                               </div>
                             ) : (
-                              <span className="text-[10px] font-bold text-amber-700 dark:text-amber-400 bg-amber-500/10 px-2 py-0.5 rounded-full border border-amber-500/20">Subfolder</span>
+                              <span className="text-[10px] font-bold text-blue-950 dark:text-blue-300 bg-blue-950/10 dark:bg-blue-900/20 px-2.5 py-0.5 rounded-md border border-blue-900/20">Subfolder</span>
                             )}
                           </div>
                         ) : (
