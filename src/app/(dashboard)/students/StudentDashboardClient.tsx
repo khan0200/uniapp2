@@ -291,6 +291,7 @@ export function StudentDashboardClient({ hidePhone = false }: { hidePhone?: bool
   // Context shared state
   const {
     searchQuery,
+    searchMode,
     isAddStudentModalOpen: isModalOpen,
     setIsAddStudentModalOpen: setIsModalOpen,
     students,
@@ -1852,31 +1853,53 @@ export function StudentDashboardClient({ hidePhone = false }: { hidePhone?: bool
 
   // Filter students based on all filter parameters
   const filteredStudents = students.filter(student => {
-    // 1. Folder filtering
-    if (activeFolder === 'deleted') {
-      if (student.is_deleted !== true) return false
-    } else if (activeFolder === 'hidden') {
-      if (student.is_deleted === true) return false
-      if (student.status_hidden !== true) return false
-    } else {
-      if (student.is_deleted === true) return false
-      // Hide status_hidden students on the Status page from normal folders
-      if (hidePhone && student.status_hidden === true) return false
+    const cleanSearch = searchQuery.trim().toLowerCase()
 
-      if (activeFolder === 'except') {
-        if (student.folder_ids && student.folder_ids.length > 0) return false
-      } else if (activeFolder !== 'all') {
-        // Custom folder selection
-        if (!(student.folder_ids || []).includes(activeFolder)) return false
+    // 1. Folder filtering (Only enforce folder restriction if NOT searching)
+    if (!cleanSearch) {
+      if (activeFolder === 'deleted') {
+        if (student.is_deleted !== true) return false
+      } else if (activeFolder === 'hidden') {
+        if (student.is_deleted === true) return false
+        if (student.status_hidden !== true) return false
+      } else {
+        if (student.is_deleted === true) return false
+        // Hide status_hidden students on the Status page from normal folders
+        if (hidePhone && student.status_hidden === true) return false
+
+        if (activeFolder === 'except') {
+          if (student.folder_ids && student.folder_ids.length > 0) return false
+        } else if (activeFolder !== 'all') {
+          // Custom folder selection
+          if (!(student.folder_ids || []).includes(activeFolder)) return false
+        }
       }
     }
 
     // 2. Search query matching
-    const matchesSearch =
-      student.id.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      student.full_name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      (student.phone1 && student.phone1.includes(searchQuery)) ||
-      (student.phone2 && student.phone2.includes(searchQuery))
+    let matchesSearch = true
+    if (cleanSearch) {
+      if (searchMode === 'id') {
+        matchesSearch = Boolean(student.id && student.id.toLowerCase().includes(cleanSearch))
+      } else {
+        matchesSearch = Boolean(
+          (student.id && student.id.toLowerCase().includes(cleanSearch)) ||
+          (student.full_name && student.full_name.toLowerCase().includes(cleanSearch)) ||
+          (student.korean_name && student.korean_name.toLowerCase().includes(cleanSearch)) ||
+          (student.passport && student.passport.toLowerCase().includes(cleanSearch)) ||
+          (student.phone1 && student.phone1.toLowerCase().includes(cleanSearch)) ||
+          (student.phone2 && student.phone2.toLowerCase().includes(cleanSearch)) ||
+          (student.father_phone && student.father_phone.toLowerCase().includes(cleanSearch)) ||
+          (student.mother_phone && student.mother_phone.toLowerCase().includes(cleanSearch)) ||
+          (student.university_1 && student.university_1.toLowerCase().includes(cleanSearch)) ||
+          (student.university_2 && student.university_2.toLowerCase().includes(cleanSearch)) ||
+          (student.university_3 && student.university_3.toLowerCase().includes(cleanSearch)) ||
+          (student.university_4 && student.university_4.toLowerCase().includes(cleanSearch)) ||
+          (student.university_5 && student.university_5.toLowerCase().includes(cleanSearch)) ||
+          (student.final_school_name && student.final_school_name.toLowerCase().includes(cleanSearch))
+        )
+      }
+    }
 
     // 3. Tariff filter (handling NO_TARIFF)
     let matchesTariff = false
@@ -2341,6 +2364,7 @@ export function StudentDashboardClient({ hidePhone = false }: { hidePhone?: bool
         <div>
           {(searchQuery || selectedTariffs.length > 0 || selectedLevels.length > 0 || selectedGroups.length > 0 || selectedCerts.length > 0 || selectedScores.length > 0 || selectedTags.length > 0 || selectedLeads.length > 0) ? (
             <span>Showing {filteredStudents.length} of {students.filter(s => {
+              if (searchQuery.trim()) return true
               if (s.is_deleted) return activeFolder === 'deleted'
               if (activeFolder === 'deleted') return false
               if (activeFolder === 'hidden') return s.status_hidden === true
@@ -2570,6 +2594,16 @@ export function StudentDashboardClient({ hidePhone = false }: { hidePhone?: bool
                           <span className="font-bold uppercase tracking-wide text-xs text-[var(--foreground)]">
                             {student.full_name}
                           </span>
+                          {student.is_deleted && (
+                            <span className="px-1.5 py-0.5 rounded text-[9.5px] font-bold tracking-wider uppercase bg-red-500/10 text-red-600 dark:text-red-400 border border-red-500/20 shrink-0">
+                              Archive
+                            </span>
+                          )}
+                          {!student.is_deleted && student.status_hidden && (
+                            <span className="px-1.5 py-0.5 rounded text-[9.5px] font-bold tracking-wider uppercase bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/20 shrink-0">
+                              Hidden
+                            </span>
+                          )}
                           {(() => {
                             if (hidePhone) {
                               const isApproved = student.embassy?.toUpperCase() === 'APPROVED'

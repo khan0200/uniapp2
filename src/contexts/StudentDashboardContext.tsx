@@ -28,6 +28,8 @@ interface StudentDetailPageActions {
 interface StudentDashboardContextValue {
   searchQuery: string
   setSearchQuery: (query: string) => void
+  searchMode: 'all' | 'id'
+  setSearchMode: (mode: 'all' | 'id') => void
   isAddStudentModalOpen: boolean
   setIsAddStudentModalOpen: (open: boolean) => void
   isFilterPanelOpen: boolean
@@ -121,6 +123,7 @@ export function StudentDashboardProvider({ children }: { children: ReactNode }) 
   const { profile } = useUser()
 
   const [searchQuery, setSearchQuery] = useState('')
+  const [searchMode, setSearchMode] = useState<'all' | 'id'>('all')
   const [isAddStudentModalOpen, setIsAddStudentModalOpen] = useState(false)
   const [isFilterPanelOpen, setIsFilterPanelOpen] = useState(false)
   const [isExcelModalOpen, setIsExcelModalOpen] = useState(false)
@@ -223,6 +226,7 @@ export function StudentDashboardProvider({ children }: { children: ReactNode }) 
 
   const resetAllFilters = () => {
     setSearchQuery('')
+    setSearchMode('all')
     setSelectedTariffs([])
     setSelectedLevels([])
     setSelectedGroups([])
@@ -442,6 +446,8 @@ export function StudentDashboardProvider({ children }: { children: ReactNode }) 
     <StudentDashboardContext.Provider value={{
       searchQuery,
       setSearchQuery,
+      searchMode,
+      setSearchMode,
       isAddStudentModalOpen,
       setIsAddStudentModalOpen,
       isFilterPanelOpen,

@@ -23,6 +23,7 @@ export function FilterPanel() {
   const {
     students,
     searchQuery,
+    searchMode,
     isFilterPanelOpen,
     setIsFilterPanelOpen,
     
@@ -224,25 +225,50 @@ export function FilterPanel() {
   // Real-time draft filtering logic for the student count display
   const matchingStudentsCount = useMemo(() => {
     return students.filter(student => {
-      // 1. Folder filtering
-      if (activeFolder === 'deleted') {
-        if (student.is_deleted !== true) return false
-      } else if (activeFolder === 'all') {
-        if (student.is_deleted === true) return false
-      } else if (activeFolder === 'except') {
-        if (student.is_deleted === true) return false
-        if (student.folder_ids && student.folder_ids.length > 0) return false
-      } else {
-        if (student.is_deleted === true) return false
-        if (!(student.folder_ids || []).includes(activeFolder)) return false
+      const cleanSearch = searchQuery.trim().toLowerCase()
+
+      // 1. Folder filtering (Only enforce folder restriction if NOT searching)
+      if (!cleanSearch) {
+        if (activeFolder === 'deleted') {
+          if (student.is_deleted !== true) return false
+        } else if (activeFolder === 'hidden') {
+          if (student.is_deleted === true) return false
+          if (student.status_hidden !== true) return false
+        } else if (activeFolder === 'all') {
+          if (student.is_deleted === true) return false
+        } else if (activeFolder === 'except') {
+          if (student.is_deleted === true) return false
+          if (student.folder_ids && student.folder_ids.length > 0) return false
+        } else {
+          if (student.is_deleted === true) return false
+          if (!(student.folder_ids || []).includes(activeFolder)) return false
+        }
       }
 
       // 2. Search query matching
-      const matchesSearch =
-        student.id.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        student.full_name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        (student.phone1 && student.phone1.includes(searchQuery)) ||
-        (student.phone2 && student.phone2.includes(searchQuery))
+      let matchesSearch = true
+      if (cleanSearch) {
+        if (searchMode === 'id') {
+          matchesSearch = Boolean(student.id && student.id.toLowerCase().includes(cleanSearch))
+        } else {
+          matchesSearch = Boolean(
+            (student.id && student.id.toLowerCase().includes(cleanSearch)) ||
+            (student.full_name && student.full_name.toLowerCase().includes(cleanSearch)) ||
+            (student.korean_name && student.korean_name.toLowerCase().includes(cleanSearch)) ||
+            (student.passport && student.passport.toLowerCase().includes(cleanSearch)) ||
+            (student.phone1 && student.phone1.toLowerCase().includes(cleanSearch)) ||
+            (student.phone2 && student.phone2.toLowerCase().includes(cleanSearch)) ||
+            (student.father_phone && student.father_phone.toLowerCase().includes(cleanSearch)) ||
+            (student.mother_phone && student.mother_phone.toLowerCase().includes(cleanSearch)) ||
+            (student.university_1 && student.university_1.toLowerCase().includes(cleanSearch)) ||
+            (student.university_2 && student.university_2.toLowerCase().includes(cleanSearch)) ||
+            (student.university_3 && student.university_3.toLowerCase().includes(cleanSearch)) ||
+            (student.university_4 && student.university_4.toLowerCase().includes(cleanSearch)) ||
+            (student.university_5 && student.university_5.toLowerCase().includes(cleanSearch)) ||
+            (student.final_school_name && student.final_school_name.toLowerCase().includes(cleanSearch))
+          )
+        }
+      }
       if (!matchesSearch) return false
 
       // 3. Tariff filter

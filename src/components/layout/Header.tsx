@@ -25,6 +25,8 @@ export function Header() {
   const { 
     searchQuery, 
     setSearchQuery, 
+    searchMode,
+    setSearchMode,
     setIsAddStudentModalOpen, 
     detailPageActions,
     isFilterPanelOpen,
@@ -117,15 +119,31 @@ export function Header() {
               "focus-within:border-[var(--foreground-muted)] dark:focus-within:border-[var(--foreground-subtle)] focus-within:bg-[var(--surface-elevated)] focus-within:shadow-[0_16px_36px_rgba(0,0,0,0.08)] dark:focus-within:shadow-[0_16px_36px_rgba(0,0,0,0.4)]"
             )}
           >
-            <div className="relative flex items-center w-full h-full rounded-full px-5 bg-transparent">
-              <Search className="h-5 w-5 text-[var(--foreground-muted)] flex-shrink-0 mr-3" />
+            <div className="relative flex items-center w-full h-full rounded-full pl-5 pr-2 bg-transparent gap-1">
+              <Search className="h-4.5 w-4.5 text-[var(--foreground-muted)] flex-shrink-0 mr-2" />
               <input
                 type="text"
-                placeholder={pathname === '/students' || pathname === '/status' ? "Search students by name, ID, passport or phone..." : "Search by name, ID or phone..."}
+                placeholder={
+                  searchMode === 'id'
+                    ? "Search ID only (e.g. G54)..."
+                    : (pathname === '/students' || pathname === '/status' ? "Search by name, ID, passport, phone, or university..." : "Search by name, ID, passport, phone, or university...")
+                }
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-full bg-transparent text-[16px] md:text-sm text-[var(--foreground)] placeholder-[var(--foreground-subtle)] py-2 no-focus-outline border-none focus:border-none focus:ring-0 focus-visible:ring-0 shadow-none focus:shadow-none"
+                className="w-full bg-transparent text-[15px] md:text-sm text-[var(--foreground)] placeholder-[var(--foreground-subtle)] py-2 no-focus-outline border-none focus:border-none focus:ring-0 focus-visible:ring-0 shadow-none focus:shadow-none"
               />
+              {(pathname === '/students' || pathname === '/status') && (
+                <div className="flex items-center shrink-0 border-l border-[var(--border)] pl-2.5 pr-1 py-0.5">
+                  <select
+                    value={searchMode}
+                    onChange={(e) => setSearchMode(e.target.value as 'all' | 'id')}
+                    className="bg-transparent text-xs font-semibold text-[var(--foreground)] cursor-pointer focus:outline-none border-none py-1 pr-1"
+                  >
+                    <option value="all" className="bg-[var(--surface)] text-[var(--foreground)]">All</option>
+                    <option value="id" className="bg-[var(--surface)] text-[var(--foreground)]">ID only</option>
+                  </select>
+                </div>
+              )}
             </div>
           </div>
         </div>
