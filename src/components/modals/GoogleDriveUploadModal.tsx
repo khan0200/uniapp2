@@ -7,6 +7,7 @@ import {
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { useCssTransition } from '@/hooks/useCssTransition'
+import { useUpload, UploadTask } from '@/contexts/UploadContext'
 
 export interface UploadQueueItem {
   id: string
@@ -69,7 +70,8 @@ export function GoogleDriveUploadModal({
 }: GoogleDriveUploadModalProps) {
   const [queue, setQueue] = useState<UploadQueueItem[]>([])
   const [isDragging, setIsDragging] = useState(false)
-  const [isUploading, setIsUploading] = useState(false)
+  
+  const { addUploadTasks, isUploading } = useUpload()
 
   const fileInputRef = useRef<HTMLInputElement>(null)
   const { shouldRender, isVisible } = useCssTransition(isOpen, 220)
@@ -209,47 +211,25 @@ export function GoogleDriveUploadModal({
   }
 
   // Execute Background Upload for all pending files
-  const startUpload = async () => {
+  const startUpload = () => {
     const pendingItems = queue.filter(item => item.status === 'pending' || item.status === 'error')
     if (pendingItems.length === 0 || !folderId) return
 
-    setIsUploading(true)
-    
+    const tasks: UploadTask[] = pendingItems.map(item => ({
+      file: item.file,
+      folderId: folderId,
+      folderName: folderName
+    }))
+
+    // Delegate to global context
+    addUploadTasks(tasks, onUploadSuccess)
+
     // Close modal immediately so user can continue working
     onClose()
-
-    let hasErrors = false
     
-    // Upload files concurrently
-    const promises = pendingItems.map(async (item) => {
-      try {
-        const formData = new FormData()
-        formData.append('file', item.file)
-        formData.append('folderId', folderId)
-
-        const res = await fetch('/api/drive/upload-file', {
-          method: 'POST',
-          body: formData,
-        })
-        const data = await res.json()
-
-        if (!res.ok) throw new Error(data.error || 'Failed to upload file')
-      } catch (err: any) {
-        console.error(`Upload failed for ${item.file.name}:`, err)
-        hasErrors = true
-        alert(`Failed to upload ${item.file.name}:\n${err.message || 'Unknown error'}`)
-      }
-    })
-
-    await Promise.all(promises)
-
-    // Notify parent to refresh folder contents
-    onUploadSuccess()
-    
-    // Reset queue state for next open (since component doesn't unmount immediately in NextJS layout sometimes)
+    // Reset queue state for next open
     setTimeout(() => {
       setQueue([])
-      setIsUploading(false)
     }, 500)
   }
 
