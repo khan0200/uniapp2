@@ -1,7 +1,7 @@
 'use client'
 
 import { usePathname } from 'next/navigation'
-import { Search, Plus, FileText, RefreshCw, Trash2, Loader2, Filter, FileSpreadsheet, BookOpen } from 'lucide-react'
+import { Search, Plus, FileText, RefreshCw, Trash2, Loader2, Filter, FileSpreadsheet, BookOpen, HardDrive } from 'lucide-react'
 import { useUser } from '@/contexts/UserContext'
 import { cn } from '@/lib/utils'
 import { useStudentDashboard } from '@/contexts/StudentDashboardContext'
@@ -157,8 +157,21 @@ export function Header() {
         )}
 
         {/* Right Side Actions */}
-        {(pathname === '/students' || pathname === '/status') && (
+        {(pathname === '/students' || pathname === '/status' || pathname === '/documents') && (
           <div className="flex items-center gap-2 md:gap-2.5 justify-end z-10 w-full md:w-auto md:shrink-0 mt-1 md:mt-0">
+            {/* Access to Drive — documents page only */}
+            {pathname === '/documents' && (
+              <a
+                href="https://drive.google.com/drive/folders/1vJmSTMdcwbqYAGM0MPyAAUj7fgsNWCNY"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="flex items-center justify-center gap-1.5 px-3 lg:px-4 h-[34px] rounded-full border border-emerald-600/30 bg-emerald-50 hover:bg-emerald-100/70 text-emerald-700 dark:bg-emerald-950/20 dark:border-emerald-800/40 dark:text-emerald-400 text-xs md:text-sm font-semibold select-none cursor-pointer transition-all duration-300 shadow-[0_8px_30px_rgba(0,0,0,0.06)] hover:shadow-md outline-none shrink-0 whitespace-nowrap"
+                title="Open shared Google Drive folder"
+              >
+                <HardDrive className="h-4 w-4 shrink-0" />
+                <span className="hidden sm:inline">Access to Drive</span>
+              </a>
+            )}
             {/* Admissions Link Button */}
             <a
               href="https://admissions-university.vercel.app/"
