@@ -330,34 +330,48 @@ export function GoogleDriveViewerModal({
   }
 
   // ── Drag Handlers ──
-  const handleDragStart = (file: DriveFile) => {
+  const handleDragStart = (e: React.DragEvent, file: DriveFile) => {
+    e.stopPropagation()
     // If the dragged item is selected, move all selected; otherwise just this one
     if (selectedIds.has(file.id)) {
-      dragSourceIds.current = [...selectedIds]
+      dragSourceIds.current = Array.from(selectedIds)
     } else {
       dragSourceIds.current = [file.id]
     }
+
+    try {
+      e.dataTransfer.setData('application/json', JSON.stringify(dragSourceIds.current))
+      e.dataTransfer.effectAllowed = 'move'
+    } catch (_) {}
   }
 
   const handleDragOver = (e: React.DragEvent, targetFolder: DriveFile) => {
     e.preventDefault()
     e.stopPropagation()
+    if (dragSourceIds.current.length === 0) return
     // Don't allow dropping into itself
     if (dragSourceIds.current.includes(targetFolder.id)) return
     setDragOverFolderId(targetFolder.id)
   }
 
-  const handleDragLeave = () => {
+  const handleDragLeave = (e: React.DragEvent) => {
+    e.preventDefault()
+    e.stopPropagation()
     setDragOverFolderId(null)
   }
 
   const handleDrop = async (e: React.DragEvent, targetFolder: DriveFile) => {
     e.preventDefault()
+    e.stopPropagation()
     setDragOverFolderId(null)
+    setIsDragOverWindow(false)
+    dragCounter.current = 0
+
     const ids = dragSourceIds.current.filter(id => id !== targetFolder.id)
+    dragSourceIds.current = []
+
     if (ids.length === 0) return
     await handleMoveFiles(ids, targetFolder.id)
-    dragSourceIds.current = []
   }
 
   const handleRename = async (conflictResolution?: 'replace' | 'auto_rename') => {
@@ -532,6 +546,7 @@ export function GoogleDriveViewerModal({
 
   // ── OS Drag & Drop Upload handlers ──
   const handleWindowDragEnter = (e: React.DragEvent) => {
+    if (dragSourceIds.current.length > 0) return
     if (e.dataTransfer.types.includes('Files')) {
       e.preventDefault()
       dragCounter.current += 1
@@ -539,9 +554,11 @@ export function GoogleDriveViewerModal({
     }
   }
   const handleWindowDragOver = (e: React.DragEvent) => {
+    if (dragSourceIds.current.length > 0) return
     if (e.dataTransfer.types.includes('Files')) e.preventDefault()
   }
   const handleWindowDragLeave = (e: React.DragEvent) => {
+    if (dragSourceIds.current.length > 0) return
     dragCounter.current -= 1
     if (dragCounter.current <= 0) {
       dragCounter.current = 0
@@ -552,6 +569,12 @@ export function GoogleDriveViewerModal({
     e.preventDefault()
     dragCounter.current = 0
     setIsDragOverWindow(false)
+
+    if (dragSourceIds.current.length > 0) {
+      dragSourceIds.current = []
+      return
+    }
+
     const droppedFiles = Array.from(e.dataTransfer.files)
     if (droppedFiles.length === 0 || !activeFolderId) return
     setIsUploading(true)
@@ -985,8 +1008,8 @@ export function GoogleDriveViewerModal({
                     <div
                       key={file.id}
                       draggable
-                      onDragStart={() => handleDragStart(file)}
-                      onDragEnd={() => setDragOverFolderId(null)}
+                      onDragStart={(e) => handleDragStart(e, file)}
+                      onDragEnd={() => { setDragOverFolderId(null); dragSourceIds.current = [] }}
                       onDragOver={isFolder ? (e) => handleDragOver(e, file) : undefined}
                       onDragLeave={isFolder ? handleDragLeave : undefined}
                       onDrop={isFolder ? (e) => handleDrop(e, file) : undefined}
@@ -1169,8 +1192,8 @@ export function GoogleDriveViewerModal({
                           <tr
                             key={file.id}
                             draggable
-                            onDragStart={() => handleDragStart(file)}
-                            onDragEnd={() => setDragOverFolderId(null)}
+                            onDragStart={(e) => handleDragStart(e, file)}
+                            onDragEnd={() => { setDragOverFolderId(null); dragSourceIds.current = [] }}
                             onDragOver={isFolder ? (e) => handleDragOver(e, file) : undefined}
                             onDragLeave={isFolder ? handleDragLeave : undefined}
                             onDrop={isFolder ? (e) => handleDrop(e, file) : undefined}
