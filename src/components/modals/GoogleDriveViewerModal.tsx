@@ -1,11 +1,12 @@
 'use client'
 
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect, useRef, useCallback } from 'react'
 import {
   Folder, ExternalLink, X, RefreshCw, Loader2, LayoutGrid, List,
   Maximize2, Minimize2, MoreVertical, Download, Pencil, Trash2,
   FileText, Image as ImageIcon, FileSpreadsheet, File,
-  Upload, AlertTriangle, Search, Eye, ChevronRight, ArrowLeft, FolderOpen
+  Upload, AlertTriangle, Search, Eye, ChevronRight, ArrowLeft, FolderOpen,
+  CheckSquare, Square, MoveRight, CheckCheck,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { useCssTransition } from '@/hooks/useCssTransition'
@@ -88,12 +89,40 @@ export function GoogleDriveViewerModal({
 
   const [activeMenuFileId, setActiveMenuFileId] = useState<string | null>(null)
   const [previewFile, setPreviewFile] = useState<DriveFile | null>(null)
+  const [failedThumbnails, setFailedThumbnails] = useState<Record<string, boolean>>({})
   const [fileToRename, setFileToRename] = useState<DriveFile | null>(null)
   const [newFileName, setNewFileName] = useState('')
   const [fileToDelete, setFileToDelete] = useState<DriveFile | null>(null)
   const [isSubmittingAction, setIsSubmittingAction] = useState(false)
   const [isUploading, setIsUploading] = useState(false)
   const [isUploadModalOpen, setIsUploadModalOpen] = useState(false)
+  const [isCreateFolderOpen, setIsCreateFolderOpen] = useState(false)
+  const [createFolderName, setCreateFolderName] = useState('')
+  const [isCreatingFolder, setIsCreatingFolder] = useState(false)
+
+  // ── Bulk Selection ──
+  const [selectionMode, setSelectionMode] = useState(false)
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set())
+  const [isBulkDeleting, setIsBulkDeleting] = useState(false)
+  const [isBulkMoving, setIsBulkMoving] = useState(false)
+  const [showMoveModal, setShowMoveModal] = useState(false)
+  const [moveConflictData, setMoveConflictData] = useState<{
+    fileIds: string[]
+    targetFolderId: string
+    targetFolderName: string
+    conflicts: { fileId: string; fileName: string; existingTargetFileId: string }[]
+  } | null>(null)
+  const [renameConflictData, setRenameConflictData] = useState<{
+    file: DriveFile
+    newName: string
+    existingFile: { id: string; name: string }
+  } | null>(null)
+
+  // ── Drag & Drop ──
+  // dragOverFolderId = which folder card is currently being hovered
+  const [dragOverFolderId, setDragOverFolderId] = useState<string | null>(null)
+  // dragSourceIds = IDs being dragged (selected items, or just the single item if not selected)
+  const dragSourceIds = useRef<string[]>([])
 
   const fileInputRef = useRef<HTMLInputElement>(null)
   const { shouldRender, isVisible } = useCssTransition(isOpen, 250)
@@ -140,8 +169,15 @@ export function GoogleDriveViewerModal({
     }
   }, [isOpen, rootFolderId])
 
+  // Clear selection when navigating
+  const clearSelection = useCallback(() => {
+    setSelectedIds(new Set())
+    setSelectionMode(false)
+  }, [])
+
   // Navigate into subfolder
   const handleOpenFolder = (subfolder: DriveFile) => {
+    clearSelection()
     const nextStack = [...folderHistory, { id: subfolder.id, name: subfolder.name }]
     setFolderHistory(nextStack)
     fetchFolderFiles(subfolder.id)
@@ -149,8 +185,8 @@ export function GoogleDriveViewerModal({
 
   // Jump to specific breadcrumb level
   const handleBreadcrumbClick = (index: number) => {
+    clearSelection()
     if (index === -1) {
-      // Root level
       setFolderHistory([])
       fetchFolderFiles(rootFolderId)
     } else {
@@ -166,19 +202,156 @@ export function GoogleDriveViewerModal({
     handleBreadcrumbClick(folderHistory.length - 2)
   }
 
-  const handleRename = async () => {
+  // ── Selection helpers ──
+  const toggleSelect = (id: string, e: React.MouseEvent) => {
+    e.stopPropagation()
+    setSelectedIds(prev => {
+      const next = new Set(prev)
+      next.has(id) ? next.delete(id) : next.add(id)
+      return next
+    })
+  }
+
+  const selectAll = () => {
+    setSelectedIds(new Set(filteredFiles.map(f => f.id)))
+  }
+
+  const deselectAll = () => {
+    setSelectedIds(new Set())
+  }
+
+  // ── Bulk Delete ──
+  const handleBulkDelete = async () => {
+    if (selectedIds.size === 0) return
+    if (!window.confirm(`Delete ${selectedIds.size} item(s)? They will be moved to Google Drive trash.`)) return
+    setIsBulkDeleting(true)
+    try {
+      await Promise.all(
+        [...selectedIds].map(fileId =>
+          fetch('/api/drive/delete-file', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ fileId }),
+          })
+        )
+      )
+      setFiles(prev => prev.filter(f => !selectedIds.has(f.id)))
+      clearSelection()
+    } catch (err: any) {
+      alert(`Bulk Delete Error: ${err.message}`)
+    } finally {
+      setIsBulkDeleting(false)
+    }
+  }
+
+  // ── Move (bulk or drag) ──
+  const handleMoveFiles = async (
+    idsToMove: string[],
+    targetFolderId: string,
+    conflictResolution?: 'rename' | 'replace' | 'do_nothing'
+  ) => {
+    setIsBulkMoving(true)
+    try {
+      const res = await fetch('/api/drive/move-files', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          fileIds: idsToMove,
+          targetFolderId,
+          sourceFolderId: activeFolderId,
+          conflictResolution,
+        }),
+      })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error || 'Failed to move files')
+
+      if (data.hasConflicts) {
+        setMoveConflictData({
+          fileIds: idsToMove,
+          targetFolderId,
+          targetFolderName: data.targetFolderName,
+          conflicts: data.conflicts,
+        })
+        return
+      }
+
+      setFiles(prev => prev.filter(f => !idsToMove.includes(f.id)))
+      clearSelection()
+    } catch (err: any) {
+      alert(`Move Error: ${err.message}`)
+    } finally {
+      setIsBulkMoving(false)
+    }
+  }
+
+  // ── Drag Handlers ──
+  const handleDragStart = (file: DriveFile) => {
+    // If the dragged item is selected, move all selected; otherwise just this one
+    if (selectedIds.has(file.id)) {
+      dragSourceIds.current = [...selectedIds]
+    } else {
+      dragSourceIds.current = [file.id]
+    }
+  }
+
+  const handleDragOver = (e: React.DragEvent, targetFolder: DriveFile) => {
+    e.preventDefault()
+    e.stopPropagation()
+    // Don't allow dropping into itself
+    if (dragSourceIds.current.includes(targetFolder.id)) return
+    setDragOverFolderId(targetFolder.id)
+  }
+
+  const handleDragLeave = () => {
+    setDragOverFolderId(null)
+  }
+
+  const handleDrop = async (e: React.DragEvent, targetFolder: DriveFile) => {
+    e.preventDefault()
+    setDragOverFolderId(null)
+    const ids = dragSourceIds.current.filter(id => id !== targetFolder.id)
+    if (ids.length === 0) return
+    await handleMoveFiles(ids, targetFolder.id)
+    dragSourceIds.current = []
+  }
+
+  const handleRename = async (conflictResolution?: 'replace' | 'auto_rename') => {
     if (!fileToRename || !newFileName.trim()) return
     setIsSubmittingAction(true)
     try {
       const res = await fetch('/api/drive/rename-file', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ fileId: fileToRename.id, newName: newFileName }),
+        body: JSON.stringify({
+          fileId: fileToRename.id,
+          newName: newFileName,
+          folderId: activeFolderId,
+          conflictResolution,
+        }),
       })
       const data = await res.json()
       if (!res.ok) throw new Error(data.error)
-      setFiles(prev => prev.map(f => f.id === fileToRename.id ? { ...f, name: newFileName.trim() } : f))
+
+      if (data.hasConflict) {
+        setRenameConflictData({
+          file: fileToRename,
+          newName: data.newName,
+          existingFile: data.existingFile,
+        })
+        return
+      }
+
+      const updatedName = data.newName || newFileName.trim()
+      setFiles(prev => {
+        let next = prev.map(f => f.id === fileToRename.id ? { ...f, name: updatedName } : f)
+        if (conflictResolution === 'replace' && data.existingFile?.id) {
+          next = next.filter(f => f.id !== data.existingFile.id)
+        }
+        return next
+      })
+
       setFileToRename(null)
+      setRenameConflictData(null)
     } catch (err: any) {
       alert(`Rename Error: ${err.message}`)
     } finally {
@@ -206,6 +379,32 @@ export function GoogleDriveViewerModal({
     }
   }
 
+  const handleCreateFolder = async () => {
+    if (!createFolderName.trim() || !activeFolderId) return
+    setIsCreatingFolder(true)
+    try {
+      const res = await fetch('/api/drive/create-folder', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          folderName: createFolderName.trim(),
+          parentFolderId: activeFolderId,
+        }),
+      })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error || 'Failed to create folder')
+
+      // Refresh files list
+      await fetchFolderFiles()
+      setIsCreateFolderOpen(false)
+      setCreateFolderName('')
+    } catch (err: any) {
+      alert(`Create Folder Error: ${err.message}`)
+    } finally {
+      setIsCreatingFolder(false)
+    }
+  }
+
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const selectedFile = e.target.files?.[0]
     if (!selectedFile || !activeFolderId) return
@@ -229,6 +428,10 @@ export function GoogleDriveViewerModal({
   const filteredFiles = files.filter(f =>
     f.name.toLowerCase().includes(searchQuery.toLowerCase().trim())
   )
+
+  const folders = filteredFiles.filter(f => f.mimeType.includes('folder'))
+  const allSelected = filteredFiles.length > 0 && selectedIds.size === filteredFiles.length
+  const someSelected = selectedIds.size > 0
 
   if (!shouldRender) return null
 
@@ -350,6 +553,33 @@ export function GoogleDriveViewerModal({
               {/* Divider */}
               <div className="w-px h-6 bg-[var(--border)] mx-1" />
 
+              {/* Select mode toggle */}
+              <button
+                onClick={() => {
+                  if (selectionMode) { clearSelection() } else { setSelectionMode(true) }
+                }}
+                title={selectionMode ? 'Exit selection mode' : 'Select items'}
+                className={cn(
+                  'inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer',
+                  selectionMode
+                    ? 'bg-violet-600 hover:bg-violet-500 text-white'
+                    : 'bg-[var(--surface)] border border-[var(--border)] text-[var(--foreground-muted)] hover:text-[var(--foreground)] hover:bg-[var(--border-subtle)]'
+                )}
+              >
+                <CheckSquare className="h-3.5 w-3.5" />
+                <span className="hidden md:inline">{selectionMode ? 'Selecting' : 'Select'}</span>
+              </button>
+
+              {/* New Folder */}
+              <button
+                onClick={() => setIsCreateFolderOpen(true)}
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold transition-all active:scale-95 cursor-pointer bg-[var(--surface)] border border-[var(--border)] text-[var(--foreground-muted)] hover:text-[var(--foreground)] hover:bg-[var(--border-subtle)]"
+                title="Create a new subfolder"
+              >
+                <FolderOpen className="h-3.5 w-3.5 text-amber-500 fill-amber-500/10" />
+                <span className="hidden md:inline">New Folder</span>
+              </button>
+
               {/* Upload */}
               <button
                 disabled={isUploading}
@@ -444,6 +674,61 @@ export function GoogleDriveViewerModal({
             </div>
           </div>
 
+          {/* ── BULK ACTION TOOLBAR ── */}
+          {selectionMode && (
+            <div className="shrink-0 flex items-center gap-3 px-5 py-2.5 bg-violet-500/10 border-b border-violet-500/20">
+              {/* Select All / Deselect All */}
+              <button
+                onClick={allSelected ? deselectAll : selectAll}
+                className="flex items-center gap-2 text-xs font-bold text-violet-600 dark:text-violet-400 hover:text-violet-500 cursor-pointer transition-colors"
+              >
+                {allSelected
+                  ? <CheckCheck className="h-4 w-4" />
+                  : <Square className="h-4 w-4" />
+                }
+                {allSelected ? 'Deselect All' : 'Select All'}
+              </button>
+
+              <span className="text-[11px] font-semibold text-[var(--foreground-muted)]">
+                {selectedIds.size} of {filteredFiles.length} selected
+              </span>
+
+              <div className="flex-1" />
+
+              {/* Move button */}
+              {someSelected && (
+                <button
+                  onClick={() => setShowMoveModal(true)}
+                  disabled={isBulkMoving}
+                  className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold bg-blue-600 hover:bg-blue-500 text-white transition-all disabled:opacity-50 cursor-pointer"
+                >
+                  {isBulkMoving ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <MoveRight className="h-3.5 w-3.5" />}
+                  Move {selectedIds.size > 0 ? `(${selectedIds.size})` : ''}
+                </button>
+              )}
+
+              {/* Delete button */}
+              {someSelected && (
+                <button
+                  onClick={handleBulkDelete}
+                  disabled={isBulkDeleting}
+                  className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold bg-rose-600 hover:bg-rose-500 text-white transition-all disabled:opacity-50 cursor-pointer"
+                >
+                  {isBulkDeleting ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Trash2 className="h-3.5 w-3.5" />}
+                  Delete {selectedIds.size > 0 ? `(${selectedIds.size})` : ''}
+                </button>
+              )}
+
+              <button
+                onClick={clearSelection}
+                className="p-1.5 rounded-lg text-[var(--foreground-muted)] hover:text-[var(--foreground)] hover:bg-[var(--border-subtle)] transition-all cursor-pointer"
+                title="Exit selection mode"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            </div>
+          )}
+
           {/* ── CONTENT AREA ── */}
           <div className="flex-1 overflow-y-auto">
             {loading ? (
@@ -495,17 +780,33 @@ export function GoogleDriveViewerModal({
                 {filteredFiles.map((file) => {
                   const isFolder = file.mimeType.includes('folder')
                   const ext = getFileExtension(file.name, file.mimeType)
+                  const isSelected = selectedIds.has(file.id)
+                  const isDragTarget = dragOverFolderId === file.id
 
                   return (
                     <div
                       key={file.id}
+                      draggable
+                      onDragStart={() => handleDragStart(file)}
+                      onDragEnd={() => setDragOverFolderId(null)}
+                      onDragOver={isFolder ? (e) => handleDragOver(e, file) : undefined}
+                      onDragLeave={isFolder ? handleDragLeave : undefined}
+                      onDrop={isFolder ? (e) => handleDrop(e, file) : undefined}
                       className={cn(
-                        "group relative flex flex-col bg-[var(--surface-elevated)] border rounded-2xl overflow-hidden hover:shadow-lg transition-all duration-200 cursor-pointer",
+                        "group relative flex flex-col bg-[var(--surface-elevated)] border rounded-2xl overflow-hidden hover:shadow-lg transition-all duration-200 cursor-pointer select-none",
                         isFolder
-                          ? "border-amber-500/30 hover:border-amber-500 bg-amber-500/5"
-                          : "border-[var(--border)] hover:border-[var(--accent)]/50"
+                          ? cn(
+                              "border-amber-500/30 hover:border-amber-500 bg-amber-500/5",
+                              isDragTarget && "border-amber-400 bg-amber-500/20 scale-[1.03] shadow-xl ring-2 ring-amber-400/50"
+                            )
+                          : "border-[var(--border)] hover:border-[var(--accent)]/50",
+                        isSelected && "ring-2 ring-violet-500 border-violet-500/50"
                       )}
-                      onClick={() => {
+                      onClick={(e) => {
+                        if (selectionMode) {
+                          toggleSelect(file.id, e)
+                          return
+                        }
                         if (isFolder) {
                           handleOpenFolder(file)
                         } else {
@@ -513,6 +814,32 @@ export function GoogleDriveViewerModal({
                         }
                       }}
                     >
+                      {/* Selection checkbox overlay */}
+                      {(selectionMode || isSelected) && (
+                        <div
+                          className="absolute top-2 left-2 z-20"
+                          onClick={(e) => toggleSelect(file.id, e)}
+                        >
+                          <div className={cn(
+                            "h-5 w-5 rounded-md border-2 flex items-center justify-center transition-all",
+                            isSelected
+                              ? "bg-violet-600 border-violet-600"
+                              : "bg-black/40 border-white/60 backdrop-blur-sm"
+                          )}>
+                            {isSelected && <CheckSquare className="h-3 w-3 text-white" />}
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Drag-over hint for folders */}
+                      {isDragTarget && (
+                        <div className="absolute inset-0 z-10 flex items-center justify-center bg-amber-500/30 backdrop-blur-sm rounded-2xl pointer-events-none">
+                          <span className="text-xs font-bold text-amber-800 dark:text-amber-200 bg-amber-400/60 px-3 py-1.5 rounded-full">
+                            Drop to move here
+                          </span>
+                        </div>
+                      )}
+
                       {/* Thumbnail / Header Area */}
                       <div className="relative h-36 w-full overflow-hidden bg-[var(--surface)] flex items-center justify-center">
                         {isFolder ? (
@@ -522,40 +849,23 @@ export function GoogleDriveViewerModal({
                               Subfolder
                             </span>
                           </div>
-                        ) : file.thumbnailLink ? (
-                          <>
-                            <img
-                              src={file.thumbnailLink.replace('=s220', '=s400')}
-                              alt={file.name}
-                              className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105"
-                            />
-                            {ext && (
-                              <span className="absolute bottom-2 left-2 text-[9px] font-black bg-black/70 text-white px-1.5 py-0.5 rounded-md backdrop-blur-sm tracking-widest">
-                                {ext}
-                              </span>
-                            )}
-                          </>
                         ) : (
-                          <div className={cn(
-                            'flex flex-col items-center gap-2 w-full h-full justify-center bg-gradient-to-b',
-                            getFileColor(file.mimeType)
-                          )}>
-                            {getFileIcon(file.mimeType, 'h-10 w-10')}
-                            {ext && (
-                              <span className="text-[9px] font-black text-[var(--foreground-muted)] tracking-widest">
-                                {ext}
-                              </span>
-                            )}
-                          </div>
+                          <DocumentThumbnailCard
+                            file={file}
+                            failedThumbnails={failedThumbnails}
+                            setFailedThumbnails={setFailedThumbnails}
+                          />
                         )}
 
-                        {/* Hover overlay */}
-                        <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent opacity-0 group-hover:opacity-100 transition-all duration-200 flex items-end justify-center pb-3">
-                          <span className="flex items-center gap-1.5 text-white text-[11px] font-bold bg-white/20 backdrop-blur-md px-3 py-1.5 rounded-full border border-white/20">
-                            {isFolder ? <FolderOpen className="h-3 w-3" /> : <Eye className="h-3 w-3" />}
-                            {isFolder ? 'Open Folder' : 'Preview'}
-                          </span>
-                        </div>
+                        {/* Hover overlay (hidden in selection mode) */}
+                        {!selectionMode && (
+                          <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent opacity-0 group-hover:opacity-100 transition-all duration-200 flex items-end justify-center pb-3">
+                            <span className="flex items-center gap-1.5 text-white text-[11px] font-bold bg-white/20 backdrop-blur-md px-3 py-1.5 rounded-full border border-white/20">
+                              {isFolder ? <FolderOpen className="h-3 w-3" /> : <Eye className="h-3 w-3" />}
+                              {isFolder ? 'Open Folder' : 'Preview'}
+                            </span>
+                          </div>
+                        )}
                       </div>
 
                       {/* File Info Row */}
@@ -574,25 +884,37 @@ export function GoogleDriveViewerModal({
                           )}
                         </div>
 
-                        {/* 3-dots menu */}
-                        <div className="shrink-0 -mt-0.5" onClick={(e) => e.stopPropagation()}>
-                          <button
-                            type="button"
-                            onClick={() => setActiveMenuFileId(activeMenuFileId === file.id ? null : file.id)}
-                            className="p-1 rounded-lg text-[var(--foreground-subtle)] hover:text-[var(--foreground)] hover:bg-[var(--border-subtle)] transition-all cursor-pointer"
-                          >
-                            <MoreVertical className="h-3.5 w-3.5" />
-                          </button>
-                          {activeMenuFileId === file.id && (
-                            <FileActionMenu
-                              file={file}
-                              onOpenFolder={isFolder ? () => { setActiveMenuFileId(null); handleOpenFolder(file) } : undefined}
-                              onRename={() => { setActiveMenuFileId(null); setFileToRename(file); setNewFileName(file.name) }}
-                              onDelete={() => { setActiveMenuFileId(null); setFileToDelete(file) }}
-                              onClose={() => setActiveMenuFileId(null)}
-                            />
-                          )}
-                        </div>
+                        {/* 3-dots menu (hidden in selection mode) */}
+                        {!selectionMode && (
+                          <div className="shrink-0 -mt-0.5" onClick={(e) => e.stopPropagation()}>
+                            <button
+                              type="button"
+                              onClick={() => setActiveMenuFileId(activeMenuFileId === file.id ? null : file.id)}
+                              className="p-1 rounded-lg text-[var(--foreground-subtle)] hover:text-[var(--foreground)] hover:bg-[var(--border-subtle)] transition-all cursor-pointer"
+                            >
+                              <MoreVertical className="h-3.5 w-3.5" />
+                            </button>
+                            {activeMenuFileId === file.id && (
+                              <FileActionMenu
+                                file={file}
+                                onOpenFolder={isFolder ? () => { setActiveMenuFileId(null); handleOpenFolder(file) } : undefined}
+                                onRename={() => { setActiveMenuFileId(null); setFileToRename(file); setNewFileName(file.name) }}
+                                onDelete={() => { setActiveMenuFileId(null); setFileToDelete(file) }}
+                                onSelect={() => {
+                                  setActiveMenuFileId(null)
+                                  setSelectionMode(true)
+                                  setSelectedIds(new Set([file.id]))
+                                }}
+                                onMove={!isFolder ? () => {
+                                  setActiveMenuFileId(null)
+                                  setSelectedIds(new Set([file.id]))
+                                  setShowMoveModal(true)
+                                } : undefined}
+                                onClose={() => setActiveMenuFileId(null)}
+                              />
+                            )}
+                          </div>
+                        )}
                       </div>
                     </div>
                   )
@@ -605,6 +927,16 @@ export function GoogleDriveViewerModal({
                   <table className="w-full text-left text-xs border-collapse">
                     <thead>
                       <tr className="border-b border-[var(--border)] bg-[var(--surface)] text-[var(--foreground-muted)] text-[11px] uppercase tracking-widest font-semibold">
+                        {selectionMode && (
+                          <th className="py-3 px-4 w-10">
+                            <button onClick={allSelected ? deselectAll : selectAll} className="cursor-pointer">
+                              {allSelected
+                                ? <CheckCheck className="h-4 w-4 text-violet-500" />
+                                : <Square className="h-4 w-4" />
+                              }
+                            </button>
+                          </th>
+                        )}
                         <th className="py-3 px-4">Name</th>
                         <th className="py-3 px-4 hidden md:table-cell">Type</th>
                         <th className="py-3 px-4 hidden sm:table-cell">Size</th>
@@ -614,24 +946,69 @@ export function GoogleDriveViewerModal({
                     <tbody className="divide-y divide-[var(--border-subtle)]">
                       {filteredFiles.map((file) => {
                         const isFolder = file.mimeType.includes('folder')
+                        const isSelected = selectedIds.has(file.id)
+                        const isDragTarget = dragOverFolderId === file.id
                         return (
                           <tr
                             key={file.id}
+                            draggable
+                            onDragStart={() => handleDragStart(file)}
+                            onDragEnd={() => setDragOverFolderId(null)}
+                            onDragOver={isFolder ? (e) => handleDragOver(e, file) : undefined}
+                            onDragLeave={isFolder ? handleDragLeave : undefined}
+                            onDrop={isFolder ? (e) => handleDrop(e, file) : undefined}
                             onClick={() => {
+                              if (selectionMode) {
+                                setSelectedIds(prev => {
+                                  const next = new Set(prev)
+                                  next.has(file.id) ? next.delete(file.id) : next.add(file.id)
+                                  return next
+                                })
+                                return
+                              }
                               if (isFolder) {
                                 handleOpenFolder(file)
                               } else {
                                 setPreviewFile(file)
                               }
                             }}
-                            className="hover:bg-[var(--border-subtle)] transition-colors cursor-pointer group"
+                            className={cn(
+                              "transition-colors cursor-pointer group select-none",
+                              isDragTarget
+                                ? "bg-amber-500/20 ring-1 ring-amber-400"
+                                : isSelected
+                                ? "bg-violet-500/10"
+                                : "hover:bg-[var(--border-subtle)]"
+                            )}
                           >
+                            {selectionMode && (
+                              <td className="py-3 px-4" onClick={(e) => e.stopPropagation()}>
+                                <div
+                                  onClick={() => setSelectedIds(prev => {
+                                    const next = new Set(prev)
+                                    next.has(file.id) ? next.delete(file.id) : next.add(file.id)
+                                    return next
+                                  })}
+                                  className={cn(
+                                    "h-4 w-4 rounded border-2 flex items-center justify-center cursor-pointer transition-all",
+                                    isSelected ? "bg-violet-600 border-violet-600" : "border-[var(--border)]"
+                                  )}
+                                >
+                                  {isSelected && <CheckSquare className="h-2.5 w-2.5 text-white" />}
+                                </div>
+                              </td>
+                            )}
                             <td className="py-3 px-4">
                               <div className="flex items-center gap-3">
                                 {getFileIcon(file.mimeType, 'h-4.5 w-4.5 shrink-0')}
                                 <span className="font-semibold text-[var(--foreground)] text-[12px] break-words leading-snug">
                                   {file.name}
                                 </span>
+                                {isDragTarget && (
+                                  <span className="text-[10px] font-bold text-amber-700 dark:text-amber-300 bg-amber-400/20 px-2 py-0.5 rounded-full ml-2">
+                                    Drop to move here
+                                  </span>
+                                )}
                               </div>
                             </td>
                             <td className="py-3 px-4 text-[var(--foreground-muted)] hidden md:table-cell">
@@ -714,18 +1091,25 @@ export function GoogleDriveViewerModal({
 
       {/* ── FULL-SCREEN DOCUMENT PREVIEW ── */}
       {previewFile && (
-        <div className="fixed inset-0 z-[60] flex flex-col bg-zinc-950 animate-in fade-in duration-200">
+        <div className="fixed inset-0 z-[60] flex flex-col bg-zinc-950/95 backdrop-blur-md animate-in fade-in duration-200">
           {/* Preview Header */}
-          <div className="shrink-0 flex items-center justify-between gap-3 px-5 py-3.5 bg-zinc-900 border-b border-zinc-800">
+          <div className="shrink-0 flex items-center justify-between gap-3 px-5 py-3.5 bg-zinc-900 border-b border-zinc-800 shadow-md">
             <div className="flex items-center gap-3 min-w-0">
-              {getFileIcon(previewFile.mimeType, 'h-5 w-5 shrink-0')}
+              <div className="p-2 rounded-xl bg-zinc-800 border border-zinc-700">
+                {getFileIcon(previewFile.mimeType, 'h-5 w-5 shrink-0')}
+              </div>
               <div className="min-w-0">
                 <p className="text-[13px] font-bold text-white break-words line-clamp-1">
                   {previewFile.name}
                 </p>
-                {previewFile.size && (
-                  <p className="text-[11px] text-zinc-400 font-mono">{formatFileSize(previewFile.size)}</p>
-                )}
+                <div className="flex items-center gap-2 mt-0.5">
+                  {previewFile.size && (
+                    <span className="text-[11px] text-zinc-400 font-mono">{formatFileSize(previewFile.size)}</span>
+                  )}
+                  <span className="text-[10px] font-mono uppercase bg-zinc-800 text-zinc-300 px-2 py-0.5 rounded-md border border-zinc-700">
+                    {getFileExtension(previewFile.name, previewFile.mimeType)}
+                  </span>
+                </div>
               </div>
             </div>
 
@@ -733,23 +1117,28 @@ export function GoogleDriveViewerModal({
               {previewFile.webContentLink && (
                 <a
                   href={previewFile.webContentLink}
-                  download target="_blank" rel="noopener noreferrer"
-                  className="p-2 rounded-xl text-zinc-400 hover:text-white hover:bg-zinc-800 transition-all cursor-pointer"
-                  title="Download"
+                  download
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-zinc-800 border border-zinc-700 hover:bg-zinc-700 text-zinc-200 hover:text-white transition-all text-xs font-semibold cursor-pointer"
+                  title="Download file"
                 >
-                  <Download className="h-4 w-4" />
+                  <Download className="h-3.5 w-3.5" />
+                  <span className="hidden sm:inline">Download</span>
                 </a>
               )}
-              {previewFile.webViewLink && (
+              {(previewFile.webViewLink || directUrl) && (
                 <a
-                  href={previewFile.webViewLink}
-                  target="_blank" rel="noopener noreferrer"
-                  className="inline-flex items-center gap-1.5 px-3.5 py-2 bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl text-xs font-bold transition-all shadow-sm cursor-pointer"
+                  href={previewFile.webViewLink || `https://drive.google.com/file/d/${previewFile.id}/view`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center gap-1.5 px-3.5 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl text-xs font-bold transition-all shadow-sm cursor-pointer"
                 >
-                  Open External
+                  Open in Google Drive
                   <ExternalLink className="h-3.5 w-3.5" />
                 </a>
               )}
+              <div className="w-px h-6 bg-zinc-800 mx-1" />
               <button
                 onClick={() => setPreviewFile(null)}
                 className="p-2 rounded-xl text-zinc-400 hover:text-white hover:bg-zinc-800 transition-all cursor-pointer"
@@ -760,36 +1149,28 @@ export function GoogleDriveViewerModal({
             </div>
           </div>
 
-          {/* Preview Content – auto-fitted to screen */}
-          <div className="flex-1 overflow-hidden relative">
-            {previewFile.mimeType.includes('image') ? (
-              <div className="flex items-center justify-center w-full h-full p-6">
+          {/* Preview Content */}
+          <div className="flex-1 overflow-hidden relative flex items-center justify-center p-4">
+            {previewFile.mimeType.includes('image') || /\.(jpg|jpeg|png|gif|webp|svg)$/i.test(previewFile.name) ? (
+              <div className="relative max-w-full max-h-full flex items-center justify-center">
                 <img
-                  src={`https://drive.google.com/thumbnail?id=${previewFile.id}&sz=w2000`}
+                  src={`/api/drive/thumbnail?fileId=${previewFile.id}&size=2000`}
                   alt={previewFile.name}
-                  className="max-w-full max-h-full object-contain rounded-xl shadow-2xl"
+                  referrerPolicy="no-referrer"
+                  className="max-w-full max-h-[85vh] object-contain rounded-2xl shadow-2xl border border-zinc-800"
+                  onError={(e) => {
+                    const target = e.currentTarget
+                    if (previewFile.thumbnailLink && target.src !== previewFile.thumbnailLink) {
+                      target.src = previewFile.thumbnailLink
+                    }
+                  }}
                 />
               </div>
             ) : (
-              <div
-                style={{
-                  position: 'absolute',
-                  inset: 0,
-                  overflow: 'hidden',
-                }}
-              >
+              <div className="w-full h-full max-w-6xl max-h-[90vh] bg-zinc-900 rounded-2xl overflow-hidden shadow-2xl border border-zinc-800 flex flex-col">
                 <iframe
                   src={`https://drive.google.com/file/d/${previewFile.id}/preview`}
-                  style={{
-                    position: 'absolute',
-                    top: 0,
-                    left: '50%',
-                    transform: 'scale(0.75) translateX(-50%)',
-                    transformOrigin: 'top left',
-                    width: `${(1 / 0.75) * 100}%`,
-                    height: `${(1 / 0.75) * 100}%`,
-                    border: 'none',
-                  }}
+                  className="w-full h-full border-none rounded-2xl bg-white dark:bg-zinc-950"
                   title={previewFile.name}
                   allow="autoplay"
                 />
@@ -828,12 +1209,66 @@ export function GoogleDriveViewerModal({
               Cancel
             </button>
             <button
-              onClick={handleRename}
+              onClick={() => handleRename()}
               disabled={isSubmittingAction || !newFileName.trim()}
               className="px-4 py-2 bg-blue-600 hover:bg-blue-500 text-white text-xs font-bold rounded-xl flex items-center gap-1.5 transition-all disabled:opacity-50"
             >
               {isSubmittingAction && <Loader2 className="h-3.5 w-3.5 animate-spin" />}
               Save Name
+            </button>
+          </div>
+        </ModalDialog>
+      )}
+
+      {/* ── RENAME CONFLICT WARNING MODAL ── */}
+      {renameConflictData && (
+        <ModalDialog onClose={() => !isSubmittingAction && setRenameConflictData(null)} zIndex="z-[80]">
+          <div className="flex items-start gap-3.5 mb-4">
+            <div className="h-11 w-11 rounded-2xl bg-amber-500/10 border border-amber-500/30 flex items-center justify-center shrink-0">
+              <AlertTriangle className="h-6 w-6 text-amber-500" />
+            </div>
+            <div className="min-w-0">
+              <h3 className="text-base font-bold text-[var(--foreground)] leading-tight">
+                Duplicate File Name Detected
+              </h3>
+              <p className="text-xs text-[var(--foreground-muted)] mt-1">
+                A file named <span className="font-semibold text-amber-600 dark:text-amber-400">&quot;{renameConflictData.existingFile.name}&quot;</span> already exists in this folder.
+              </p>
+            </div>
+          </div>
+
+          <p className="text-xs font-semibold text-[var(--foreground-muted)] mb-4">
+            How would you like to handle this rename?
+          </p>
+
+          <div className="flex flex-col gap-2">
+            {/* REPLACE */}
+            <button
+              disabled={isSubmittingAction}
+              onClick={() => handleRename('replace')}
+              className="w-full flex items-center justify-center gap-2 py-2.5 px-4 rounded-xl bg-rose-600 hover:bg-rose-500 text-white font-bold text-xs transition-all cursor-pointer disabled:opacity-50"
+            >
+              {isSubmittingAction ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCw className="h-4 w-4" />}
+              <span>Replace Existing File</span>
+            </button>
+
+            {/* AUTO RENAME */}
+            <button
+              disabled={isSubmittingAction}
+              onClick={() => handleRename('auto_rename')}
+              className="w-full flex items-center justify-center gap-2 py-2.5 px-4 rounded-xl bg-blue-600 hover:bg-blue-500 text-white font-bold text-xs transition-all cursor-pointer disabled:opacity-50"
+            >
+              {isSubmittingAction ? <Loader2 className="h-4 w-4 animate-spin" /> : <Pencil className="h-4 w-4" />}
+              <span>Keep Both (Auto-Rename with number)</span>
+            </button>
+
+            {/* CANCEL */}
+            <button
+              disabled={isSubmittingAction}
+              onClick={() => setRenameConflictData(null)}
+              className="w-full py-2 px-4 rounded-xl border border-[var(--border)] text-[var(--foreground-muted)] hover:text-[var(--foreground)] font-semibold text-xs transition-all cursor-pointer mt-1"
+            >
+              Cancel
             </button>
           </div>
         </ModalDialog>
@@ -874,6 +1309,237 @@ export function GoogleDriveViewerModal({
         </ModalDialog>
       )}
 
+      {/* ── CREATE FOLDER DIALOG ── */}
+      {isCreateFolderOpen && (
+        <ModalDialog onClose={() => !isCreatingFolder && setIsCreateFolderOpen(false)} zIndex="z-[70]">
+          <div className="flex items-center gap-3 mb-4">
+            <div className="h-10 w-10 rounded-xl bg-amber-500/10 border border-amber-500/20 flex items-center justify-center">
+              <FolderOpen className="h-5 w-5 text-amber-500" />
+            </div>
+            <div>
+              <h3 className="text-sm font-bold text-[var(--foreground)]">New Folder</h3>
+              <p className="text-xs text-[var(--foreground-muted)]">Create a new subfolder in Google Drive</p>
+            </div>
+          </div>
+          <input
+            type="text"
+            placeholder="Folder name"
+            value={createFolderName}
+            onChange={(e) => setCreateFolderName(e.target.value)}
+            onKeyDown={(e) => e.key === 'Enter' && handleCreateFolder()}
+            className="w-full px-3.5 py-2.5 border border-[var(--border)] rounded-xl bg-[var(--surface)] text-[var(--foreground)] text-sm focus:outline-none focus:border-[var(--accent)] focus:ring-2 focus:ring-[var(--accent)]/20 mb-5 transition-all"
+            autoFocus
+          />
+          <div className="flex justify-end gap-2">
+            <button
+              onClick={() => setIsCreateFolderOpen(false)}
+              disabled={isCreatingFolder}
+              className="px-4 py-2 border border-[var(--border)] rounded-xl text-xs font-semibold text-[var(--foreground-muted)] hover:text-[var(--foreground)] transition-all"
+            >
+              Cancel
+            </button>
+            <button
+              onClick={handleCreateFolder}
+              disabled={isCreatingFolder || !createFolderName.trim()}
+              className="px-4 py-2 bg-amber-600 hover:bg-amber-500 text-white text-xs font-bold rounded-xl flex items-center gap-1.5 transition-all disabled:opacity-50"
+            >
+              {isCreatingFolder && <Loader2 className="h-3.5 w-3.5 animate-spin" />}
+              Create Folder
+            </button>
+          </div>
+        </ModalDialog>
+      )}
+
+      {/* ── BULK MOVE — FOLDER PICKER MODAL ── */}
+      {showMoveModal && (() => {
+        // Define available destinations
+        const destinations: { id: string; name: string; type: 'root' | 'parent' | 'subfolder' }[] = []
+
+        // 1. Move to Root Folder
+        if (folderHistory.length > 0 && rootFolderId) {
+          destinations.push({
+            id: rootFolderId,
+            name: 'Root Folder',
+            type: 'root',
+          })
+        }
+
+        // 2. Move to Parent folders in path
+        for (let i = 0; i < folderHistory.length - 1; i++) {
+          destinations.push({
+            id: folderHistory[i].id,
+            name: folderHistory[i].name,
+            type: 'parent',
+          })
+        }
+
+        // 3. Move to Subfolders in current folder
+        folders
+          .filter(f => !selectedIds.has(f.id))
+          .forEach(folder => {
+            destinations.push({
+              id: folder.id,
+              name: folder.name,
+              type: 'subfolder',
+            })
+          })
+
+        return (
+          <ModalDialog onClose={() => !isBulkMoving && setShowMoveModal(false)} zIndex="z-[70]">
+            <div className="flex items-center gap-3 mb-4">
+              <div className="h-10 w-10 rounded-xl bg-blue-500/10 border border-blue-500/20 flex items-center justify-center">
+                <MoveRight className="h-5 w-5 text-blue-500" />
+              </div>
+              <div>
+                <h3 className="text-sm font-bold text-[var(--foreground)]">Move {selectedIds.size} item{selectedIds.size !== 1 ? 's' : ''}</h3>
+                <p className="text-xs text-[var(--foreground-muted)]">Select a destination folder</p>
+              </div>
+            </div>
+            <div className="space-y-1.5 max-h-64 overflow-y-auto pr-1">
+              {destinations.map(dest => {
+                let icon = <Folder className="h-5 w-5 text-amber-500 fill-amber-500/20 shrink-0" />
+                let styleClass = "hover:bg-amber-500/10 border-transparent hover:border-amber-500/30"
+                let labelClass = "group-hover:text-amber-700 dark:group-hover:text-amber-400"
+                let typeLabel = "Subfolder"
+
+                if (dest.type === 'root') {
+                  icon = <ArrowLeft className="h-4.5 w-4.5 text-emerald-600 dark:text-emerald-400 shrink-0" />
+                  styleClass = "hover:bg-emerald-500/10 border-transparent hover:border-emerald-500/30 bg-emerald-500/5"
+                  labelClass = "text-emerald-800 dark:text-emerald-300 font-bold"
+                  typeLabel = "Root Folder"
+                } else if (dest.type === 'parent') {
+                  icon = <ArrowLeft className="h-4.5 w-4.5 text-blue-600 dark:text-blue-400 shrink-0" />
+                  styleClass = "hover:bg-blue-500/10 border-transparent hover:border-blue-500/30 bg-blue-500/5"
+                  labelClass = "text-blue-800 dark:text-blue-300 font-semibold"
+                  typeLabel = "Parent Folder"
+                }
+
+                return (
+                  <button
+                    key={dest.id}
+                    disabled={isBulkMoving}
+                    onClick={async () => {
+                      setShowMoveModal(false)
+                      await handleMoveFiles([...selectedIds], dest.id)
+                    }}
+                    className={cn(
+                      "w-full flex items-center justify-between gap-3 px-3.5 py-2.5 rounded-xl border transition-all text-left cursor-pointer group disabled:opacity-50",
+                      styleClass
+                    )}
+                  >
+                    <div className="flex items-center gap-3 min-w-0">
+                      {icon}
+                      <span className={cn("text-sm truncate", labelClass)}>
+                        {dest.name}
+                      </span>
+                    </div>
+                    <span className="text-[9px] font-bold text-[var(--foreground-muted)] uppercase tracking-wider px-2 py-0.5 rounded-md bg-[var(--surface-elevated)] border border-[var(--border)] shrink-0">
+                      {typeLabel}
+                    </span>
+                  </button>
+                )
+              })}
+
+              {destinations.length === 0 && (
+                <p className="text-xs text-[var(--foreground-muted)] text-center py-6">
+                  No available destination folders.
+                </p>
+              )}
+            </div>
+            <div className="mt-4 flex justify-end">
+              <button
+                onClick={() => setShowMoveModal(false)}
+                className="px-4 py-2 border border-[var(--border)] rounded-xl text-xs font-semibold text-[var(--foreground-muted)] hover:text-[var(--foreground)] transition-all cursor-pointer"
+              >
+                Cancel
+              </button>
+            </div>
+          </ModalDialog>
+        )
+      })()}
+
+      {/* ── CONFLICT WARNING MENU MODAL ── */}
+      {moveConflictData && (
+        <ModalDialog onClose={() => !isBulkMoving && setMoveConflictData(null)} zIndex="z-[70]">
+          <div className="flex items-start gap-3.5 mb-4">
+            <div className="h-11 w-11 rounded-2xl bg-amber-500/10 border border-amber-500/30 flex items-center justify-center shrink-0">
+              <AlertTriangle className="h-6 w-6 text-amber-500" />
+            </div>
+            <div className="min-w-0">
+              <h3 className="text-base font-bold text-[var(--foreground)] leading-tight">
+                File Name Conflict Detected
+              </h3>
+              <p className="text-xs text-[var(--foreground-muted)] mt-1">
+                Target folder: <span className="font-semibold text-amber-600 dark:text-amber-400">&quot;{moveConflictData.targetFolderName}&quot;</span>
+              </p>
+            </div>
+          </div>
+
+          <div className="mb-4 bg-[var(--surface)] border border-[var(--border)] rounded-xl p-3 max-h-40 overflow-y-auto space-y-1.5 scrollbar-thin">
+            <p className="text-[11px] font-semibold text-[var(--foreground-muted)] uppercase tracking-wider">
+              {moveConflictData.conflicts.length} duplicate file{moveConflictData.conflicts.length !== 1 ? 's' : ''} found:
+            </p>
+            {moveConflictData.conflicts.map(c => (
+              <div key={c.fileId} className="flex items-center gap-2 text-xs font-semibold text-[var(--foreground)] bg-[var(--surface-elevated)] p-2 rounded-lg border border-[var(--border)] min-w-0">
+                <FileText className="h-4 w-4 text-amber-500 shrink-0" />
+                <span className="truncate">{c.fileName}</span>
+              </div>
+            ))}
+          </div>
+
+          <p className="text-xs font-semibold text-[var(--foreground-muted)] mb-4">
+            How would you like to proceed?
+          </p>
+
+          <div className="grid grid-cols-3 gap-2">
+            {/* RENAME */}
+            <button
+              disabled={isBulkMoving}
+              onClick={() => {
+                const { fileIds, targetFolderId } = moveConflictData
+                setMoveConflictData(null)
+                handleMoveFiles(fileIds, targetFolderId, 'rename')
+              }}
+              className="flex flex-col items-center justify-center gap-1.5 p-3 rounded-xl bg-blue-600 hover:bg-blue-500 active:scale-95 text-white transition-all cursor-pointer shadow-sm disabled:opacity-50"
+              title="Automatically rename moving file (e.g. document (1).pdf)"
+            >
+              {isBulkMoving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Pencil className="h-4 w-4" />}
+              <span className="text-xs font-bold">Rename</span>
+            </button>
+
+            {/* REPLACE */}
+            <button
+              disabled={isBulkMoving}
+              onClick={() => {
+                const { fileIds, targetFolderId } = moveConflictData
+                setMoveConflictData(null)
+                handleMoveFiles(fileIds, targetFolderId, 'replace')
+              }}
+              className="flex flex-col items-center justify-center gap-1.5 p-3 rounded-xl bg-rose-600 hover:bg-rose-500 active:scale-95 text-white transition-all cursor-pointer shadow-sm disabled:opacity-50"
+              title="Replace existing file in destination subfolder"
+            >
+              {isBulkMoving ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCw className="h-4 w-4" />}
+              <span className="text-xs font-bold">Replace</span>
+            </button>
+
+            {/* DO NOTHING */}
+            <button
+              disabled={isBulkMoving}
+              onClick={() => {
+                const { fileIds, targetFolderId } = moveConflictData
+                setMoveConflictData(null)
+                handleMoveFiles(fileIds, targetFolderId, 'do_nothing')
+              }}
+              className="flex flex-col items-center justify-center gap-1.5 p-3 rounded-xl bg-[var(--surface)] border border-[var(--border)] text-[var(--foreground)] hover:bg-[var(--border-subtle)] active:scale-95 transition-all cursor-pointer shadow-sm disabled:opacity-50"
+              title="Do not move conflicting files"
+            >
+              <X className="h-4 w-4 text-[var(--foreground-muted)]" />
+              <span className="text-xs font-bold">Do Nothing</span>
+            </button>
+          </div>
+        </ModalDialog>
+      )}
+
       {/* ── DEDICATED UPLOAD MENU MODAL ── */}
       <GoogleDriveUploadModal
         isOpen={isUploadModalOpen}
@@ -893,12 +1559,16 @@ function FileActionMenu({
   onOpenFolder,
   onRename,
   onDelete,
+  onSelect,
+  onMove,
   onClose,
 }: {
   file: DriveFile
   onOpenFolder?: () => void
   onRename: () => void
   onDelete: () => void
+  onSelect?: () => void
+  onMove?: () => void
   onClose: () => void
 }) {
   return (
@@ -910,6 +1580,24 @@ function FileActionMenu({
         >
           <FolderOpen className="h-3.5 w-3.5" />
           <span className="font-semibold">Open Folder</span>
+        </button>
+      )}
+      {onSelect && (
+        <button
+          onClick={onSelect}
+          className="w-full px-3.5 py-2.5 flex items-center gap-2.5 text-[var(--foreground)] hover:bg-[var(--border-subtle)] text-left cursor-pointer transition-colors"
+        >
+          <CheckSquare className="h-3.5 w-3.5 text-violet-500" />
+          <span className="font-semibold">Select</span>
+        </button>
+      )}
+      {onMove && (
+        <button
+          onClick={onMove}
+          className="w-full px-3.5 py-2.5 flex items-center gap-2.5 text-[var(--foreground)] hover:bg-[var(--border-subtle)] text-left cursor-pointer transition-colors"
+        >
+          <MoveRight className="h-3.5 w-3.5 text-blue-500" />
+          <span className="font-semibold">Move</span>
         </button>
       )}
       <button
@@ -959,6 +1647,127 @@ function ModalDialog({
       <div className="relative w-full max-w-md bg-[var(--surface-elevated)] border border-[var(--border)] p-6 rounded-2xl shadow-2xl z-10 animate-in fade-in zoom-in-95 duration-150">
         {children}
       </div>
+    </div>
+  )
+}
+
+function DocumentThumbnailCard({
+  file,
+  failedThumbnails,
+  setFailedThumbnails,
+}: {
+  file: DriveFile
+  failedThumbnails: Record<string, boolean>
+  setFailedThumbnails: React.Dispatch<React.SetStateAction<Record<string, boolean>>>
+}) {
+  const ext = getFileExtension(file.name, file.mimeType)
+  const isFailed = failedThumbnails[file.id]
+  const hasThumbnailLink = Boolean(file.thumbnailLink)
+
+  if (hasThumbnailLink && !isFailed) {
+    const proxyUrl = `/api/drive/thumbnail?fileId=${file.id}&size=400`
+    return (
+      <div className="relative w-full h-full bg-zinc-900 overflow-hidden flex items-center justify-center">
+        <img
+          src={proxyUrl}
+          referrerPolicy="no-referrer"
+          alt=""
+          onError={() => setFailedThumbnails(prev => ({ ...prev, [file.id]: true }))}
+          className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105"
+        />
+        {ext && (
+          <span className="absolute bottom-2 left-2 text-[9px] font-black bg-black/75 text-white px-2 py-0.5 rounded-md backdrop-blur-md tracking-wider border border-white/10 shadow-sm">
+            {ext}
+          </span>
+        )}
+      </div>
+    )
+  }
+
+  return <DocumentFallbackCard file={file} ext={ext} />
+}
+
+function DocumentFallbackCard({ file, ext }: { file: DriveFile; ext: string }) {
+  const mime = file.mimeType.toLowerCase()
+  const nameLower = file.name.toLowerCase()
+
+  if (mime.includes('pdf') || nameLower.endsWith('.pdf')) {
+    return (
+      <div className="relative w-full h-full bg-gradient-to-br from-rose-950/80 via-rose-900/40 to-zinc-900 flex flex-col items-center justify-center p-3 overflow-hidden group-hover:from-rose-900/90 transition-all">
+        {/* Document Page Graphic Mockup */}
+        <div className="w-14 h-18 bg-rose-500/10 border border-rose-500/30 rounded-lg p-2 flex flex-col gap-1.5 shadow-inner relative group-hover:scale-105 transition-transform">
+          {/* Folded corner */}
+          <div className="absolute top-0 right-0 border-t-[8px] border-r-[8px] border-t-zinc-900 border-r-rose-500/30 rounded-bl" />
+          <FileText className="h-6 w-6 text-rose-400 self-center mt-1" />
+          <div className="w-full h-1 bg-rose-400/30 rounded-full" />
+          <div className="w-3/4 h-1 bg-rose-400/20 rounded-full" />
+          <div className="w-5/6 h-1 bg-rose-400/20 rounded-full" />
+        </div>
+        <span className="absolute bottom-2 left-2 text-[9px] font-black bg-rose-600 text-white px-2 py-0.5 rounded-md tracking-widest shadow-md">
+          PDF
+        </span>
+      </div>
+    )
+  }
+
+  if (mime.includes('image') || /\.(jpg|jpeg|png|gif|webp|svg)$/.test(nameLower)) {
+    return (
+      <div className="relative w-full h-full bg-gradient-to-br from-sky-950/80 via-sky-900/40 to-zinc-900 flex flex-col items-center justify-center p-3 overflow-hidden group-hover:from-sky-900/90 transition-all">
+        <div className="w-14 h-18 bg-sky-500/10 border border-sky-500/30 rounded-lg flex items-center justify-center shadow-inner group-hover:scale-105 transition-transform">
+          <ImageIcon className="h-8 w-8 text-sky-400" />
+        </div>
+        <span className="absolute bottom-2 left-2 text-[9px] font-black bg-sky-600 text-white px-2 py-0.5 rounded-md tracking-widest shadow-md">
+          {ext || 'IMG'}
+        </span>
+      </div>
+    )
+  }
+
+  if (mime.includes('sheet') || mime.includes('excel') || mime.includes('csv') || /\.(xlsx|xls|csv)$/.test(nameLower)) {
+    return (
+      <div className="relative w-full h-full bg-gradient-to-br from-emerald-950/80 via-emerald-900/40 to-zinc-900 flex flex-col items-center justify-center p-3 overflow-hidden group-hover:from-emerald-900/90 transition-all">
+        <div className="w-14 h-18 bg-emerald-500/10 border border-emerald-500/30 rounded-lg p-2 flex flex-col gap-1 shadow-inner group-hover:scale-105 transition-transform">
+          <FileSpreadsheet className="h-5 w-5 text-emerald-400 self-center mt-1" />
+          <div className="grid grid-cols-2 gap-1 mt-1">
+            <div className="h-1.5 bg-emerald-500/20 rounded-xs" />
+            <div className="h-1.5 bg-emerald-500/20 rounded-xs" />
+            <div className="h-1.5 bg-emerald-500/20 rounded-xs" />
+            <div className="h-1.5 bg-emerald-500/20 rounded-xs" />
+          </div>
+        </div>
+        <span className="absolute bottom-2 left-2 text-[9px] font-black bg-emerald-600 text-white px-2 py-0.5 rounded-md tracking-widest shadow-md">
+          {ext || 'XLS'}
+        </span>
+      </div>
+    )
+  }
+
+  if (mime.includes('word') || mime.includes('document') || /\.(doc|docx|txt)$/.test(nameLower)) {
+    return (
+      <div className="relative w-full h-full bg-gradient-to-br from-blue-950/80 via-blue-900/40 to-zinc-900 flex flex-col items-center justify-center p-3 overflow-hidden group-hover:from-blue-900/90 transition-all">
+        <div className="w-14 h-18 bg-blue-500/10 border border-blue-500/30 rounded-lg p-2 flex flex-col gap-1.5 shadow-inner group-hover:scale-105 transition-transform">
+          <FileText className="h-6 w-6 text-blue-400 self-center mt-1" />
+          <div className="w-full h-1 bg-blue-400/30 rounded-full" />
+          <div className="w-full h-1 bg-blue-400/20 rounded-full" />
+          <div className="w-2/3 h-1 bg-blue-400/20 rounded-full" />
+        </div>
+        <span className="absolute bottom-2 left-2 text-[9px] font-black bg-blue-600 text-white px-2 py-0.5 rounded-md tracking-widest shadow-md">
+          {ext || 'DOC'}
+        </span>
+      </div>
+    )
+  }
+
+  return (
+    <div className="relative w-full h-full bg-gradient-to-br from-violet-950/80 via-violet-900/40 to-zinc-900 flex flex-col items-center justify-center p-3 overflow-hidden group-hover:from-violet-900/90 transition-all">
+      <div className="w-14 h-18 bg-violet-500/10 border border-violet-500/30 rounded-lg flex items-center justify-center shadow-inner group-hover:scale-105 transition-transform">
+        {getFileIcon(file.mimeType, 'h-7 w-7')}
+      </div>
+      {ext && (
+        <span className="absolute bottom-2 left-2 text-[9px] font-black bg-violet-600 text-white px-2 py-0.5 rounded-md tracking-widest shadow-md">
+          {ext}
+        </span>
+      )}
     </div>
   )
 }

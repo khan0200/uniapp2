@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { getGoogleDriveClient } from '@/lib/google-drive'
+import { getGoogleDriveClient, deleteOrUnlinkFile } from '@/lib/google-drive'
 
 export async function POST(req: NextRequest) {
   try {
@@ -10,16 +10,12 @@ export async function POST(req: NextRequest) {
     }
 
     const drive = getGoogleDriveClient()
+    const result = await deleteOrUnlinkFile(drive, fileId)
 
-    await drive.files.update({
-      fileId,
-      supportsAllDrives: true,
-      requestBody: {
-        trashed: true,
-      },
+    return NextResponse.json({
+      success: true,
+      message: `File deleted successfully (${result.method})`,
     })
-
-    return NextResponse.json({ success: true, message: 'File deleted (moved to trash)' })
   } catch (err: any) {
     console.error('Error deleting file in Google Drive:', err)
     return NextResponse.json(

@@ -168,15 +168,15 @@ export function StudentDashboardClient({ hidePhone = false }: { hidePhone?: bool
   const [cachedDetailStudentId, setCachedDetailStudentId] = useState<string | null>(null)
   // Expand button grows the drawer to fill the screen instead of navigating
   // away, so close/collapse stay reachable.
-  const [isDetailExpanded, setIsDetailExpanded] = useState(false)
+  const [isDetailExpanded, setIsDetailExpanded] = useState(true)
   const drawerRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
     if (activeDetailStudentId) {
       setCachedDetailStudentId(activeDetailStudentId)
     } else {
-      // Reset so the next student opens at normal drawer width.
-      setIsDetailExpanded(false)
+      // Reset so the next student opens at fullscreen width.
+      setIsDetailExpanded(true)
     }
   }, [activeDetailStudentId])
 
