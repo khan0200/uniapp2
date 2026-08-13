@@ -17,6 +17,7 @@ export function DocumentsClient() {
   const supabase = createClient()
   const {
     searchQuery,
+    searchMode,
     students,
     setStudents,
     loading,
@@ -505,21 +506,30 @@ export function DocumentsClient() {
       if (!matchesMissing) return false
     }
 
-    // 7. Search query matching
-    if (searchQuery) {
-      const q = searchQuery.toLowerCase()
-      const matchesSearch =
-        student.id.toLowerCase().includes(q) ||
-        student.full_name.toLowerCase().includes(q) ||
-        (student.passport && student.passport.toLowerCase().includes(q)) ||
-        (student.phone1 && student.phone1.includes(searchQuery)) ||
-        (student.phone2 && student.phone2.includes(searchQuery)) ||
-        (student.email && student.email.toLowerCase().includes(q)) ||
-        (student.university_1 && student.university_1.toLowerCase().includes(q)) ||
-        (student.university_2 && student.university_2.toLowerCase().includes(q)) ||
-        (student.university_3 && student.university_3.toLowerCase().includes(q)) ||
-        (student.university_4 && student.university_4.toLowerCase().includes(q)) ||
-        (student.university_5 && student.university_5.toLowerCase().includes(q))
+    // 7. Search query matching — identical to students page
+    const cleanSearch = searchQuery.trim().toLowerCase()
+    if (cleanSearch) {
+      let matchesSearch: boolean
+      if (searchMode === 'id') {
+        matchesSearch = Boolean(student.id && student.id.toLowerCase().includes(cleanSearch))
+      } else {
+        matchesSearch = Boolean(
+          (student.id && student.id.toLowerCase().includes(cleanSearch)) ||
+          (student.full_name && student.full_name.toLowerCase().includes(cleanSearch)) ||
+          (student.korean_name && student.korean_name.toLowerCase().includes(cleanSearch)) ||
+          (student.passport && student.passport.toLowerCase().includes(cleanSearch)) ||
+          (student.phone1 && student.phone1.toLowerCase().includes(cleanSearch)) ||
+          (student.phone2 && student.phone2.toLowerCase().includes(cleanSearch)) ||
+          (student.father_phone && student.father_phone.toLowerCase().includes(cleanSearch)) ||
+          (student.mother_phone && student.mother_phone.toLowerCase().includes(cleanSearch)) ||
+          (student.university_1 && student.university_1.toLowerCase().includes(cleanSearch)) ||
+          (student.university_2 && student.university_2.toLowerCase().includes(cleanSearch)) ||
+          (student.university_3 && student.university_3.toLowerCase().includes(cleanSearch)) ||
+          (student.university_4 && student.university_4.toLowerCase().includes(cleanSearch)) ||
+          (student.university_5 && student.university_5.toLowerCase().includes(cleanSearch)) ||
+          (student.final_school_name && student.final_school_name.toLowerCase().includes(cleanSearch))
+        )
+      }
       if (!matchesSearch) return false
     }
 
