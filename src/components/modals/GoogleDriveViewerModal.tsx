@@ -116,6 +116,8 @@ export function GoogleDriveViewerModal({
 
   // ── Bulk ZIP Download ──
   const [isDownloadingZip, setIsDownloadingZip] = useState(false)
+  // ── Download Selected (individual files) ──
+  const [isDownloadingSelected, setIsDownloadingSelected] = useState(false)
 
   // ── Right-Click Context Menu ──
   const [contextMenuFile, setContextMenuFile] = useState<DriveFile | null>(null)
@@ -544,6 +546,33 @@ export function GoogleDriveViewerModal({
     }
   }
 
+  // ── Download Selected files individually ──
+  const handleDownloadSelected = async () => {
+    const selectedFiles = filteredFiles.filter(f => selectedIds.has(f.id) && !f.mimeType.includes('folder'))
+    if (selectedFiles.length === 0) return
+    setIsDownloadingSelected(true)
+    try {
+      for (const file of selectedFiles) {
+        const res = await fetch(`/api/drive/download-file?fileId=${file.id}`)
+        if (!res.ok) continue
+        const contentType = res.headers.get('Content-Type') || 'application/octet-stream'
+        const blob = new Blob([await res.arrayBuffer()], { type: contentType })
+        const url = URL.createObjectURL(blob)
+        const a = document.createElement('a')
+        a.href = url
+        a.download = file.name
+        a.click()
+        URL.revokeObjectURL(url)
+        // Small gap so browser doesn't suppress multiple downloads
+        await new Promise(r => setTimeout(r, 300))
+      }
+    } catch (err: any) {
+      alert(`Download Error: ${err.message}`)
+    } finally {
+      setIsDownloadingSelected(false)
+    }
+  }
+
   // ── OS Drag & Drop Upload handlers ──
   const handleWindowDragEnter = (e: React.DragEvent) => {
     if (dragSourceIds.current.length > 0) return
@@ -925,6 +954,17 @@ export function GoogleDriveViewerModal({
                     >
                       {isDownloadingZip ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Download className="h-3.5 w-3.5" />}
                       <span>{isDownloadingZip ? 'Zipping…' : `ZIP (${selectedIds.size})`}</span>
+                    </button>
+
+                    {/* Download Selected individually */}
+                    <button
+                      onClick={handleDownloadSelected}
+                      disabled={isDownloadingSelected}
+                      className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold bg-sky-600 hover:bg-sky-500 text-white transition-all disabled:opacity-50 cursor-pointer shadow-2xs"
+                      title="Download each file separately"
+                    >
+                      {isDownloadingSelected ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Download className="h-3.5 w-3.5" />}
+                      <span>{isDownloadingSelected ? 'Downloading…' : `Download (${selectedIds.size})`}</span>
                     </button>
 
                     {/* Bulk Delete */}
