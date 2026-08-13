@@ -26,7 +26,7 @@ interface GoogleDriveUploadModalProps {
 }
 
 const NAME_SUGGESTIONS = [
-  'FOREIGN PASSPORT',
+  'INTERNATIONAL PASSPORT',
   'STUDENT ID',
   'MOTHER PASSPORT',
   'FATHER PASSPORT',
@@ -44,6 +44,9 @@ const NAME_SUGGESTIONS = [
   'SAT',
   'PHOTO',
   'CERTIFICATE',
+  'APPLICATION FORM',
+  'LETTER OF CONSENT',
+  'ADDRESS',
 ]
 
 function formatFileSize(bytes: number): string {
