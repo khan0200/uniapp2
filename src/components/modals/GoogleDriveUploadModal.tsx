@@ -232,7 +232,7 @@ export function GoogleDriveUploadModal({
       {/* Modal Dialog */}
       <div
         className={cn(
-          'relative w-full max-w-xl bg-[var(--surface-elevated)] border border-[var(--border)] rounded-2xl shadow-2xl z-10 flex flex-col max-h-[90vh] overflow-hidden',
+          'relative w-full max-w-3xl bg-[var(--surface-elevated)] border border-[var(--border)] rounded-2xl shadow-2xl z-10 flex flex-col max-h-[90vh] overflow-hidden',
           'transition-all duration-220 ease-out',
           isVisible ? 'opacity-100 scale-100 translate-y-0' : 'opacity-0 scale-95 translate-y-4'
         )}
