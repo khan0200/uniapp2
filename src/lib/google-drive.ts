@@ -3,11 +3,23 @@ import { google } from 'googleapis'
 const SCOPES = ['https://www.googleapis.com/auth/drive']
 
 export function getGoogleDriveClient() {
+  // Option 2: OAuth 2.0 User Token (Acts as real Google user - uses 15GB user quota)
+  const clientId = process.env.GOOGLE_CLIENT_ID?.trim()
+  const clientSecret = process.env.GOOGLE_CLIENT_SECRET?.trim()
+  const refreshToken = process.env.GOOGLE_REFRESH_TOKEN?.trim()
+
+  if (clientId && clientSecret && refreshToken) {
+    const oauth2Client = new google.auth.OAuth2(clientId, clientSecret)
+    oauth2Client.setCredentials({ refresh_token: refreshToken })
+    return google.drive({ version: 'v3', auth: oauth2Client })
+  }
+
+  // Fallback: Service Account JWT
   let email = process.env.GOOGLE_SERVICE_ACCOUNT_EMAIL?.trim()
   let privateKey = process.env.GOOGLE_PRIVATE_KEY?.trim()
 
   if (!email || !privateKey) {
-    throw new Error('Google Drive credentials (GOOGLE_SERVICE_ACCOUNT_EMAIL or GOOGLE_PRIVATE_KEY) are missing in environment variables.')
+    throw new Error('Google Drive credentials missing. Please set GOOGLE_CLIENT_ID/CLIENT_SECRET/REFRESH_TOKEN or GOOGLE_SERVICE_ACCOUNT_EMAIL/PRIVATE_KEY in .env.local.')
   }
 
   // Strip accidental surrounding quotes
