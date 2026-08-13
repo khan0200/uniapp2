@@ -30,7 +30,7 @@ export function SidebarItem({
       target={target}
       rel={target === '_blank' ? 'noopener noreferrer' : undefined}
       id={`nav-${label.toLowerCase()}`}
-      className="group flex flex-col items-center justify-center w-full py-2.5 px-1 relative focus:outline-none select-none"
+      className="group flex flex-col items-center justify-center w-full py-1 px-1 relative focus:outline-none select-none"
       aria-current={isActive ? 'page' : undefined}
     >
       {/* Icon Wrapper (Rounded Square matching Canva) */}
@@ -56,7 +56,7 @@ export function SidebarItem({
       {/* Label */}
       <span
         className={cn(
-          'mt-2 text-[10px] font-bold tracking-wider text-center truncate max-w-[72px] transition-all duration-300 uppercase',
+          'mt-1 text-[8px] font-bold tracking-wider text-center truncate max-w-[72px] transition-all duration-300 uppercase',
           isActive
             ? 'text-blue-600 dark:text-blue-400 font-extrabold scale-[1.02]'
             : 'text-foreground-muted group-hover:text-foreground dark:text-gray-400 dark:group-hover:text-white'
