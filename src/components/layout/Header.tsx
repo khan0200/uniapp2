@@ -133,7 +133,7 @@ export function Header() {
                 onChange={(e) => setSearchQuery(e.target.value)}
                 className="w-full bg-transparent text-[15px] md:text-sm text-[var(--foreground)] placeholder-[var(--foreground-subtle)] py-2 no-focus-outline border-none focus:border-none focus:ring-0 focus-visible:ring-0 shadow-none focus:shadow-none"
               />
-              {(pathname === '/students' || pathname === '/status') && (
+              {(pathname === '/students' || pathname === '/status' || pathname === '/documents') && (
                 <div className="flex items-center shrink-0 border-l border-[var(--border)] pl-2.5 pr-1 py-0.5">
                   <select
                     value={searchMode}
