@@ -172,30 +172,32 @@ export function Header() {
                 <span className="hidden sm:inline">Access to Drive</span>
               </a>
             )}
-            {/* Admissions Link Button */}
-            <a
-              href="https://admissions-university.vercel.app/"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="flex items-center justify-center gap-1.5 px-3 lg:px-4 h-[34px] rounded-full border border-blue-600/30 bg-blue-50 hover:bg-blue-100/70 text-blue-700 dark:bg-blue-950/20 dark:border-blue-800/40 dark:text-blue-400 text-xs md:text-sm font-semibold select-none cursor-pointer transition-all duration-300 shadow-[0_8px_30px_rgba(0,0,0,0.06)] hover:shadow-md outline-none shrink-0 whitespace-nowrap"
-              title="Admissions University Portal"
-            >
-              <BookOpen className="h-4.5 w-4.5 text-blue-500 shrink-0" />
-              {/* Label drops out between md and lg, where the header is
-                  tightest; the icon plus title attribute still identify it. */}
-              <span className="hidden sm:inline md:hidden lg:inline">Admissions</span>
-            </a>
+            {/* Admissions Link Button — not shown on /documents */}
+            {pathname !== '/documents' && (
+              <a
+                href="https://admissions-university.vercel.app/"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="flex items-center justify-center gap-1.5 px-3 lg:px-4 h-[34px] rounded-full border border-blue-600/30 bg-blue-50 hover:bg-blue-100/70 text-blue-700 dark:bg-blue-950/20 dark:border-blue-800/40 dark:text-blue-400 text-xs md:text-sm font-semibold select-none cursor-pointer transition-all duration-300 shadow-[0_8px_30px_rgba(0,0,0,0.06)] hover:shadow-md outline-none shrink-0 whitespace-nowrap"
+                title="Admissions University Portal"
+              >
+                <BookOpen className="h-4.5 w-4.5 text-blue-500 shrink-0" />
+                <span className="hidden sm:inline md:hidden lg:inline">Admissions</span>
+              </a>
+            )}
 
-            {/* Excel Download Button */}
-            <button
-              type="button"
-              onClick={() => setIsExcelModalOpen(true)}
-              className="flex items-center justify-center gap-1.5 px-3 lg:px-4 h-[34px] rounded-full border border-emerald-600/30 bg-emerald-50 hover:bg-emerald-100/70 text-emerald-700 dark:bg-emerald-950/20 dark:border-emerald-800/40 dark:text-emerald-400 text-xs md:text-sm font-semibold select-none cursor-pointer transition-all duration-300 shadow-[0_8px_30px_rgba(0,0,0,0.06)] hover:shadow-md outline-none shrink-0 whitespace-nowrap"
-              title="Export Roster to Excel"
-            >
-              <FileSpreadsheet className="h-4.5 w-4.5 shrink-0" />
-              <span className="hidden sm:inline md:hidden lg:inline">Export Excel</span>
-            </button>
+            {/* Excel Download Button — not shown on /documents */}
+            {pathname !== '/documents' && (
+              <button
+                type="button"
+                onClick={() => setIsExcelModalOpen(true)}
+                className="flex items-center justify-center gap-1.5 px-3 lg:px-4 h-[34px] rounded-full border border-emerald-600/30 bg-emerald-50 hover:bg-emerald-100/70 text-emerald-700 dark:bg-emerald-950/20 dark:border-emerald-800/40 dark:text-emerald-400 text-xs md:text-sm font-semibold select-none cursor-pointer transition-all duration-300 shadow-[0_8px_30px_rgba(0,0,0,0.06)] hover:shadow-md outline-none shrink-0 whitespace-nowrap"
+                title="Export Roster to Excel"
+              >
+                <FileSpreadsheet className="h-4.5 w-4.5 shrink-0" />
+                <span className="hidden sm:inline md:hidden lg:inline">Export Excel</span>
+              </button>
+            )}
 
             {/* Add Student Button */}
             {pathname === '/students' && (
