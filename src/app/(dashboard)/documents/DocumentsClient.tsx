@@ -507,11 +507,19 @@ export function DocumentsClient() {
 
     // 7. Search query matching
     if (searchQuery) {
+      const q = searchQuery.toLowerCase()
       const matchesSearch =
-        student.id.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        student.full_name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        student.id.toLowerCase().includes(q) ||
+        student.full_name.toLowerCase().includes(q) ||
+        (student.passport && student.passport.toLowerCase().includes(q)) ||
         (student.phone1 && student.phone1.includes(searchQuery)) ||
-        (student.phone2 && student.phone2.includes(searchQuery))
+        (student.phone2 && student.phone2.includes(searchQuery)) ||
+        (student.email && student.email.toLowerCase().includes(q)) ||
+        (student.university_1 && student.university_1.toLowerCase().includes(q)) ||
+        (student.university_2 && student.university_2.toLowerCase().includes(q)) ||
+        (student.university_3 && student.university_3.toLowerCase().includes(q)) ||
+        (student.university_4 && student.university_4.toLowerCase().includes(q)) ||
+        (student.university_5 && student.university_5.toLowerCase().includes(q))
       if (!matchesSearch) return false
     }
 
