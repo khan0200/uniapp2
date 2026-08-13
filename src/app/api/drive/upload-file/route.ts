@@ -34,8 +34,14 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ success: true, file: res.data })
   } catch (err: any) {
     console.error('Error uploading file to Google Drive:', err)
+
+    let message = err.message || 'Failed to upload file to Google Drive'
+    if (message.includes('Service Accounts do not have storage quota') || message.includes('quota')) {
+      message = `Google Drive Quota Error: Service accounts cannot upload files to personal Google Drive folders. Please move this folder into a Google Shared Drive and add uniapp@salom-504014.iam.gserviceaccount.com as Content Manager.`
+    }
+
     return NextResponse.json(
-      { error: err.message || 'Failed to upload file to Google Drive' },
+      { error: message },
       { status: 500 }
     )
   }
