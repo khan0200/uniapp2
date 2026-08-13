@@ -238,7 +238,7 @@ export function GoogleDriveUploadModal({
         )}
       >
         {/* Modal Header */}
-        <div className="px-5 py-4 border-b border-[var(--border)] bg-[var(--surface)] flex items-center justify-between gap-3 shrink-0">
+        <div className="px-4 py-3 sm:px-5 sm:py-4 border-b border-[var(--border)] bg-[var(--surface)] flex items-center justify-between gap-3 shrink-0">
           <div className="flex items-center gap-3">
             <div className="h-10 w-10 rounded-xl bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center text-emerald-600 dark:text-emerald-400 shrink-0">
               <Upload className="h-5 w-5" />
@@ -262,14 +262,14 @@ export function GoogleDriveUploadModal({
         </div>
 
         {/* Modal Body */}
-        <div className="p-5 overflow-y-auto space-y-4">
+        <div className="p-4 sm:p-5 overflow-y-auto space-y-3 sm:space-y-4">
           {/* Drag & Drop Area */}
           <div
             onDragOver={handleDragOver}
             onDragLeave={handleDragLeave}
             onDrop={handleDrop}
             className={cn(
-              'border-2 border-dashed rounded-2xl p-6 text-center transition-all flex flex-col items-center justify-center gap-3 cursor-pointer',
+              'border-2 border-dashed rounded-2xl p-4 sm:p-6 text-center transition-all flex flex-col items-center justify-center gap-3 cursor-pointer',
               isDragging
                 ? 'border-[var(--accent)] bg-[var(--accent)]/10 scale-[1.01]'
                 : 'border-[var(--border)] hover:border-[var(--accent)]/50 bg-[var(--surface)]'
@@ -384,7 +384,7 @@ export function GoogleDriveUploadModal({
                 </div>
 
                 {/* Suggestion Pills */}
-                <div className="flex flex-wrap gap-1.5 pt-1">
+                <div className="flex flex-wrap gap-1.5 pt-1 max-h-[25vh] sm:max-h-[35vh] overflow-y-auto pr-1">
                   {NAME_SUGGESTIONS.map((suggestion) => {
                     const isSelected = selectedTag === suggestion
                     return (
@@ -393,7 +393,7 @@ export function GoogleDriveUploadModal({
                         type="button"
                         onClick={() => handleApplySuggestion(suggestion)}
                         className={cn(
-                          'px-2.5 py-1 rounded-lg text-[11px] font-semibold transition-all cursor-pointer select-none border',
+                          'px-2 sm:px-2.5 py-1 rounded-lg text-[10px] sm:text-[11px] font-semibold transition-all cursor-pointer select-none border',
                           isSelected
                             ? 'bg-[var(--accent)] text-white border-[var(--accent)] shadow-xs font-bold'
                             : 'bg-[var(--surface-elevated)] hover:bg-[var(--border-subtle)] text-[var(--foreground)] border-[var(--border)] hover:border-[var(--accent)]/40'
@@ -410,7 +410,7 @@ export function GoogleDriveUploadModal({
         </div>
 
         {/* Modal Footer */}
-        <div className="px-5 py-3.5 border-t border-[var(--border)] bg-[var(--surface)] flex items-center justify-end gap-2 shrink-0">
+        <div className="px-4 py-3 sm:px-5 sm:py-3.5 border-t border-[var(--border)] bg-[var(--surface)] flex items-center justify-end gap-2 shrink-0">
           <button
             disabled={isUploading}
             onClick={onClose}
