@@ -7,7 +7,7 @@ import {
   FileText, Image as ImageIcon, FileSpreadsheet, File,
   Upload, AlertTriangle, Search, Eye, ChevronRight, ArrowLeft, FolderOpen,
   CheckSquare, Square, MoveRight, CheckCheck, SortAsc, SortDesc,
-  Filter, CloudUpload,
+  Filter, CloudUpload, Tag, Check, Sparkles,
 } from 'lucide-react'
 import JSZip from 'jszip'
 import { cn } from '@/lib/utils'
@@ -231,6 +231,8 @@ export function GoogleDriveViewerModal({
     setLoading(true)
     setError(null)
     setFolderStats({}) // reset folder stats on navigation
+
+    let fetchedFiles: DriveFile[] = []
     try {
       const res = await fetch('/api/drive/list-files', {
         method: 'POST',
@@ -239,28 +241,47 @@ export function GoogleDriveViewerModal({
       })
       const data = await res.json()
       if (!res.ok) throw new Error(data.error || 'Failed to load folder contents')
-      const fetchedFiles: DriveFile[] = data.files || []
+      fetchedFiles = data.files || []
       setFiles(fetchedFiles)
+    } catch (err: any) {
+      setError(err.message || 'Error fetching drive files.')
+    } finally {
+      // ── FIX #1: Unblock UI immediately after list-files returns ──
+      // folder-stats are fired separately below, so the spinner clears
+      // as soon as the file list is available.
+      setLoading(false)
+    }
 
-      // Auto-sync check: if root folder is empty and hasn't auto-synced yet, try finding matching folder in Drive
-      if (fetchedFiles.length === 0 && folderHistory.length === 0 && (studentId || studentName) && !hasAutoSyncedRef.current) {
-        hasAutoSyncedRef.current = true
-        handleSyncFolder()
-        return
-      }
+    // ── FIX #2: Only auto-sync when we have NO folderId at all ──
+    // Previously this ran on every open for any empty folder, causing
+    // a double fetch. Now it only runs the very first time per session
+    // when the student has no Drive folder linked yet.
+    if (
+      fetchedFiles.length === 0 &&
+      folderHistory.length === 0 &&
+      !targetId && // only at root level
+      (studentId || studentName) &&
+      !hasAutoSyncedRef.current
+    ) {
+      hasAutoSyncedRef.current = true
+      handleSyncFolder()
+      return
+    }
 
-      // Fire parallel folder-stats requests for each subfolder
-      const subfolders = fetchedFiles.filter(f => f.mimeType.includes('folder'))
-      if (subfolders.length > 0) {
-        const statsResults = await Promise.allSettled(
-          subfolders.map(sf =>
-            fetch('/api/drive/folder-stats', {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ folderId: sf.id }),
-            }).then(r => r.json()).then(d => ({ id: sf.id, ...d }))
-          )
+    // ── FIX #1 cont.: Fire folder-stats in the background (non-blocking) ──
+    // Files are already rendered at this point. Stats trickle in and
+    // update the folder badges without freezing the spinner.
+    const subfolders = fetchedFiles.filter(f => f.mimeType.includes('folder'))
+    if (subfolders.length > 0) {
+      Promise.allSettled(
+        subfolders.map(sf =>
+          fetch('/api/drive/folder-stats', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ folderId: sf.id }),
+          }).then(r => r.json()).then(d => ({ id: sf.id, ...d }))
         )
+      ).then(statsResults => {
         const statsMap: Record<string, { fileCount: number; totalSize: number; lastModifiedTime: string | null }> = {}
         for (const r of statsResults) {
           if (r.status === 'fulfilled' && r.value?.success) {
@@ -269,17 +290,18 @@ export function GoogleDriveViewerModal({
           }
         }
         setFolderStats(statsMap)
-      }
-    } catch (err: any) {
-      setError(err.message || 'Error fetching drive files.')
-    } finally {
-      setLoading(false)
+      }).catch(() => {/* stats are best-effort, ignore errors */})
     }
   }
 
   useEffect(() => {
     if (isOpen) {
-      hasAutoSyncedRef.current = false
+      // ── FIX #2: Only reset hasAutoSyncedRef when there is no rootFolderId
+      // (i.e. student has never had a folder linked). When a folder exists
+      // we don't want to trigger auto-sync on every open.
+      if (!rootFolderId) {
+        hasAutoSyncedRef.current = false
+      }
       if (rootFolderId || folderUrl) {
         setFolderHistory([])
         fetchFolderFiles(rootFolderId)
@@ -287,6 +309,7 @@ export function GoogleDriveViewerModal({
         handleSyncFolder()
       }
     }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isOpen, rootFolderId])
 
   // Clear selection when navigating
@@ -1595,65 +1618,140 @@ export function GoogleDriveViewerModal({
 
       {/* ── RENAME DIALOG ── */}
       {fileToRename && (
-        <ModalDialog onClose={() => !isSubmittingAction && setFileToRename(null)} zIndex="z-[70]">
-          <div className="flex items-center gap-3 mb-4">
-            <div className="h-10 w-10 rounded-xl bg-blue-500/10 border border-blue-500/20 flex items-center justify-center">
-              <Pencil className="h-5 w-5 text-blue-500" />
-            </div>
-            <div>
-              <h3 className="text-sm font-bold text-[var(--foreground)]">Rename Document</h3>
-              <p className="text-xs text-[var(--foreground-muted)]">Update the name in Google Drive</p>
-            </div>
-          </div>
-          <input
-            type="text"
-            value={newFileName}
-            onChange={(e) => setNewFileName(e.target.value)}
-            onKeyDown={(e) => e.key === 'Enter' && handleRename()}
-            className="w-full px-3.5 py-2.5 border border-[var(--border)] rounded-xl bg-[var(--surface)] text-[var(--foreground)] text-sm focus:outline-none focus:border-[var(--accent)] focus:ring-2 focus:ring-[var(--accent)]/20 mb-3 transition-all font-medium"
-            autoFocus
-          />
+        <ModalDialog
+          onClose={() => !isSubmittingAction && setFileToRename(null)}
+          zIndex="z-[70]"
+          maxWidth="max-w-2xl"
+        >
+          {/* Decorative Top Accent Gradient */}
+          <div className="absolute top-0 left-0 right-0 h-1.5 bg-gradient-to-r from-blue-500 via-indigo-500 to-purple-500" />
 
-          {/* Quick Name Suggestions */}
-          <div className="mb-5">
-            <p className="text-[11px] font-bold text-[var(--foreground-muted)] uppercase tracking-wider mb-2">
-              Name Suggestions:
-            </p>
-            <div className="flex flex-wrap gap-1.5 max-h-36 overflow-y-auto p-1.5 border border-[var(--border)] rounded-xl bg-[var(--surface-elevated)]/50">
-              {RENAME_NAME_SUGGESTIONS.map((suggestion) => (
-                <button
-                  key={suggestion}
-                  type="button"
-                  onClick={() => {
-                    if (fileToRename) {
-                      const extMatch = fileToRename.name.match(/(\.[a-zA-Z0-9]+)$/)
-                      const ext = extMatch ? extMatch[1] : ''
-                      setNewFileName(`${suggestion}${ext}`)
-                    } else {
-                      setNewFileName(suggestion)
-                    }
-                  }}
-                  className="px-2.5 py-1 text-[11px] font-semibold rounded-lg bg-[var(--surface)] hover:bg-blue-500/10 hover:text-blue-600 dark:hover:text-blue-400 border border-[var(--border)] transition-all cursor-pointer select-none active:scale-95 text-[var(--foreground-muted)] hover:border-blue-500/30"
-                >
-                  {suggestion}
-                </button>
-              ))}
+          {/* Header */}
+          <div className="flex items-center gap-3.5 mb-5 pt-1">
+            <div className="h-12 w-12 rounded-2xl bg-gradient-to-br from-blue-500/20 via-indigo-500/15 to-purple-500/20 border border-blue-500/30 flex items-center justify-center shrink-0 text-blue-600 dark:text-blue-400 shadow-xs">
+              <Pencil className="h-5 w-5 stroke-[2.25]" />
+            </div>
+            <div className="min-w-0 flex-1">
+              <div className="flex items-center gap-2">
+                <h3 className="text-base font-bold text-[var(--foreground)] tracking-tight">Rename Document</h3>
+                {fileToRename && (
+                  <span className="px-2 py-0.5 text-[10px] font-bold rounded-md bg-blue-500/10 text-blue-600 dark:text-blue-400 border border-blue-500/20 uppercase tracking-wider">
+                    {fileToRename.name.match(/(\.[a-zA-Z0-9]+)$/)?.[1] || 'FILE'}
+                  </span>
+                )}
+              </div>
+              <p className="text-xs text-[var(--foreground-muted)] mt-0.5">
+                Update the document name in Google Drive
+              </p>
             </div>
           </div>
-          <div className="flex justify-end gap-2">
+
+          {/* Input field with clear button & styling */}
+          <div className="relative mb-4">
+            <input
+              type="text"
+              value={newFileName}
+              onChange={(e) => setNewFileName(e.target.value)}
+              onKeyDown={(e) => e.key === 'Enter' && handleRename()}
+              className="w-full pl-4 pr-10 py-3 border border-[var(--border)] rounded-xl bg-[var(--surface)] text-[var(--foreground)] text-sm focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 transition-all font-semibold shadow-xs"
+              autoFocus
+              placeholder="Enter file name..."
+            />
+            {newFileName && (
+              <button
+                type="button"
+                onClick={() => setNewFileName('')}
+                className="absolute right-3 top-1/2 -translate-y-1/2 p-1 text-[var(--foreground-muted)] hover:text-[var(--foreground)] hover:bg-[var(--surface-elevated)] rounded-lg transition-all cursor-pointer"
+                title="Clear name"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            )}
+          </div>
+
+          {/* Quick Name Suggestions with Color Themes */}
+          <div className="mb-6">
+            <div className="flex items-center justify-between mb-2.5">
+              <p className="text-[11px] font-bold text-[var(--foreground-muted)] uppercase tracking-wider flex items-center gap-1.5">
+                <Tag className="h-3.5 w-3.5 text-blue-500" />
+                Name Suggestions:
+              </p>
+              <span className="text-[10px] font-medium text-[var(--foreground-muted)]">
+                Click any tag to quick-rename
+              </span>
+            </div>
+
+            <div className="flex flex-wrap gap-2 max-h-48 overflow-y-auto p-3 border border-[var(--border)] rounded-2xl bg-[var(--surface-elevated)]/40 shadow-inner">
+              {RENAME_NAME_SUGGESTIONS.map((suggestion) => {
+                const extMatch = fileToRename.name.match(/(\.[a-zA-Z0-9]+)$/)
+                const ext = extMatch ? extMatch[1] : ''
+                const currentBase = newFileName.replace(/(\.[a-zA-Z0-9]+)$/, '').trim()
+                const isSelected = currentBase.toUpperCase() === suggestion.toUpperCase()
+
+                let badgeColors = ''
+                if (suggestion.includes('PASSPORT') || suggestion.includes('ID')) {
+                  badgeColors = isSelected
+                    ? 'bg-gradient-to-r from-blue-600 to-indigo-600 text-white border-blue-500 shadow-md shadow-blue-500/25 font-bold scale-[1.02]'
+                    : 'bg-blue-500/10 text-blue-700 dark:text-blue-300 border-blue-500/30 hover:bg-blue-500/20 hover:border-blue-500/60 hover:shadow-xs'
+                } else if (
+                  suggestion.includes('CERTIFICATE') ||
+                  suggestion.includes('APOSTILLE') ||
+                  suggestion.includes('TRANSLATION')
+                ) {
+                  badgeColors = isSelected
+                    ? 'bg-gradient-to-r from-emerald-600 to-teal-600 text-white border-emerald-500 shadow-md shadow-emerald-500/25 font-bold scale-[1.02]'
+                    : 'bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 border-emerald-500/30 hover:bg-emerald-500/20 hover:border-emerald-500/60 hover:shadow-xs'
+                } else if (
+                  suggestion.includes('TOPIK') ||
+                  suggestion.includes('IELTS') ||
+                  suggestion.includes('SAT') ||
+                  suggestion.includes('SKA') ||
+                  suggestion.includes('DIPLOMA')
+                ) {
+                  badgeColors = isSelected
+                    ? 'bg-gradient-to-r from-purple-600 to-pink-600 text-white border-purple-500 shadow-md shadow-purple-500/25 font-bold scale-[1.02]'
+                    : 'bg-purple-500/10 text-purple-700 dark:text-purple-300 border-purple-500/30 hover:bg-purple-500/20 hover:border-purple-500/60 hover:shadow-xs'
+                } else {
+                  badgeColors = isSelected
+                    ? 'bg-gradient-to-r from-amber-600 to-orange-600 text-white border-amber-500 shadow-md shadow-amber-500/25 font-bold scale-[1.02]'
+                    : 'bg-amber-500/10 text-amber-800 dark:text-amber-300 border-amber-500/30 hover:bg-amber-500/20 hover:border-amber-500/60 hover:shadow-xs'
+                }
+
+                return (
+                  <button
+                    key={suggestion}
+                    type="button"
+                    onClick={() => {
+                      setNewFileName(`${suggestion}${ext}`)
+                    }}
+                    className={cn(
+                      'px-3 py-1.5 text-xs font-semibold rounded-xl border transition-all cursor-pointer select-none active:scale-95 flex items-center gap-1.5',
+                      badgeColors
+                    )}
+                  >
+                    {isSelected && <Check className="h-3.5 w-3.5 stroke-[3]" />}
+                    {suggestion}
+                  </button>
+                )
+              })}
+            </div>
+          </div>
+
+          {/* Action Buttons */}
+          <div className="flex justify-end gap-2.5">
             <button
               onClick={() => setFileToRename(null)}
               disabled={isSubmittingAction}
-              className="px-4 py-2 border border-[var(--border)] rounded-xl text-xs font-semibold text-[var(--foreground-muted)] hover:text-[var(--foreground)] transition-all"
+              className="px-4 py-2.5 border border-[var(--border)] rounded-xl text-xs font-semibold text-[var(--foreground-muted)] hover:text-[var(--foreground)] hover:bg-[var(--surface-elevated)] transition-all cursor-pointer"
             >
               Cancel
             </button>
             <button
               onClick={() => handleRename()}
               disabled={isSubmittingAction || !newFileName.trim()}
-              className="px-4 py-2 bg-blue-600 hover:bg-blue-500 text-white text-xs font-bold rounded-xl flex items-center gap-1.5 transition-all disabled:opacity-50"
+              className="px-5 py-2.5 bg-gradient-to-r from-blue-600 via-indigo-600 to-purple-600 hover:from-blue-500 hover:to-purple-500 text-white text-xs font-bold rounded-xl flex items-center gap-2 transition-all shadow-lg shadow-blue-500/25 active:scale-[0.98] disabled:opacity-50 cursor-pointer"
             >
-              {isSubmittingAction && <Loader2 className="h-3.5 w-3.5 animate-spin" />}
+              {isSubmittingAction && <Loader2 className="h-4 w-4 animate-spin" />}
               Save Name
             </button>
           </div>
@@ -2132,15 +2230,25 @@ function ModalDialog({
   children,
   onClose,
   zIndex = 'z-[60]',
+  maxWidth = 'max-w-md',
+  className = '',
 }: {
   children: React.ReactNode
   onClose: () => void
   zIndex?: string
+  maxWidth?: string
+  className?: string
 }) {
   return (
-    <div className={cn('fixed inset-0 flex items-center justify-center p-4', zIndex)}>
-      <div className="fixed inset-0 bg-black/60 backdrop-blur-sm" onClick={onClose} />
-      <div className="relative w-full max-w-md bg-[var(--surface-elevated)] border border-[var(--border)] p-6 rounded-2xl shadow-2xl z-10 animate-in fade-in zoom-in-95 duration-150">
+    <div className={cn('fixed inset-0 flex items-center justify-center p-4 sm:p-6', zIndex)}>
+      <div className="fixed inset-0 bg-black/60 backdrop-blur-sm transition-opacity" onClick={onClose} />
+      <div
+        className={cn(
+          'relative w-full bg-[var(--surface-elevated)] border border-[var(--border)] p-6 rounded-2xl shadow-2xl z-10 animate-in fade-in zoom-in-95 duration-150 overflow-hidden',
+          maxWidth,
+          className
+        )}
+      >
         {children}
       </div>
     </div>

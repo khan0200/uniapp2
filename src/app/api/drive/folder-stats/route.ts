@@ -11,12 +11,15 @@ export async function POST(req: NextRequest) {
 
     const drive = getGoogleDriveClient()
 
+    // FIX #3: Use a small pageSize (50) and minimal fields.
+    // We only need file count, total size, and last modified time —
+    // fetching up to 1000 items per subfolder was extremely wasteful.
     const res = await drive.files.list({
       q: `'${folderId}' in parents and trashed = false`,
-      pageSize: 1000,
+      pageSize: 50,
       supportsAllDrives: true,
       includeItemsFromAllDrives: true,
-      fields: 'files(id, size, modifiedTime, mimeType)',
+      fields: 'files(id, size, modifiedTime)',
     })
 
     const files = res.data.files || []
