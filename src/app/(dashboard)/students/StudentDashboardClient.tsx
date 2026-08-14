@@ -1815,9 +1815,42 @@ export function StudentDashboardClient({ hidePhone = false }: { hidePhone?: bool
       }).catch(err => console.warn('Background Drive creation failed:', err))
 
       // Send Telegram Notification
-      const safeName = fullName ? fullName.trim().replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;') : 'Unknown'
-      const safeOffice = office ? office.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;') : '-'
-      const notifMsg = `🆕 <b>New Registration!</b>\n\n👤 <b>Name:</b> ${safeName}\n🆔 <b>ID:</b> ${studentId.trim().toUpperCase()}\n🏢 <b>Office:</b> ${safeOffice}`
+      const escapeHtml = (str: string) => str.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+      const safeName = fullName ? escapeHtml(fullName.trim()) : 'Unknown'
+      const safeId = studentId ? escapeHtml(studentId.trim().toUpperCase()) : '-'
+      const safeOffice = office ? escapeHtml(office.trim()) : '-'
+
+      const curDateTime = new Date().toLocaleString('en-GB', {
+        day: '2-digit',
+        month: '2-digit',
+        year: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit',
+      })
+
+      let notifMsg = `🆕 <b>New Registration!</b>\n\n👤 <b>Name:</b> ${safeName}\n🆔 <b>ID:</b> ${safeId}\n🏢 <b>Office:</b> ${safeOffice}`
+
+      if (tariff && tariff.trim()) {
+        notifMsg += `\n💳 <b>Tariff:</b> ${escapeHtml(tariff.trim())}`
+      }
+      if (level && level.trim()) {
+        notifMsg += `\n🎓 <b>Level:</b> ${escapeHtml(level.trim())}`
+      }
+      if (university1 && university1.trim()) {
+        notifMsg += `\n🏛️ <b>University 1:</b> ${escapeHtml(university1.trim().toUpperCase())}`
+      }
+      if (studentGroup && studentGroup.trim()) {
+        notifMsg += `\n👥 <b>Group:</b> ${escapeHtml(studentGroup.trim().toUpperCase())}`
+      }
+      if (leadBy && leadBy.trim()) {
+        notifMsg += `\n🧑‍💼 <b>Lead By:</b> ${escapeHtml(leadBy.trim().toUpperCase())}`
+      }
+      if (coordinator && coordinator.trim()) {
+        notifMsg += `\n🛡️ <b>Coordinator:</b> ${escapeHtml(coordinator.trim().toUpperCase())}`
+      }
+
+      notifMsg += `\n\n📅 <b>Time:</b> ${curDateTime}`
+
       sendTelegramNotification(notifMsg)
 
       setModalSuccess(true)
