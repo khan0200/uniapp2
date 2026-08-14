@@ -37,6 +37,30 @@ interface GoogleDriveViewerModalProps {
   onFolderUpdated?: (newFolderId: string, newFolderUrl: string) => void
 }
 
+const RENAME_NAME_SUGGESTIONS = [
+  'INTERNATIONAL PASSPORT',
+  'STUDENT ID',
+  'MOTHER PASSPORT',
+  'FATHER PASSPORT',
+  'BIRTH CERTIFICATE',
+  'BIRTH CERTIFICATE TRANSLATION',
+  'MARRIAGE CERTIFICATE',
+  'MARRIAGE CERTIFICATE TRANSLATION',
+  'DIVORCE CERTIFICATE',
+  'DIPLOMA',
+  'APOSTILLE',
+  'DEATH CERTIFICATE',
+  'TOPIK',
+  'IELTS',
+  'SKA',
+  'SAT',
+  'PHOTO',
+  'CERTIFICATE',
+  'APPLICATION FORM',
+  'LETTER OF CONSENT',
+  'ADDRESS',
+]
+
 function getFileIcon(mimeType: string, className = 'h-5 w-5') {
   if (mimeType.includes('folder')) return <Folder className={cn(className, 'text-blue-900 dark:text-blue-400 fill-blue-900/20 dark:fill-blue-400/20')} />
   if (mimeType.includes('image')) return <ImageIcon className={cn(className, 'text-sky-500')} />
@@ -1586,9 +1610,36 @@ export function GoogleDriveViewerModal({
             value={newFileName}
             onChange={(e) => setNewFileName(e.target.value)}
             onKeyDown={(e) => e.key === 'Enter' && handleRename()}
-            className="w-full px-3.5 py-2.5 border border-[var(--border)] rounded-xl bg-[var(--surface)] text-[var(--foreground)] text-sm focus:outline-none focus:border-[var(--accent)] focus:ring-2 focus:ring-[var(--accent)]/20 mb-5 transition-all"
+            className="w-full px-3.5 py-2.5 border border-[var(--border)] rounded-xl bg-[var(--surface)] text-[var(--foreground)] text-sm focus:outline-none focus:border-[var(--accent)] focus:ring-2 focus:ring-[var(--accent)]/20 mb-3 transition-all font-medium"
             autoFocus
           />
+
+          {/* Quick Name Suggestions */}
+          <div className="mb-5">
+            <p className="text-[11px] font-bold text-[var(--foreground-muted)] uppercase tracking-wider mb-2">
+              Name Suggestions:
+            </p>
+            <div className="flex flex-wrap gap-1.5 max-h-36 overflow-y-auto p-1.5 border border-[var(--border)] rounded-xl bg-[var(--surface-elevated)]/50">
+              {RENAME_NAME_SUGGESTIONS.map((suggestion) => (
+                <button
+                  key={suggestion}
+                  type="button"
+                  onClick={() => {
+                    if (fileToRename) {
+                      const extMatch = fileToRename.name.match(/(\.[a-zA-Z0-9]+)$/)
+                      const ext = extMatch ? extMatch[1] : ''
+                      setNewFileName(`${suggestion}${ext}`)
+                    } else {
+                      setNewFileName(suggestion)
+                    }
+                  }}
+                  className="px-2.5 py-1 text-[11px] font-semibold rounded-lg bg-[var(--surface)] hover:bg-blue-500/10 hover:text-blue-600 dark:hover:text-blue-400 border border-[var(--border)] transition-all cursor-pointer select-none active:scale-95 text-[var(--foreground-muted)] hover:border-blue-500/30"
+                >
+                  {suggestion}
+                </button>
+              ))}
+            </div>
+          </div>
           <div className="flex justify-end gap-2">
             <button
               onClick={() => setFileToRename(null)}
