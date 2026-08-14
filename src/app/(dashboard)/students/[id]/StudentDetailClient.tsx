@@ -3429,6 +3429,13 @@ export function StudentDetailClient({ studentId, onClose, onStudentIdChange, isE
         studentId={selectedStudent?.id || ''}
         folderId={selectedStudent?.google_drive_folder_id}
         folderUrl={selectedStudent?.google_drive_url}
+        onFolderUpdated={(newFolderId, newFolderUrl) => {
+          setSelectedStudent((prev: any) => ({
+            ...prev,
+            google_drive_folder_id: newFolderId,
+            google_drive_url: newFolderUrl,
+          }))
+        }}
       />
     </PageShell>
   )

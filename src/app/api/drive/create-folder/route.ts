@@ -28,6 +28,17 @@ export async function POST(req: NextRequest) {
       supportsAllDrives: true,
     })
 
+    if (folderRes.data.id) {
+      try {
+        await drive.permissions.create({
+          fileId: folderRes.data.id,
+          requestBody: { role: 'writer', type: 'anyone' },
+        })
+      } catch (permErr) {
+        console.warn('Warning: Failed to set subfolder permissions:', permErr)
+      }
+    }
+
     const folder = {
       id: folderRes.data.id,
       name: folderRes.data.name,

@@ -34,6 +34,7 @@ interface GoogleDriveViewerModalProps {
   studentId: string
   folderId?: string | null
   folderUrl?: string | null
+  onFolderUpdated?: (newFolderId: string, newFolderUrl: string) => void
 }
 
 function getFileIcon(mimeType: string, className = 'h-5 w-5') {
@@ -78,6 +79,7 @@ export function GoogleDriveViewerModal({
   studentId,
   folderId,
   folderUrl,
+  onFolderUpdated,
 }: GoogleDriveViewerModalProps) {
   const [viewMode, setViewMode] = useState<'grid' | 'table'>('grid')
   const [isExpanded, setIsExpanded] = useState(false)
@@ -156,12 +158,47 @@ export function GoogleDriveViewerModal({
     if (match) rootFolderId = match[1]
   }
 
+  const [isSyncingFolder, setIsSyncingFolder] = useState(false)
+  const hasAutoSyncedRef = useRef(false)
+
   // Active folder ID is the top of history stack or rootFolderId
   const activeFolderId = folderHistory.length > 0 ? folderHistory[folderHistory.length - 1].id : rootFolderId
 
   const directUrl = activeFolderId
     ? `https://drive.google.com/drive/folders/${activeFolderId}`
     : folderUrl || ''
+
+  const handleSyncFolder = async (overrideStudentId?: string) => {
+    const sId = overrideStudentId || studentId
+    if (!sId && !studentName) return
+    setIsSyncingFolder(true)
+    setLoading(true)
+    setError(null)
+    try {
+      const res = await fetch('/api/drive/create-student-folder', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          studentId: sId,
+          studentName,
+        }),
+      })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error || 'Failed to sync folder')
+      if (data.folderId) {
+        if (onFolderUpdated) {
+          onFolderUpdated(data.folderId, data.folderUrl)
+        }
+        setFolderHistory([])
+        await fetchFolderFiles(data.folderId)
+      }
+    } catch (err: any) {
+      setError(err.message || 'Error syncing Google Drive folder')
+      setLoading(false)
+    } finally {
+      setIsSyncingFolder(false)
+    }
+  }
 
   // Fetch files for a specific folder ID
   const fetchFolderFiles = async (targetId?: string | null) => {
@@ -180,6 +217,13 @@ export function GoogleDriveViewerModal({
       if (!res.ok) throw new Error(data.error || 'Failed to load folder contents')
       const fetchedFiles: DriveFile[] = data.files || []
       setFiles(fetchedFiles)
+
+      // Auto-sync check: if root folder is empty and hasn't auto-synced yet, try finding matching folder in Drive
+      if (fetchedFiles.length === 0 && folderHistory.length === 0 && (studentId || studentName) && !hasAutoSyncedRef.current) {
+        hasAutoSyncedRef.current = true
+        handleSyncFolder()
+        return
+      }
 
       // Fire parallel folder-stats requests for each subfolder
       const subfolders = fetchedFiles.filter(f => f.mimeType.includes('folder'))
@@ -210,9 +254,14 @@ export function GoogleDriveViewerModal({
   }
 
   useEffect(() => {
-    if (isOpen && (rootFolderId || folderUrl)) {
-      setFolderHistory([])
-      fetchFolderFiles(rootFolderId)
+    if (isOpen) {
+      hasAutoSyncedRef.current = false
+      if (rootFolderId || folderUrl) {
+        setFolderHistory([])
+        fetchFolderFiles(rootFolderId)
+      } else if (studentId || studentName) {
+        handleSyncFolder()
+      }
     }
   }, [isOpen, rootFolderId])
 
@@ -1031,9 +1080,19 @@ export function GoogleDriveViewerModal({
                     {searchQuery ? 'No matching items' : 'This folder is empty'}
                   </p>
                   <p className="text-xs text-[var(--foreground-muted)] mt-1">
-                    {searchQuery ? 'Try a different search term.' : 'Click "Upload" to add files to this folder.'}
+                    {searchQuery ? 'Try a different search term.' : 'Click "Upload" to add files, or re-sync to search Google Drive.'}
                   </p>
                 </div>
+                {!searchQuery && (studentId || studentName) && (
+                  <button
+                    disabled={isSyncingFolder}
+                    onClick={() => handleSyncFolder()}
+                    className="mt-2 inline-flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-xl text-xs transition-all shadow-xs cursor-pointer disabled:opacity-50"
+                  >
+                    {isSyncingFolder ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCw className="h-4 w-4" />}
+                    <span>{isSyncingFolder ? 'Searching Drive…' : 'Find / Re-sync Drive Folder'}</span>
+                  </button>
+                )}
               </div>
             ) : viewMode === 'grid' ? (
               /* ── GRID VIEW ── */

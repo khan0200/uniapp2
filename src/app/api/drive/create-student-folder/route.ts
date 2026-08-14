@@ -97,6 +97,17 @@ export async function POST(req: NextRequest) {
 
       folderId = driveResponse.data.id || null
       folderUrl = driveResponse.data.webViewLink || null
+
+      if (folderId) {
+        try {
+          await drive.permissions.create({
+            fileId: folderId,
+            requestBody: { role: 'writer', type: 'anyone' },
+          })
+        } catch (permErr) {
+          console.warn('Warning: Failed to set folder permissions:', permErr)
+        }
+      }
     }
 
     if (!folderId || !folderUrl) {
