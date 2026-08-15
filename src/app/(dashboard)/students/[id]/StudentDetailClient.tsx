@@ -3435,6 +3435,9 @@ export function StudentDetailClient({ studentId, onClose, onStudentIdChange, isE
             google_drive_folder_id: newFolderId,
             google_drive_url: newFolderUrl,
           }))
+          if (selectedStudent?.id) {
+            refreshStudent(selectedStudent.id)
+          }
         }}
       />
     </PageShell>

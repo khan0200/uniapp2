@@ -176,17 +176,30 @@ export function GoogleDriveViewerModal({
   const fileInputRef = useRef<HTMLInputElement>(null)
   const { shouldRender, isVisible } = useCssTransition(isOpen, 250)
 
-  let rootFolderId = folderId
-  if (!rootFolderId && folderUrl) {
-    const match = folderUrl.match(/\/folders\/([a-zA-Z0-9_-]+)/)
-    if (match) rootFolderId = match[1]
-  }
+  const [currentRootFolderId, setCurrentRootFolderId] = useState<string | null>(() => {
+    let id = folderId || null
+    if (!id && folderUrl) {
+      const match = folderUrl.match(/\/folders\/([a-zA-Z0-9_-]+)/)
+      if (match) id = match[1]
+    }
+    return id
+  })
+
+  // Sync state when props change
+  useEffect(() => {
+    let id = folderId || null
+    if (!id && folderUrl) {
+      const match = folderUrl.match(/\/folders\/([a-zA-Z0-9_-]+)/)
+      if (match) id = match[1]
+    }
+    setCurrentRootFolderId(id)
+  }, [folderId, folderUrl])
 
   const [isSyncingFolder, setIsSyncingFolder] = useState(false)
   const hasAutoSyncedRef = useRef(false)
 
-  // Active folder ID is the top of history stack or rootFolderId
-  const activeFolderId = folderHistory.length > 0 ? folderHistory[folderHistory.length - 1].id : rootFolderId
+  // Active folder ID is the top of history stack or currentRootFolderId
+  const activeFolderId = folderHistory.length > 0 ? folderHistory[folderHistory.length - 1].id : currentRootFolderId
 
   const directUrl = activeFolderId
     ? `https://drive.google.com/drive/folders/${activeFolderId}`
@@ -211,6 +224,7 @@ export function GoogleDriveViewerModal({
       const data = await res.json()
       if (!res.ok) throw new Error(data.error || 'Failed to sync folder')
       if (data.folderId) {
+        setCurrentRootFolderId(data.folderId)
         if (onFolderUpdated) {
           onFolderUpdated(data.folderId, data.folderUrl)
         }
@@ -297,21 +311,18 @@ export function GoogleDriveViewerModal({
 
   useEffect(() => {
     if (isOpen) {
-      // ── FIX #2: Only reset hasAutoSyncedRef when there is no rootFolderId
-      // (i.e. student has never had a folder linked). When a folder exists
-      // we don't want to trigger auto-sync on every open.
-      if (!rootFolderId) {
+      if (!currentRootFolderId) {
         hasAutoSyncedRef.current = false
       }
-      if (rootFolderId || folderUrl) {
+      if (currentRootFolderId || folderUrl) {
         setFolderHistory([])
-        fetchFolderFiles(rootFolderId)
+        fetchFolderFiles(currentRootFolderId)
       } else if (studentId || studentName) {
         handleSyncFolder()
       }
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isOpen, rootFolderId])
+  }, [isOpen, currentRootFolderId])
 
   // Clear selection when navigating
   const clearSelection = useCallback(() => {
@@ -332,7 +343,7 @@ export function GoogleDriveViewerModal({
     clearSelection()
     if (index === -1) {
       setFolderHistory([])
-      fetchFolderFiles(rootFolderId)
+      fetchFolderFiles(currentRootFolderId)
     } else {
       const nextStack = folderHistory.slice(0, index + 1)
       setFolderHistory(nextStack)
