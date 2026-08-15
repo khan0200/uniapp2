@@ -7,7 +7,7 @@ import {
   FileText, Image as ImageIcon, FileSpreadsheet, File,
   Upload, AlertTriangle, Search, Eye, ChevronRight, ArrowLeft, FolderOpen,
   CheckSquare, Square, MoveRight, CheckCheck, SortAsc, SortDesc,
-  Filter, CloudUpload, Tag, Check, Sparkles, RotateCcw,
+  Filter, CloudUpload, Tag, Check, Sparkles, RotateCcw, Link,
 } from 'lucide-react'
 import JSZip from 'jszip'
 import { cn } from '@/lib/utils'
@@ -236,6 +236,43 @@ export function GoogleDriveViewerModal({
       setLoading(false)
     } finally {
       setIsSyncingFolder(false)
+    }
+  }
+
+  const handleManualLinkFolder = async () => {
+    const input = window.prompt(
+      'Enter Google Drive Folder URL or Folder ID:',
+      directUrl || ''
+    )
+    if (!input || !input.trim()) return
+
+    const trimmed = input.trim()
+    const match = trimmed.match(/\/folders\/([a-zA-Z0-9_-]+)/)
+    const targetFolderId = match ? match[1] : trimmed
+    const targetFolderUrl = `https://drive.google.com/drive/folders/${targetFolderId}`
+
+    setLoading(true)
+    setError(null)
+    try {
+      if (studentId) {
+        const { createClient } = await import('@/lib/supabase/client')
+        const supabase = createClient()
+        await (supabase.from('students') as any)
+          .update({
+            google_drive_folder_id: targetFolderId,
+            google_drive_url: targetFolderUrl,
+          })
+          .eq('id', studentId)
+      }
+      setCurrentRootFolderId(targetFolderId)
+      if (onFolderUpdated) {
+        onFolderUpdated(targetFolderId, targetFolderUrl)
+      }
+      setFolderHistory([])
+      await fetchFolderFiles(targetFolderId)
+    } catch (err: any) {
+      setError(err.message || 'Failed to update folder link')
+      setLoading(false)
     }
   }
 
@@ -899,6 +936,14 @@ export function GoogleDriveViewerModal({
                   className="p-1.5 rounded-lg text-[var(--foreground-muted)] hover:text-blue-600 hover:bg-blue-500/10 transition-all cursor-pointer disabled:opacity-50"
                 >
                   {isSyncingFolder ? <Loader2 className="h-3.5 w-3.5 animate-spin text-blue-600" /> : <RotateCcw className="h-3.5 w-3.5" />}
+                </button>
+
+                <button
+                  onClick={handleManualLinkFolder}
+                  title="Paste / Link Custom Google Drive Folder URL"
+                  className="p-1.5 rounded-lg text-[var(--foreground-muted)] hover:text-emerald-600 hover:bg-emerald-500/10 transition-all cursor-pointer"
+                >
+                  <Link className="h-3.5 w-3.5" />
                 </button>
 
                 {[
