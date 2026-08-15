@@ -1,0 +1,61 @@
+{
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "functions": {
+    "src/app/api/extract-document/route.ts": {
+      "memory": 1024,
+      "maxDuration": 60
+    },
+    "src/app/api/drive/upload-file/route.ts": {
+      "memory": 512,
+      "maxDuration": 30
+    },
+    "src/app/api/drive/thumbnail/route.ts": {
+      "memory": 256,
+      "maxDuration": 15
+    },
+    "src/app/api/drive/list-files/route.ts": {
+      "memory": 256,
+      "maxDuration": 15
+    },
+    "src/app/api/drive/folder-stats/route.ts": {
+      "memory": 256,
+      "maxDuration": 15
+    },
+    "src/app/api/drive/create-folder/route.ts": {
+      "memory": 256,
+      "maxDuration": 15
+    },
+    "src/app/api/drive/create-student-folder/route.ts": {
+      "memory": 256,
+      "maxDuration": 15
+    },
+    "src/app/api/drive/rename-file/route.ts": {
+      "memory": 256,
+      "maxDuration": 15
+    },
+    "src/app/api/drive/move-files/route.ts": {
+      "memory": 256,
+      "maxDuration": 15
+    },
+    "src/app/api/drive/delete-file/route.ts": {
+      "memory": 256,
+      "maxDuration": 15
+    },
+    "src/app/api/notify/route.ts": {
+      "memory": 256,
+      "maxDuration": 15
+    },
+    "src/app/api/translate-name/route.ts": {
+      "memory": 256,
+      "maxDuration": 15
+    },
+    "src/app/api/validate-key/route.ts": {
+      "memory": 256,
+      "maxDuration": 15
+    },
+    "src/app/api/ai-config/route.ts": {
+      "memory": 256,
+      "maxDuration": 15
+    }
+  }
+}

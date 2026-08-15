@@ -29,7 +29,9 @@ export async function GET(req: NextRequest) {
       return new NextResponse(mediaRes.data as ArrayBuffer, {
         headers: {
           'Content-Type': fileRes.data.mimeType || 'image/jpeg',
-          'Cache-Control': 'public, max-age=86400, stale-while-revalidate=604800',
+          'Cache-Control': 'public, max-age=86400, s-maxage=604800, stale-while-revalidate=86400',
+          'CDN-Cache-Control': 'public, s-maxage=604800',
+          'Vercel-CDN-Cache-Control': 'public, s-maxage=604800',
         },
       })
     }
@@ -59,7 +61,9 @@ export async function GET(req: NextRequest) {
           return new NextResponse(buffer, {
             headers: {
               'Content-Type': contentType,
-              'Cache-Control': 'public, max-age=86400, stale-while-revalidate=604800',
+              'Cache-Control': 'public, max-age=86400, s-maxage=604800, stale-while-revalidate=86400',
+              'CDN-Cache-Control': 'public, s-maxage=604800',
+              'Vercel-CDN-Cache-Control': 'public, s-maxage=604800',
             },
           })
         }
@@ -73,7 +77,9 @@ export async function GET(req: NextRequest) {
     return new NextResponse(arrayBuffer, {
       headers: {
         'Content-Type': contentType,
-        'Cache-Control': 'public, max-age=86400, stale-while-revalidate=604800',
+        'Cache-Control': 'public, max-age=86400, s-maxage=604800, stale-while-revalidate=86400',
+        'CDN-Cache-Control': 'public, s-maxage=604800',
+        'Vercel-CDN-Cache-Control': 'public, s-maxage=604800',
       },
     })
   } catch (err: any) {
