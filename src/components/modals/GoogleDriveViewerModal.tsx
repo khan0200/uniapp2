@@ -1964,9 +1964,9 @@ export function GoogleDriveViewerModal({
         const destinations: { id: string; name: string; type: 'root' | 'parent' | 'subfolder' }[] = []
 
         // 1. Move to Root Folder
-        if (folderHistory.length > 0 && rootFolderId) {
+        if (folderHistory.length > 0 && currentRootFolderId) {
           destinations.push({
-            id: rootFolderId,
+            id: currentRootFolderId,
             name: 'Root Folder',
             type: 'root',
           })
