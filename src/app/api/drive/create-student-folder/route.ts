@@ -4,7 +4,7 @@ import { createClient } from '@/lib/supabase/server'
 
 export async function POST(req: NextRequest) {
   try {
-    const { studentId, studentName, passport } = await req.json()
+    const { studentId, studentName, passport, forceCreate } = await req.json()
 
     if (!studentId || !studentName) {
       return NextResponse.json({ error: 'Student ID and name are required' }, { status: 400 })
@@ -13,17 +13,18 @@ export async function POST(req: NextRequest) {
     const drive = getGoogleDriveClient()
     const parentFolderId = process.env.GOOGLE_DRIVE_PARENT_FOLDER_ID
 
-    // 1. Search Google Drive for existing folders matching studentId or studentName
+    // 1. Search Google Drive for existing folders matching studentId or studentName (unless forceCreate is true)
     let existingFolderId: string | null = null
     let existingFolderUrl: string | null = null
 
-    try {
-      // List all folders accessible by the service account
-      const listRes = await drive.files.list({
-        q: "mimeType = 'application/vnd.google-apps.folder' and trashed = false",
-        pageSize: 300,
-        fields: 'files(id, name, webViewLink)',
-      })
+    if (!forceCreate) {
+      try {
+        // List all folders accessible by the service account
+        const listRes = await drive.files.list({
+          q: "mimeType = 'application/vnd.google-apps.folder' and trashed = false",
+          pageSize: 300,
+          fields: 'files(id, name, webViewLink)',
+        })
 
       const allFolders = listRes.data.files || []
 
@@ -64,12 +65,13 @@ export async function POST(req: NextRequest) {
         return false
       })
 
-      if (matchedFolder) {
-        existingFolderId = matchedFolder.id || null
-        existingFolderUrl = matchedFolder.webViewLink || null
+        if (matchedFolder) {
+          existingFolderId = matchedFolder.id || null
+          existingFolderUrl = matchedFolder.webViewLink || null
+        }
+      } catch (searchErr) {
+        console.warn('Google Drive search failed, proceeding with folder creation:', searchErr)
       }
-    } catch (searchErr) {
-      console.warn('Google Drive search failed, proceeding with folder creation:', searchErr)
     }
 
     let folderId = existingFolderId

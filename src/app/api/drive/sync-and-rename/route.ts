@@ -86,11 +86,6 @@ export async function POST(req: NextRequest) {
             }
           }
 
-          if (parts.length >= 1 && parts[0].length >= 5) {
-            if (folderClean.includes(parts[0])) {
-              return true
-            }
-          }
 
           return false
         })

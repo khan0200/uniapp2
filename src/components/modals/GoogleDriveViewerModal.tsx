@@ -7,7 +7,7 @@ import {
   FileText, Image as ImageIcon, FileSpreadsheet, File,
   Upload, AlertTriangle, Search, Eye, ChevronRight, ArrowLeft, FolderOpen,
   CheckSquare, Square, MoveRight, CheckCheck, SortAsc, SortDesc,
-  Filter, CloudUpload, Tag, Check, Sparkles,
+  Filter, CloudUpload, Tag, Check, Sparkles, RotateCcw,
 } from 'lucide-react'
 import JSZip from 'jszip'
 import { cn } from '@/lib/utils'
@@ -192,8 +192,8 @@ export function GoogleDriveViewerModal({
     ? `https://drive.google.com/drive/folders/${activeFolderId}`
     : folderUrl || ''
 
-  const handleSyncFolder = async (overrideStudentId?: string) => {
-    const sId = overrideStudentId || studentId
+  const handleSyncFolder = async (options?: { overrideStudentId?: string; forceCreate?: boolean }) => {
+    const sId = options?.overrideStudentId || studentId
     if (!sId && !studentName) return
     setIsSyncingFolder(true)
     setLoading(true)
@@ -205,6 +205,7 @@ export function GoogleDriveViewerModal({
         body: JSON.stringify({
           studentId: sId,
           studentName,
+          forceCreate: options?.forceCreate || false,
         }),
       })
       const data = await res.json()
@@ -876,8 +877,21 @@ export function GoogleDriveViewerModal({
 
               {/* Window controls */}
               <div className="flex items-center gap-1">
+                <button
+                  onClick={() => {
+                    if (window.confirm(`Re-sync Google Drive folder for ${studentName || studentId}?\n\nThis will find or create the exact matching folder for this student and update the profile link.`)) {
+                      handleSyncFolder()
+                    }
+                  }}
+                  disabled={isSyncingFolder || loading}
+                  title="Re-sync / Match Student Drive Folder"
+                  className="p-1.5 rounded-lg text-[var(--foreground-muted)] hover:text-blue-600 hover:bg-blue-500/10 transition-all cursor-pointer disabled:opacity-50"
+                >
+                  {isSyncingFolder ? <Loader2 className="h-3.5 w-3.5 animate-spin text-blue-600" /> : <RotateCcw className="h-3.5 w-3.5" />}
+                </button>
+
                 {[
-                  { icon: <RefreshCw className={cn('h-3.5 w-3.5', loading && 'animate-spin')} />, action: () => fetchFolderFiles(), title: 'Refresh' },
+                  { icon: <RefreshCw className={cn('h-3.5 w-3.5', loading && !isSyncingFolder && 'animate-spin')} />, action: () => fetchFolderFiles(), title: 'Refresh files' },
                   {
                     icon: isExpanded ? <Minimize2 className="h-3.5 w-3.5" /> : <Maximize2 className="h-3.5 w-3.5" />,
                     action: () => setIsExpanded(v => !v),
