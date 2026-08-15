@@ -60,12 +60,6 @@ export async function POST(req: NextRequest) {
           }
         }
 
-        // Match on first main name part if distinct (>4 letters)
-        if (nameParts.length >= 1 && nameParts[0].length >= 5) {
-          if (folderClean.includes(nameParts[0])) {
-            return true
-          }
-        }
 
         return false
       })
