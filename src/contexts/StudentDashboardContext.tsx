@@ -83,6 +83,8 @@ interface StudentDashboardContextValue {
   setGroupOptions: React.Dispatch<React.SetStateAction<string[]>>
   leadByOptions: string[]
   setLeadByOptions: React.Dispatch<React.SetStateAction<string[]>>
+  coordinatorOptions: string[]
+  setCoordinatorOptions: React.Dispatch<React.SetStateAction<string[]>>
   customTagsRegistry: CustomTag[]
   setCustomTagsRegistry: React.Dispatch<React.SetStateAction<CustomTag[]>>
   foldersOptions: Folder[]
@@ -161,6 +163,7 @@ export function StudentDashboardProvider({ children }: { children: ReactNode }) 
   const [levelOptions, setLevelOptions] = useState<string[]>(['COLLEGE', 'BACHELOR', 'MASTERS', 'MASTER NO CERTIFICATE', 'LANGUAGE COURSE'])
   const [groupOptions, setGroupOptions] = useState<string[]>([])
   const [leadByOptions, setLeadByOptions] = useState<string[]>([])
+  const [coordinatorOptions, setCoordinatorOptions] = useState<string[]>([])
   const [customTagsRegistry, setCustomTagsRegistry] = useState<CustomTag[]>([])
   const [foldersOptions, setFoldersOptions] = useState<Folder[]>([])
   const [officeOptions, setOfficeOptions] = useState<string[]>(['ANDIJON OFFIS', 'TOSHKENT OFFIS'])
@@ -251,7 +254,8 @@ export function StudentDashboardProvider({ children }: { children: ReactNode }) 
         methodsRes,
         receiversRes,
         notesRes,
-        statusesRes
+        statusesRes,
+        coordinatorsRes
       ] = await Promise.all([
         supabase.from('tariff_options').select('name, price'),
         supabase.from('education_levels').select('name'),
@@ -262,7 +266,8 @@ export function StudentDashboardProvider({ children }: { children: ReactNode }) 
         supabase.from('payment_methods').select('name').order('name'),
         supabase.from('payment_receivers').select('name').order('name'),
         supabase.from('payment_note_templates').select('name').order('name'),
-        supabase.from('university_statuses').select('name, color_class').order('name')
+        supabase.from('university_statuses').select('name, color_class').order('name'),
+        supabase.from('coordinators').select('name').order('name')
       ])
  
       if (tariffsRes.data && tariffsRes.data.length > 0) {
@@ -276,6 +281,7 @@ export function StudentDashboardProvider({ children }: { children: ReactNode }) 
       if (levelsRes.data && levelsRes.data.length > 0) setLevelOptions((levelsRes.data as any[]).map(l => l.name))
       if (groupsRes.data && groupsRes.data.length > 0) setGroupOptions((groupsRes.data as any[]).map(g => g.name))
       if (leadsRes.data && leadsRes.data.length > 0) setLeadByOptions((leadsRes.data as any[]).map(l => l.name))
+      if (coordinatorsRes.data && coordinatorsRes.data.length > 0) setCoordinatorOptions((coordinatorsRes.data as any[]).map(c => c.name))
       let folders = (foldersRes.data || []) as Folder[]
       const hasKdb = folders.some(f => f.name.toUpperCase() === 'KDB')
       // folders is tenant-scoped and its RLS policy only lets managers write,
@@ -493,6 +499,8 @@ export function StudentDashboardProvider({ children }: { children: ReactNode }) 
       setGroupOptions,
       leadByOptions,
       setLeadByOptions,
+      coordinatorOptions,
+      setCoordinatorOptions,
       customTagsRegistry,
       setCustomTagsRegistry,
       foldersOptions,

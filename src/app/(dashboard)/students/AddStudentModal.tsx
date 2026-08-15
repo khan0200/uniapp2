@@ -15,6 +15,7 @@ interface AddStudentModalProps {
   levelOptions: string[]
   groupOptions: string[]
   leadByOptions: string[]
+  coordinatorOptions?: string[]
   universityOptions: string[]
   studentId: string
   setStudentId: (value: string) => void
@@ -48,6 +49,7 @@ export default function AddStudentModal({
   levelOptions = [],
   groupOptions = [],
   leadByOptions = [],
+  coordinatorOptions = [],
   universityOptions = [],
   studentId,
   setStudentId,
@@ -330,8 +332,8 @@ export default function AddStudentModal({
                     className="w-full px-3 py-2 border border-[var(--border)] rounded-[var(--radius-md)] bg-[var(--surface-elevated)] text-[var(--foreground)] focus:outline-none focus:border-[var(--accent)] transition-all text-xs font-semibold cursor-pointer"
                   >
                     <option value="">Select Coordinator</option>
-                    {leadByOptions.map((l) => (
-                      <option key={l} value={l}>{l}</option>
+                    {coordinatorOptions.map((c) => (
+                      <option key={c} value={c}>{c}</option>
                     ))}
                   </select>
                 </div>

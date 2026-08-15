@@ -326,6 +326,7 @@ export function StudentDashboardClient({ hidePhone = false }: { hidePhone?: bool
     levelOptions,
     groupOptions,
     leadByOptions,
+    coordinatorOptions,
     customTagsRegistry,
     setCustomTagsRegistry,
     foldersOptions,
@@ -3133,6 +3134,7 @@ export function StudentDashboardClient({ hidePhone = false }: { hidePhone?: bool
           levelOptions={levelOptions}
           groupOptions={groupOptions}
           leadByOptions={leadByOptions}
+          coordinatorOptions={coordinatorOptions}
           universityOptions={universityOptions}
           studentId={studentId}
           setStudentId={setStudentId}
