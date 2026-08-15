@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useMemo, useRef } from 'react'
+import { useState, useEffect, useMemo, useRef, useCallback } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { type Student, type Payment } from '@/types/database'
 import { sendTelegramNotification } from '@/lib/telegram'
@@ -98,7 +98,7 @@ const compareStudentIds = (a: Student, b: Student, order: 'asc' | 'desc' = 'asc'
 }
 
 export function PaymentsClient() {
-  const supabase = createClient()
+  const supabase = useMemo(() => createClient(), [])
   const { profile: loggedInProfile } = useUser()
   const {
     paymentMethodOptions,
@@ -169,18 +169,22 @@ export function PaymentsClient() {
   // Edit modal
   const [editingPayment, setEditingPayment] = useState<Payment | null>(null)
   const editModalTransition = useCssTransition(!!editingPayment, 220)
-  const lastEditingPaymentRef = useRef(editingPayment)
-  if (editingPayment) lastEditingPaymentRef.current = editingPayment
+  const [lastEditingPayment, setLastEditingPayment] = useState<Payment | null>(null)
+  useEffect(() => {
+    if (editingPayment) setLastEditingPayment(editingPayment)
+  }, [editingPayment])
   const [editAmount, setEditAmount] = useState('')
   const [editMethod, setEditMethod] = useState('')
   const [editReceivedBy, setEditReceivedBy] = useState('')
   const [editNotes, setEditNotes] = useState('')
   const [viewingPayment, setViewingPayment] = useState<Payment | null>(null)
   const viewModalTransition = useCssTransition(!!viewingPayment, 220)
-  const lastViewingPaymentRef = useRef(viewingPayment)
-  if (viewingPayment) lastViewingPaymentRef.current = viewingPayment
+  const [lastViewingPayment, setLastViewingPayment] = useState<Payment | null>(null)
+  useEffect(() => {
+    if (viewingPayment) setLastViewingPayment(viewingPayment)
+  }, [viewingPayment])
 
-  const fetchData = async () => {
+  const fetchData = useCallback(async () => {
     try {
       setPaymentsLoading(true)
       setError(null)
@@ -204,11 +208,11 @@ export function PaymentsClient() {
     } finally {
       setPaymentsLoading(false)
     }
-  }
+  }, [supabase])
 
   useEffect(() => {
     fetchData()
-  }, [])
+  }, [fetchData])
 
   // Live sync payments across devices. Student rows (and the balances shown
   // alongside these payments) are kept fresh by the subscription in
@@ -1859,7 +1863,7 @@ export function PaymentsClient() {
 
       {/* ── Edit Payment Modal ───────────────────────────── */}
       {editModalTransition.shouldRender && (() => {
-        const editingPaymentDisplay = editingPayment || lastEditingPaymentRef.current
+        const editingPaymentDisplay = editingPayment || lastEditingPayment
         if (!editingPaymentDisplay) return null
         return (
           <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
@@ -1955,7 +1959,7 @@ export function PaymentsClient() {
 
       {/* ── Payment Details Modal ───────────────────────── */}
       {viewModalTransition.shouldRender && (() => {
-        const viewingPaymentDisplay = viewingPayment || lastViewingPaymentRef.current
+        const viewingPaymentDisplay = viewingPayment || lastViewingPayment
         if (!viewingPaymentDisplay) return null
         return (
           <div className="fixed inset-0 z-50 flex items-center justify-center p-4">

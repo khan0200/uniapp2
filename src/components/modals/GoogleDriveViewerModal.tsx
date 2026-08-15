@@ -7,7 +7,7 @@ import {
   FileText, Image as ImageIcon, FileSpreadsheet, File,
   Upload, AlertTriangle, Search, Eye, ChevronRight, ArrowLeft, FolderOpen,
   CheckSquare, Square, MoveRight, CheckCheck, SortAsc, SortDesc,
-  Filter, CloudUpload, Tag, Check, Sparkles, RotateCcw, Link,
+  CloudUpload, Tag, Check, RotateCcw, Link,
 } from 'lucide-react'
 import JSZip from 'jszip'
 import { cn } from '@/lib/utils'
@@ -70,17 +70,6 @@ function getFileIcon(mimeType: string, className = 'h-5 w-5') {
   if (mimeType.includes('word') || mimeType.includes('document'))
     return <FileText className={cn(className, 'text-blue-500')} />
   return <File className={cn(className, 'text-violet-400')} />
-}
-
-function getFileColor(mimeType: string): string {
-  if (mimeType.includes('folder')) return 'from-blue-950/20 to-blue-900/5 border-blue-900/30'
-  if (mimeType.includes('image')) return 'from-sky-500/20 to-sky-500/5 border-sky-500/20'
-  if (mimeType.includes('pdf')) return 'from-rose-500/20 to-rose-500/5 border-rose-500/20'
-  if (mimeType.includes('sheet') || mimeType.includes('csv') || mimeType.includes('excel'))
-    return 'from-emerald-500/20 to-emerald-500/5 border-emerald-500/20'
-  if (mimeType.includes('word') || mimeType.includes('document'))
-    return 'from-blue-500/20 to-blue-500/5 border-blue-500/20'
-  return 'from-violet-500/20 to-violet-500/5 border-violet-500/20'
 }
 
 function formatFileSize(bytes?: number | null): string {
@@ -172,8 +161,6 @@ export function GoogleDriveViewerModal({
   const [dragOverFolderId, setDragOverFolderId] = useState<string | null>(null)
   // dragSourceIds = IDs being dragged (selected items, or just the single item if not selected)
   const dragSourceIds = useRef<string[]>([])
-
-  const fileInputRef = useRef<HTMLInputElement>(null)
   const { shouldRender, isVisible } = useCssTransition(isOpen, 250)
 
   const [currentRootFolderId, setCurrentRootFolderId] = useState<string | null>(() => {
@@ -204,6 +191,56 @@ export function GoogleDriveViewerModal({
   const directUrl = activeFolderId
     ? `https://drive.google.com/drive/folders/${activeFolderId}`
     : folderUrl || ''
+
+  // Fetch files for a specific folder ID
+  const fetchFolderFiles = useCallback(async (targetId?: string | null) => {
+    const idToFetch = targetId || activeFolderId
+    if (!idToFetch) return
+    setLoading(true)
+    setError(null)
+    setFolderStats({}) // reset folder stats on navigation
+
+    let fetchedFiles: DriveFile[] = []
+    try {
+      const res = await fetch('/api/drive/list-files', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ folderId: idToFetch }),
+      })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error || 'Failed to load folder contents')
+      fetchedFiles = data.files || []
+      setFiles(fetchedFiles)
+    } catch (err: any) {
+      setError(err.message || 'Error fetching drive files.')
+      return
+    } finally {
+      setLoading(false)
+    }
+
+    // Fire parallel folder-stats requests for each subfolder in the background
+    const subfolders = fetchedFiles.filter(f => f.mimeType.includes('folder'))
+    if (subfolders.length > 0) {
+      Promise.allSettled(
+        subfolders.map(sf =>
+          fetch('/api/drive/folder-stats', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ folderId: sf.id }),
+          }).then(r => r.json()).then(d => ({ id: sf.id, ...d }))
+        )
+      ).then(statsResults => {
+        const statsMap: Record<string, { fileCount: number; totalSize: number; lastModifiedTime: string | null }> = {}
+        for (const r of statsResults) {
+          if (r.status === 'fulfilled' && r.value?.success) {
+            const { id, fileCount, totalSize, lastModifiedTime } = r.value
+            statsMap[id] = { fileCount, totalSize, lastModifiedTime }
+          }
+        }
+        setFolderStats(statsMap)
+      }).catch(() => {/* stats are best-effort, ignore errors */})
+    }
+  }, [activeFolderId])
 
   const handleSyncFolder = async (options?: { overrideStudentId?: string; forceCreate?: boolean }) => {
     const sId = options?.overrideStudentId || studentId
@@ -276,76 +313,6 @@ export function GoogleDriveViewerModal({
     }
   }
 
-  // Fetch files for a specific folder ID
-  const fetchFolderFiles = async (targetId?: string | null) => {
-    const idToFetch = targetId || activeFolderId
-    if (!idToFetch) return
-    setLoading(true)
-    setError(null)
-    setFolderStats({}) // reset folder stats on navigation
-
-    let fetchedFiles: DriveFile[] = []
-    try {
-      const res = await fetch('/api/drive/list-files', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ folderId: idToFetch }),
-      })
-      const data = await res.json()
-      if (!res.ok) throw new Error(data.error || 'Failed to load folder contents')
-      fetchedFiles = data.files || []
-      setFiles(fetchedFiles)
-    } catch (err: any) {
-      setError(err.message || 'Error fetching drive files.')
-    } finally {
-      // ── FIX #1: Unblock UI immediately after list-files returns ──
-      // folder-stats are fired separately below, so the spinner clears
-      // as soon as the file list is available.
-      setLoading(false)
-    }
-
-    // ── FIX #2: Only auto-sync when we have NO folderId at all ──
-    // Previously this ran on every open for any empty folder, causing
-    // a double fetch. Now it only runs the very first time per session
-    // when the student has no Drive folder linked yet.
-    if (
-      fetchedFiles.length === 0 &&
-      folderHistory.length === 0 &&
-      !targetId && // only at root level
-      (studentId || studentName) &&
-      !hasAutoSyncedRef.current
-    ) {
-      hasAutoSyncedRef.current = true
-      handleSyncFolder()
-      return
-    }
-
-    // ── FIX #1 cont.: Fire folder-stats in the background (non-blocking) ──
-    // Files are already rendered at this point. Stats trickle in and
-    // update the folder badges without freezing the spinner.
-    const subfolders = fetchedFiles.filter(f => f.mimeType.includes('folder'))
-    if (subfolders.length > 0) {
-      Promise.allSettled(
-        subfolders.map(sf =>
-          fetch('/api/drive/folder-stats', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ folderId: sf.id }),
-          }).then(r => r.json()).then(d => ({ id: sf.id, ...d }))
-        )
-      ).then(statsResults => {
-        const statsMap: Record<string, { fileCount: number; totalSize: number; lastModifiedTime: string | null }> = {}
-        for (const r of statsResults) {
-          if (r.status === 'fulfilled' && r.value?.success) {
-            const { id, fileCount, totalSize, lastModifiedTime } = r.value
-            statsMap[id] = { fileCount, totalSize, lastModifiedTime }
-          }
-        }
-        setFolderStats(statsMap)
-      }).catch(() => {/* stats are best-effort, ignore errors */})
-    }
-  }
-
   useEffect(() => {
     if (isOpen) {
       if (!currentRootFolderId) {
@@ -358,7 +325,7 @@ export function GoogleDriveViewerModal({
         handleSyncFolder()
       }
     }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isOpen, currentRootFolderId])
 
   // Clear selection when navigating
@@ -399,7 +366,11 @@ export function GoogleDriveViewerModal({
     e.stopPropagation()
     setSelectedIds(prev => {
       const next = new Set(prev)
-      next.has(id) ? next.delete(id) : next.add(id)
+      if (next.has(id)) {
+        next.delete(id)
+      } else {
+        next.add(id)
+      }
       return next
     })
   }
@@ -489,7 +460,7 @@ export function GoogleDriveViewerModal({
     try {
       e.dataTransfer.setData('application/json', JSON.stringify(dragSourceIds.current))
       e.dataTransfer.effectAllowed = 'move'
-    } catch (_) {}
+    } catch {}
   }
 
   const handleDragOver = (e: React.DragEvent, targetFolder: DriveFile) => {
@@ -611,25 +582,7 @@ export function GoogleDriveViewerModal({
     }
   }
 
-  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const selectedFile = e.target.files?.[0]
-    if (!selectedFile || !activeFolderId) return
-    setIsUploading(true)
-    try {
-      const formData = new FormData()
-      formData.append('file', selectedFile)
-      formData.append('folderId', activeFolderId)
-      const res = await fetch('/api/drive/upload-file', { method: 'POST', body: formData })
-      const data = await res.json()
-      if (!res.ok) throw new Error(data.error)
-      await fetchFolderFiles()
-    } catch (err: any) {
-      alert(`Upload Error: ${err.message}`)
-    } finally {
-      setIsUploading(false)
-      if (fileInputRef.current) fileInputRef.current.value = ''
-    }
-  }
+
 
   // ── Sort & Filter logic ──
   const filteredFiles = files
@@ -731,7 +684,7 @@ export function GoogleDriveViewerModal({
     if (dragSourceIds.current.length > 0) return
     if (e.dataTransfer.types.includes('Files')) e.preventDefault()
   }
-  const handleWindowDragLeave = (e: React.DragEvent) => {
+  const handleWindowDragLeave = () => {
     if (dragSourceIds.current.length > 0) return
     dragCounter.current -= 1
     if (dragCounter.current <= 0) {
@@ -946,23 +899,20 @@ export function GoogleDriveViewerModal({
                   <Link className="h-3.5 w-3.5" />
                 </button>
 
-                {[
-                  { icon: <RefreshCw className={cn('h-3.5 w-3.5', loading && !isSyncingFolder && 'animate-spin')} />, action: () => fetchFolderFiles(), title: 'Refresh files' },
-                  {
-                    icon: isExpanded ? <Minimize2 className="h-3.5 w-3.5" /> : <Maximize2 className="h-3.5 w-3.5" />,
-                    action: () => setIsExpanded(v => !v),
-                    title: isExpanded ? 'Restore' : 'Full screen'
-                  },
-                ].map(({ icon, action, title }, i) => (
-                  <button
-                    key={i}
-                    onClick={action}
-                    title={title}
-                    className="p-1.5 rounded-lg text-[var(--foreground-muted)] hover:text-[var(--foreground)] hover:bg-[var(--border-subtle)] transition-all cursor-pointer"
-                  >
-                    {icon}
-                  </button>
-                ))}
+                <button
+                  onClick={() => fetchFolderFiles()}
+                  title="Refresh files"
+                  className="p-1.5 rounded-lg text-[var(--foreground-muted)] hover:text-[var(--foreground)] hover:bg-[var(--border-subtle)] transition-all cursor-pointer"
+                >
+                  <RefreshCw className={cn('h-3.5 w-3.5', loading && !isSyncingFolder && 'animate-spin')} />
+                </button>
+                <button
+                  onClick={() => setIsExpanded(v => !v)}
+                  title={isExpanded ? 'Restore' : 'Full screen'}
+                  className="p-1.5 rounded-lg text-[var(--foreground-muted)] hover:text-[var(--foreground)] hover:bg-[var(--border-subtle)] transition-all cursor-pointer"
+                >
+                  {isExpanded ? <Minimize2 className="h-3.5 w-3.5" /> : <Maximize2 className="h-3.5 w-3.5" />}
+                </button>
 
                 {directUrl && (
                   <a
@@ -1216,7 +1166,6 @@ export function GoogleDriveViewerModal({
               <div className="p-5 grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-3.5">
                 {filteredFiles.map((file) => {
                   const isFolder = file.mimeType.includes('folder')
-                  const ext = getFileExtension(file.name, file.mimeType)
                   const isSelected = selectedIds.has(file.id)
                   const isDragTarget = dragOverFolderId === file.id
 
@@ -1417,7 +1366,11 @@ export function GoogleDriveViewerModal({
                               if (selectionMode) {
                                 setSelectedIds(prev => {
                                   const next = new Set(prev)
-                                  next.has(file.id) ? next.delete(file.id) : next.add(file.id)
+                                  if (next.has(file.id)) {
+                                    next.delete(file.id)
+                                  } else {
+                                    next.add(file.id)
+                                  }
                                   return next
                                 })
                                 return
@@ -1448,7 +1401,11 @@ export function GoogleDriveViewerModal({
                                 <div
                                   onClick={() => setSelectedIds(prev => {
                                     const next = new Set(prev)
-                                    next.has(file.id) ? next.delete(file.id) : next.add(file.id)
+                                    if (next.has(file.id)) {
+                                      next.delete(file.id)
+                                    } else {
+                                      next.add(file.id)
+                                    }
                                     return next
                                   })}
                                   className={cn(
@@ -1632,6 +1589,7 @@ export function GoogleDriveViewerModal({
           <div className="flex-1 overflow-hidden relative flex items-center justify-center p-4">
             {previewFile.mimeType.includes('image') || /\.(jpg|jpeg|png|gif|webp|svg)$/i.test(previewFile.name) ? (
               <div className="relative max-w-full max-h-full flex items-center justify-center">
+                {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img
                   src={`/api/drive/thumbnail?fileId=${previewFile.id}&size=2000`}
                   alt={previewFile.name}
@@ -2342,6 +2300,7 @@ function DocumentThumbnailCard({
     const proxyUrl = `/api/drive/thumbnail?fileId=${file.id}&size=400`
     return (
       <div className="relative w-full h-full bg-[var(--surface-elevated)] overflow-hidden flex items-center justify-center p-1.5">
+        {/* eslint-disable-next-line @next/next/no-img-element */}
         <img
           src={proxyUrl}
           referrerPolicy="no-referrer"

@@ -6,7 +6,7 @@ import {
   Plus, Users, X, Search, AlertCircle, CheckCircle2,
   Tag, Layers, Award, Bookmark, UserCheck, Folder,
   FileSpreadsheet, ChevronDown, ChevronLeft, ChevronRight, ChevronUp,
-  Copy, Trash2, Hash, Check, RefreshCw, BookOpen, FileText
+  Copy, Trash2, Hash, Check, RefreshCw, BookOpen
 } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import { cn } from '@/lib/utils'
@@ -157,7 +157,7 @@ const getUrgencyDays = (student: any) => {
 
 
 export function StudentDashboardClient({ hidePhone = false }: { hidePhone?: boolean } = {}) {
-  const supabase = createClient()
+  const supabase = useMemo(() => createClient(), [])
 
   const [activeTooltip, setActiveTooltip] = useState<{ studentId: string; tagKey: string } | null>(null)
   const [copiedId, setCopiedId] = useState<string | null>(null)
@@ -272,7 +272,7 @@ export function StudentDashboardClient({ hidePhone = false }: { hidePhone?: bool
   useEffect(() => {
     const fetchUniversities = async () => {
       try {
-        const { data, error } = await supabase
+        const { data } = await supabase
           .from('universities')
           .select('name')
           .order('name')
@@ -284,7 +284,7 @@ export function StudentDashboardClient({ hidePhone = false }: { hidePhone?: bool
       }
     }
     fetchUniversities()
-  }, [])
+  }, [supabase])
 
 
 
@@ -364,6 +364,44 @@ export function StudentDashboardClient({ hidePhone = false }: { hidePhone?: bool
   const visibleFolders = useMemo(() => {
     return foldersOptions.filter(f => hidePhone || f.name.toUpperCase() !== 'KDB')
   }, [foldersOptions, hidePhone])
+
+  const folderCounts = useMemo(() => {
+    const counts: Record<string, number> = {
+      all: 0,
+      except: 0,
+      hidden: 0,
+      deleted: 0,
+    }
+
+    foldersOptions.forEach(f => {
+      counts[f.id] = 0
+    })
+
+    students.forEach(s => {
+      if (s.is_deleted) {
+        counts.deleted = (counts.deleted || 0) + 1
+        return
+      }
+
+      if (hidePhone && s.status_hidden) {
+        counts.hidden = (counts.hidden || 0) + 1
+        return
+      }
+
+      counts.all = (counts.all || 0) + 1
+
+      const fIds = s.folder_ids || []
+      if (fIds.length === 0) {
+        counts.except = (counts.except || 0) + 1
+      } else {
+        fIds.forEach(id => {
+          counts[id] = (counts[id] || 0) + 1
+        })
+      }
+    })
+
+    return counts
+  }, [students, foldersOptions, hidePhone])
 
   const isKdbFolderActive = useMemo(() => {
     const kdbFolder = foldersOptions.find(f => f.name.toUpperCase() === 'KDB')
@@ -1205,8 +1243,13 @@ export function StudentDashboardClient({ hidePhone = false }: { hidePhone?: bool
   const popoverTransition = useCssTransition(!!popoverAnchor, 220)
   // Keep the last non-null anchor around while the close animation plays,
   // since popoverAnchor itself flips to null immediately on close.
-  const lastPopoverAnchorRef = useRef(popoverAnchor)
-  if (popoverAnchor) lastPopoverAnchorRef.current = popoverAnchor
+  const [lastPopoverAnchor, setLastPopoverAnchor] = useState<{ studentId: string; rect: DOMRect } | null>(null)
+
+  useEffect(() => {
+    if (popoverAnchor) {
+      setLastPopoverAnchor(popoverAnchor)
+    }
+  }, [popoverAnchor])
 
   useEffect(() => {
     if (officeOptions && officeOptions.length > 0 && !office) {
@@ -1275,7 +1318,7 @@ export function StudentDashboardClient({ hidePhone = false }: { hidePhone?: bool
         setCustomTagsRegistry([])
       }
     }
-  }, [loggedInProfile])
+  }, [loggedInProfile, setCustomTagsRegistry])
 
   useEffect(() => {
     if (students.length === 0 || !loggedInProfile) return
@@ -1432,18 +1475,6 @@ export function StudentDashboardClient({ hidePhone = false }: { hidePhone?: bool
     }
   }
 
-  const handleUpdateEmbassyDocuments = async (studentId: string, docs: string[]) => {
-    setStudents(prev => prev.map(s => s.id === studentId ? { ...s, embassy_documents: docs } : s))
-    const { error: updateError } = await (supabase
-      .from('students') as any)
-      .update({ embassy_documents: docs })
-      .eq('id', studentId)
-    if (updateError) {
-      console.error('Error updating student embassy documents:', updateError.message || updateError)
-      fetchStudents(true)
-    }
-  }
-
   const handleUpdateStatusHidden = async (studentId: string, isHidden: boolean) => {
     setStudents(prev => prev.map(s => s.id === studentId ? { ...s, status_hidden: isHidden } : s))
     const { error: updateError } = await (supabase
@@ -1506,14 +1537,6 @@ export function StudentDashboardClient({ hidePhone = false }: { hidePhone?: bool
     if (val === 'TAKEN') return 'bg-emerald-600 dark:bg-emerald-500 text-white font-bold border-transparent'
     if (val === 'MISTAKE') return 'bg-amber-500 text-white font-bold border-transparent'
     if (val === 'CANCELLED') return 'bg-rose-600 dark:bg-rose-500 text-white font-bold border-transparent'
-    return 'bg-zinc-400 dark:bg-zinc-500 text-white font-semibold border-transparent'
-  }
-
-  const getEmbassyBadgeClass = (status: string | null) => {
-    const val = status || 'Not Applied'
-    if (val === 'Approved' || val === 'APPROVED') return 'bg-emerald-600 dark:bg-emerald-500 text-white font-bold border-transparent'
-    if (val === 'Applied' || val === 'APPLIED') return 'bg-blue-600 dark:bg-blue-500 text-white font-bold border-transparent'
-    if (val === 'Rejected' || val === 'REJECTED' || val === 'CANCELLED' || val === 'Cancelled') return 'bg-rose-600 dark:bg-rose-500 text-white font-bold border-transparent'
     return 'bg-zinc-400 dark:bg-zinc-500 text-white font-semibold border-transparent'
   }
 
@@ -2297,7 +2320,7 @@ export function StudentDashboardClient({ hidePhone = false }: { hidePhone?: bool
       {renderActiveFilterChips()}
  
       {/* Telegram-Style Folders Selector */}
-      <div className="mb-3 flex items-center overflow-x-auto scrollbar-none gap-6 select-none shrink-0 border-b border-[var(--border)] dark:border-border/60 pb-2 px-1">
+      <div className="mb-3 flex items-center overflow-x-auto scrollbar-none gap-3 md:gap-4 select-none shrink-0 border-b border-[var(--border)] dark:border-border/60 pb-2 px-1">
         {/* All Folder */}
         <button
           onClick={() => setActiveFolder('all')}
@@ -2308,12 +2331,13 @@ export function StudentDashboardClient({ hidePhone = false }: { hidePhone?: bool
               : "text-[var(--foreground-muted)] border-transparent hover:text-[var(--foreground)]"
           )}
         >
-          All
+          All <span className={cn("text-xs font-normal ml-0.5", activeFolder === 'all' ? "text-blue-600 dark:text-blue-400 font-semibold" : "text-[var(--foreground-muted)]")}>({folderCounts.all || 0})</span>
         </button>
 
         {/* Custom Folders */}
         {visibleFolders.filter(f => f.name.toUpperCase() !== 'KDB').map((folder) => {
           const isActive = activeFolder === folder.id
+          const count = folderCounts[folder.id] || 0
           return (
             <button
               key={folder.id}
@@ -2325,7 +2349,7 @@ export function StudentDashboardClient({ hidePhone = false }: { hidePhone?: bool
                   : "text-[var(--foreground-muted)] border-transparent hover:text-[var(--foreground)]"
               )}
             >
-              {folder.name}
+              {folder.name} <span className={cn("text-xs font-normal ml-0.5", isActive ? "text-blue-600 dark:text-blue-400 font-semibold" : "text-[var(--foreground-muted)]")}>({count})</span>
             </button>
           )
         })}
@@ -2335,6 +2359,7 @@ export function StudentDashboardClient({ hidePhone = false }: { hidePhone?: bool
           const kdbFolder = foldersOptions.find(f => f.name.toUpperCase() === 'KDB')
           if (!kdbFolder) return null
           const isActive = activeFolder === kdbFolder.id
+          const count = folderCounts[kdbFolder.id] || 0
           return (
             <button
               onClick={() => setActiveFolder(kdbFolder.id)}
@@ -2345,7 +2370,7 @@ export function StudentDashboardClient({ hidePhone = false }: { hidePhone?: bool
                   : "text-[var(--foreground-muted)] border-transparent hover:text-[var(--foreground)]"
               )}
             >
-              KDB
+              KDB <span className={cn("text-xs font-normal ml-0.5", isActive ? "text-blue-600 dark:text-blue-400 font-semibold" : "text-[var(--foreground-muted)]")}>({count})</span>
             </button>
           )
         })()}
@@ -2361,7 +2386,7 @@ export function StudentDashboardClient({ hidePhone = false }: { hidePhone?: bool
               : "text-[var(--foreground-muted)] border-transparent hover:text-[var(--foreground)]"
           )}
         >
-          Except
+          Except <span className={cn("text-xs font-normal ml-0.5", activeFolder === 'except' ? "text-blue-600 dark:text-blue-400 font-semibold" : "text-[var(--foreground-muted)]")}>({folderCounts.except || 0})</span>
         </button>
 
         {/* Hidden Folder (Status Page only) */}
@@ -2375,7 +2400,7 @@ export function StudentDashboardClient({ hidePhone = false }: { hidePhone?: bool
                 : "text-[var(--foreground-muted)] border-transparent hover:text-amber-500"
             )}
           >
-            Hidden
+            Hidden <span className={cn("text-xs font-normal ml-0.5", activeFolder === 'hidden' ? "text-amber-500 font-semibold" : "text-[var(--foreground-muted)]")}>({folderCounts.hidden || 0})</span>
           </button>
         )}
 
@@ -2389,7 +2414,7 @@ export function StudentDashboardClient({ hidePhone = false }: { hidePhone?: bool
               : "text-[var(--foreground-muted)] border-transparent hover:text-red-500"
           )}
         >
-          Archive
+          Archive <span className={cn("text-xs font-normal ml-0.5", activeFolder === 'deleted' ? "text-red-500 font-semibold" : "text-[var(--foreground-muted)]")}>({folderCounts.deleted || 0})</span>
         </button>
       </div>
 
@@ -2992,7 +3017,7 @@ export function StudentDashboardClient({ hidePhone = false }: { hidePhone?: bool
                                     {student.embassy_sponsor_notes && student.embassy_sponsor_notes.trim().length > 0 && (
                                       <div className="flex items-center gap-1 mt-0.5 text-[9.5px] text-[var(--foreground-muted)] font-medium truncate max-w-[180px]">
                                         <span className="font-bold text-amber-500 uppercase tracking-wide shrink-0 select-none">Homiy:</span>
-                                        <span className="truncate italic">"{student.embassy_sponsor_notes}"</span>
+                                        <span className="truncate italic">&quot;{student.embassy_sponsor_notes}&quot;</span>
                                       </div>
                                     )}
                                   </>
@@ -3163,7 +3188,7 @@ export function StudentDashboardClient({ hidePhone = false }: { hidePhone?: bool
 
       {/* Actions Modal */}
       {popoverTransition.shouldRender && (() => {
-          const anchor = popoverAnchor || lastPopoverAnchorRef.current
+          const anchor = popoverAnchor || lastPopoverAnchor
           const student = anchor ? students.find(s => s.id === anchor.studentId) : undefined
           if (!student) return null
 
@@ -4715,7 +4740,7 @@ export function StudentDashboardClient({ hidePhone = false }: { hidePhone?: bool
                   if (isSearching && visibleGroups.length === 0) {
                     return (
                       <div className="px-4 py-8 text-center text-xs text-[var(--foreground-subtle)] italic">
-                        No fields match "{excelFieldSearchQuery.trim()}".
+                        No fields match &quot;{excelFieldSearchQuery.trim()}&quot;.
                       </div>
                     )
                   }
@@ -5214,7 +5239,7 @@ export function StudentDashboardClient({ hidePhone = false }: { hidePhone?: bool
 
                   {activeEmbassyAccordionSection !== 'sponsor' && student.embassy_sponsor_notes && student.embassy_sponsor_notes.trim().length > 0 && (
                     <div className="text-[11px] text-[var(--foreground-muted)] dark:text-zinc-500 mt-2 font-medium truncate select-none italic">
-                      "{student.embassy_sponsor_notes}"
+                      &quot;{student.embassy_sponsor_notes}&quot;
                     </div>
                   )}
 

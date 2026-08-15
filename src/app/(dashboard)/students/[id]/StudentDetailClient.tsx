@@ -7,14 +7,13 @@ import {
   Plus, Pencil, Loader2, AlertCircle, CheckCircle2, 
   Building2, Landmark, Tag, Layers, 
   ChevronDown, Copy, ArrowLeft,
-  Mail, Calendar, MapPin, User, CheckSquare, GraduationCap, Hourglass, X,
+  Mail, Calendar, User, CheckSquare, GraduationCap, X,
   FileText, RefreshCw, Trash2, BookOpen, Maximize2, Minimize2, Eraser,
   Folder, ExternalLink
 } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
-import { type Student, type StudentLevel, type StudentTariff, type Profile, type School } from '@/types/database'
+import { type Student, type School } from '@/types/database'
 import { PageShell } from '@/components/ui/PageShell'
-import { useUser } from '@/contexts/UserContext'
 import { cn } from '@/lib/utils'
 import { useStudentDashboard } from '@/contexts/StudentDashboardContext'
 import { syncMissingDocuments } from '@/lib/validation'
@@ -49,7 +48,7 @@ export function StudentDetailClient({ studentId, onClose, onStudentIdChange, isE
 
   // State for student details
   const [selectedStudentState, setSelectedStudent] = useState<Student | null>(null)
-  const selectedStudent = selectedStudentState || ({} as any)
+  const selectedStudent = useMemo(() => selectedStudentState || ({} as any), [selectedStudentState])
 
   // The panel's 3-column layout is designed for a wide viewport. Rather than
   // letting the columns squeeze on a narrower screen, zoom the whole panel
@@ -262,16 +261,16 @@ export function StudentDetailClient({ studentId, onClose, onStudentIdChange, isE
 
   // Reset extra slots visibility when switching students
   useEffect(() => {
-    if (!selectedStudent) return
+    if (!selectedStudentState) return
 
-    setShowLevel2(!!selectedStudent.level2)
-    setShowCert2(!!selectedStudent.language_certificate_2 && selectedStudent.language_certificate_2 !== 'NO CERTIFICATE' && selectedStudent.language_certificate_2.trim() !== '')
-    setShowCert3(!!selectedStudent.language_certificate_3 && selectedStudent.language_certificate_3 !== 'NO CERTIFICATE' && selectedStudent.language_certificate_3.trim() !== '')
-    setShowUni2(!!selectedStudent.university_2)
-    setShowUni3(!!selectedStudent.university_3)
-    setShowUni4(!!selectedStudent.university_4)
-    setShowUni5(!!selectedStudent.university_5)
-  }, [selectedStudent?.id])
+    setShowLevel2(!!selectedStudentState.level2)
+    setShowCert2(!!selectedStudentState.language_certificate_2 && selectedStudentState.language_certificate_2 !== 'NO CERTIFICATE' && selectedStudentState.language_certificate_2.trim() !== '')
+    setShowCert3(!!selectedStudentState.language_certificate_3 && selectedStudentState.language_certificate_3 !== 'NO CERTIFICATE' && selectedStudentState.language_certificate_3.trim() !== '')
+    setShowUni2(!!selectedStudentState.university_2)
+    setShowUni3(!!selectedStudentState.university_3)
+    setShowUni4(!!selectedStudentState.university_4)
+    setShowUni5(!!selectedStudentState.university_5)
+  }, [selectedStudentState])
 
   // Also auto-reveal slots if data comes in (e.g., real-time updates)
   useEffect(() => {
@@ -332,7 +331,6 @@ export function StudentDetailClient({ studentId, onClose, onStudentIdChange, isE
   // universities/coordinators are specific to this page and fetched below.
   const [universityOptions, setUniversityOptions] = useState<string[]>([])
   const [coordinatorOptions, setCoordinatorOptions] = useState<string[]>([])
-  const { profile: loggedInProfile } = useUser()
 
   // Fetch settings filter options not already covered by the shared context
   const fetchFilterOptions = async () => {

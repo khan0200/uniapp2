@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef } from 'react'
 import {
-  Upload, X, File as FileIcon, CheckCircle2, AlertCircle, Loader2,
+  Upload, X, CheckCircle2, AlertCircle, Loader2,
   Image as ImageIcon, FileText, Clipboard, Plus, Trash2, Tag, Pencil
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
@@ -204,10 +204,6 @@ export function GoogleDriveUploadModal({
   
   const removeItem = (id: string) => {
     setQueue(prev => prev.filter(item => item.id !== id))
-  }
-
-  const clearQueue = () => {
-    setQueue([])
   }
 
   // Execute Background Upload for all pending files

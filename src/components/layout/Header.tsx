@@ -2,7 +2,6 @@
 
 import { usePathname } from 'next/navigation'
 import { Search, Plus, FileText, RefreshCw, Trash2, Loader2, Filter, FileSpreadsheet, BookOpen, HardDrive } from 'lucide-react'
-import { useUser } from '@/contexts/UserContext'
 import { cn } from '@/lib/utils'
 import { useStudentDashboard } from '@/contexts/StudentDashboardContext'
 import { FilterPanel } from './FilterPanel'
@@ -21,7 +20,6 @@ const PAGE_TITLES: Record<string, string> = {
 
 export function Header() {
   const pathname = usePathname()
-  const { profile } = useUser()
   const { 
     searchQuery, 
     setSearchQuery, 
@@ -175,7 +173,7 @@ export function Header() {
             {/* Admissions Link Button — not shown on /documents */}
             {pathname !== '/documents' && (
               <a
-                href="https://admissions-university.vercel.app/"
+                href="https://www.salomkorea.uz/#admission"
                 target="_blank"
                 rel="noopener noreferrer"
                 className="flex items-center justify-center gap-1.5 px-3 lg:px-4 h-[34px] rounded-full border border-blue-600/30 bg-blue-50 hover:bg-blue-100/70 text-blue-700 dark:bg-blue-950/20 dark:border-blue-800/40 dark:text-blue-400 text-xs md:text-sm font-semibold select-none cursor-pointer transition-all duration-300 shadow-[0_8px_30px_rgba(0,0,0,0.06)] hover:shadow-md outline-none shrink-0 whitespace-nowrap"

@@ -66,7 +66,7 @@ export async function deleteOrUnlinkFile(drive: any, fileId: string) {
     try {
       await drive.files.delete({ fileId, supportsAllDrives: true })
       return { success: true, method: 'deleted' }
-    } catch (err2: any) {
+    } catch {
       // 3. Fallback: remove file from its parent folders (unlinks file from user's view)
       const fileInfo = await drive.files.get({
         fileId,
