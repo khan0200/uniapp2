@@ -39,6 +39,7 @@ export function StudentDetailClient({ studentId, onClose, onStudentIdChange, isE
     students: allStudents,
     tariffOptions,
     tariffPrices,
+    setTariffPrices,
     levelOptions,
     groupOptions,
     leadByOptions,
@@ -335,13 +336,22 @@ export function StudentDetailClient({ studentId, onClose, onStudentIdChange, isE
   // Fetch settings filter options not already covered by the shared context
   const fetchFilterOptions = async () => {
     try {
-      const [universitiesRes, coordinatorsRes, schoolsRes, directoryRes] = await Promise.all([
+      const [universitiesRes, coordinatorsRes, schoolsRes, directoryRes, tariffsRes] = await Promise.all([
         supabase.from('universities').select('name'),
         supabase.from('coordinators').select('name'),
         // Previously saved schools/majors double as a growing suggestion list.
         supabase.from('students').select('final_school_name, major'),
-        supabase.from('schools').select('*')
+        supabase.from('schools').select('*'),
+        supabase.from('tariff_options').select('name, price')
       ])
+
+      if (tariffsRes.data && tariffsRes.data.length > 0) {
+        const priceMap: Record<string, number> = {}
+        ;(tariffsRes.data as any[]).forEach(t => {
+          priceMap[t.name] = Number(t.price) || 0
+        })
+        setTariffPrices(prev => ({ ...prev, ...priceMap }))
+      }
 
       if (directoryRes.data) {
         const byName: Record<string, School> = {}
@@ -363,14 +373,37 @@ export function StudentDetailClient({ studentId, onClose, onStudentIdChange, isE
     }
   }
 
-  const getTariffPrice = (tariff: string | null, languageCertificate: string | null) => {
+  const getTariffPrice = (tariff: string | null | undefined, languageCertificate: string | null | undefined, prices: Record<string, number> = tariffPrices) => {
     if (!tariff || tariff === 'Select') return 0
-    if (tariff === 'E-VISA') {
-      const hasCert = languageCertificate && languageCertificate !== 'NO CERTIFICATE'
-      const key = hasCert ? 'E-VISA (TIL SERTIFIKATLI)' : 'E-VISA (TIL SERTIFIKATISIZ)'
-      return tariffPrices[key] || (hasCert ? 16000000 : 24000000)
+    const cleanTariff = tariff.trim().toUpperCase()
+
+    // 1. Check if tariff is E-VISA with/without certificate
+    if (cleanTariff.includes('E-VISA')) {
+      const hasCert = languageCertificate && languageCertificate !== 'NO CERTIFICATE' && languageCertificate.trim() !== ''
+      const targetName = hasCert ? 'E-VISA (TIL SERTIFIKATLI)' : 'E-VISA (TIL SERTIFIKATISIZ)'
+      
+      const foundMatch = Object.entries(prices).find(([k]) => k.trim().toUpperCase() === targetName)
+      if (foundMatch && Number(foundMatch[1]) > 0) return Number(foundMatch[1])
+      
+      const directMatch = Object.entries(prices).find(([k]) => k.trim().toUpperCase() === cleanTariff)
+      if (directMatch && Number(directMatch[1]) > 0) return Number(directMatch[1])
+
+      return hasCert ? 16000000 : 24000000
     }
-    return tariffPrices[tariff] || 0
+
+    // 2. Direct name match (case-insensitive)
+    const directMatch = Object.entries(prices).find(([k]) => k.trim().toUpperCase() === cleanTariff)
+    if (directMatch && Number(directMatch[1]) !== undefined) return Number(directMatch[1])
+
+    // 3. Fallback defaults if DB price is missing
+    const defaults: Record<string, number> = {
+      'STANDART': 13000000,
+      'PREMIUM': 32500000,
+      'VISA PLUS': 65000000,
+      'REGIONAL VISA': 24000000,
+      'ZERO RISK': 18500000,
+    }
+    return defaults[cleanTariff] || 0
   }
 
   // Fetch student details. If a cached copy (from the shared dashboard list
@@ -395,8 +428,6 @@ export function StudentDetailClient({ studentId, onClose, onStudentIdChange, isE
       if (studentRes.error) throw studentRes.error
       const fetchedStudent = studentRes.data as Student
 
-
-
       // Auto-validate missing documents on load. Apply the corrected value
       // locally right away and persist it in the background (fire-and-forget)
       // so the page doesn't wait on this write before rendering.
@@ -416,6 +447,28 @@ export function StudentDetailClient({ studentId, onClose, onStudentIdChange, isE
           .then(({ error: updateErr }: { error: any }) => {
             if (updateErr) console.error('Error auto-syncing missing documents on page load:', updateErr)
           })
+      }
+
+      // Auto-sync balance with tariff, payments, and discounts
+      const pData = paymentsRes.data || []
+      const pSum = pData
+        .filter((p: any) => !p.is_discount && !p.is_withdrawal && p.amount > 0)
+        .reduce((sum: number, p: any) => sum + Number(p.amount), 0)
+      const dSum = pData
+        .filter((p: any) => p.is_discount && p.amount > 0)
+        .reduce((sum: number, p: any) => sum + Number(p.amount), 0) || Number(fetchedStudent.discount) || 0
+      const tPrice = getTariffPrice(fetchedStudent.tariff, fetchedStudent.language_certificate, tariffPrices)
+      const expBalance = tPrice > 0 ? ((pSum + dSum) - tPrice) : (pSum + dSum)
+      const normExpBalance = Math.abs(expBalance) < 0.01 ? 0 : expBalance
+
+      if (fetchedStudent.tariff && fetchedStudent.balance !== normExpBalance) {
+        ;(supabase.from('students') as any)
+          .update({ balance: normExpBalance })
+          .eq('id', fetchedStudent.id)
+          .then(({ error: bErr }: { error: any }) => {
+            if (bErr) console.error('Error auto-syncing student balance on load:', bErr)
+          })
+        finalStudent.balance = normExpBalance
       }
 
       setSelectedStudent(finalStudent)
@@ -476,6 +529,10 @@ export function StudentDetailClient({ studentId, onClose, onStudentIdChange, isE
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [studentId])
 
+  const computedTariffPrice = useMemo(() => {
+    return getTariffPrice(selectedStudent.tariff, selectedStudent.language_certificate, tariffPrices)
+  }, [selectedStudent.tariff, selectedStudent.language_certificate, tariffPrices])
+
   const computedPaymentsDone = useMemo(() => {
     return payments
       .filter(p => !p.is_discount && !p.is_withdrawal && p.amount > 0)
@@ -483,10 +540,24 @@ export function StudentDetailClient({ studentId, onClose, onStudentIdChange, isE
   }, [payments])
 
   const computedDiscount = useMemo(() => {
-    return payments
+    const fromPayments = payments
       .filter(p => p.is_discount && p.amount > 0)
       .reduce((sum, p) => sum + Number(p.amount), 0)
-  }, [payments])
+    if (fromPayments > 0) return fromPayments
+    return Number(selectedStudent.discount) || 0
+  }, [payments, selectedStudent.discount])
+
+  const computedBalance = useMemo(() => {
+    // Balance formula: (Payments Done + Discount) - Tariff Price
+    // Example: Tariff = 32.5M, Payments = 20M, Discount = 2.5M
+    // Balance = (20M + 2.5M) - 32.5M = -10,000,000 UZS (remaining debt of 10,000,000 UZS)
+    // If Tariff is not set: balance is Payments Done + Discount (or student.balance)
+    if (!selectedStudent.tariff || selectedStudent.tariff === 'Select') {
+      return (Number(selectedStudent.balance) || 0)
+    }
+    const balance = (computedPaymentsDone + computedDiscount) - computedTariffPrice
+    return Math.abs(balance) < 0.01 ? 0 : balance
+  }, [computedTariffPrice, computedPaymentsDone, computedDiscount, selectedStudent.tariff, selectedStudent.balance])
 
   // Copy helper
   const handleCopy = (field: string, text: string) => {
@@ -714,28 +785,84 @@ export function StudentDetailClient({ studentId, onClose, onStudentIdChange, isE
         return
       }
 
-      if (field === 'payments_done') {
-        const numericVal = Number(editValue)
-        if (isNaN(numericVal) || numericVal < 0) {
-          alert('Payments Done must be a positive number.')
+      // Handle Student ID change
+      if (field === 'id') {
+        const newId = String(editValue).trim()
+        if (!newId) {
+          alert('Student ID cannot be empty.')
           return
         }
-        const valToSave = -numericVal
-        const updateData: any = { balance: valToSave }
-        const nextStudent = { ...selectedStudent, ...updateData }
-        updateData.pick_needed = syncMissingDocuments(nextStudent)
-        
-        const { error: updateError } = await (supabase
-          .from('students') as any)
-          .update(updateData)
-          .eq('id', selectedStudent.id)
-  
-        if (updateError) throw updateError
-        refreshStudent(selectedStudent.id)
+        if (newId === selectedStudent.id) {
+          setEditingField(null)
+          return
+        }
 
-        const updatedStudent = { ...selectedStudent, ...updateData }
-        setSelectedStudent(updatedStudent)
+        // Check if ID is already taken by another student
+        const { data: existingStudent, error: checkErr } = await supabase
+          .from('students')
+          .select('id')
+          .eq('id', newId)
+          .maybeSingle()
+
+        if (checkErr) throw checkErr
+        if (existingStudent) {
+          alert(`Student ID "${newId}" is already in use by another student.`)
+          return
+        }
+
+        // Fetch all payments referencing the old ID
+        const { data: linkedPayments, error: findPaymentsErr } = await supabase
+          .from('payments')
+          .select('id')
+          .eq('student_id', selectedStudent.id)
+        if (findPaymentsErr) throw findPaymentsErr
+
+        // Temporarily set student_id to null on payments to bypass foreign key constraint
+        if (linkedPayments && linkedPayments.length > 0) {
+          const { error: unlinkErr } = await (supabase
+            .from('payments') as any)
+            .update({ student_id: null })
+            .eq('student_id', selectedStudent.id)
+          if (unlinkErr) throw unlinkErr
+        }
+
+        // Update the student's ID in students table
+        const { error: updateIdError } = await (supabase
+          .from('students') as any)
+          .update({ id: newId })
+          .eq('id', selectedStudent.id)
+
+        if (updateIdError) {
+          // Rollback: restore payments if student update failed
+          if (linkedPayments && linkedPayments.length > 0) {
+            await (supabase.from('payments') as any)
+              .update({ student_id: selectedStudent.id })
+              .in('id', linkedPayments.map((p: any) => p.id))
+          }
+          throw updateIdError
+        }
+
+        // Re-link payments to the new student ID
+        if (linkedPayments && linkedPayments.length > 0) {
+          const { error: relinkErr } = await (supabase
+            .from('payments') as any)
+            .update({ student_id: newId })
+            .in('id', linkedPayments.map((p: any) => p.id))
+          if (relinkErr) {
+            console.error('Error re-linking payments to new student ID:', relinkErr)
+          }
+        }
+
+        refreshStudent(newId)
+        fetchStudents?.(true)
+        setSelectedStudent({ ...selectedStudent, id: newId })
         setEditingField(null)
+
+        if (onStudentIdChange) {
+          onStudentIdChange(newId)
+        } else {
+          router.replace(`/students/${newId}`)
+        }
         return
       }
 
@@ -792,19 +919,14 @@ export function StudentDetailClient({ studentId, onClose, onStudentIdChange, isE
       // Recalculate balance when tariff or language certificate changes
       if (
         (field === 'tariff' && selectedStudent.tariff !== valToSave) ||
-        (field === 'language_certificate' && selectedStudent.tariff === 'E-VISA' && selectedStudent.language_certificate !== valToSave)
+        (field === 'language_certificate' && selectedStudent.tariff?.toUpperCase().includes('E-VISA') && selectedStudent.language_certificate !== valToSave)
       ) {
         const currentTariff = field === 'tariff' ? valToSave : selectedStudent.tariff
         const currentCert = field === 'language_certificate' ? valToSave : selectedStudent.language_certificate
 
-        const oldPrice = getTariffPrice(selectedStudent.tariff, selectedStudent.language_certificate)
-        const newPrice = getTariffPrice(currentTariff, currentCert)
-
-        const balanceDiff = oldPrice - newPrice
-        if (balanceDiff !== 0) {
-          const newBalance = (selectedStudent.balance || 0) + balanceDiff
-          updateData.balance = newBalance
-        }
+        const newPrice = getTariffPrice(currentTariff, currentCert, tariffPrices)
+        const newBalance = newPrice > 0 ? ((computedPaymentsDone + computedDiscount) - newPrice) : (computedPaymentsDone + computedDiscount)
+        updateData.balance = Math.abs(newBalance) < 0.01 ? 0 : newBalance
       }
 
       // Run syncMissingDocuments on updated student data
@@ -859,14 +981,6 @@ export function StudentDetailClient({ studentId, onClose, onStudentIdChange, isE
       }
       setSelectedStudent(updatedStudent)
       setEditingField(null)
-
-      if (field === 'id') {
-        if (onStudentIdChange) {
-          onStudentIdChange(valToSave)
-        } else {
-          router.replace(`/students/${valToSave}`)
-        }
-      }
     } catch (err: any) {
       console.error('Error updating field details:', err)
       if (err) {
@@ -977,8 +1091,11 @@ export function StudentDetailClient({ studentId, onClose, onStudentIdChange, isE
   }, [selectedStudentState, isDeleting])
 
   // Helper to format currency values
-  const formatCurrency = (val: number) => {
-    return new Intl.NumberFormat('uz-UZ').format(val) + ' UZS'
+  // Helper to format currency values
+  const formatCurrency = (val: number | null | undefined) => {
+    const num = Number(val) || 0
+    const normalized = Math.abs(num) < 0.01 ? 0 : num
+    return new Intl.NumberFormat('uz-UZ').format(normalized) + ' UZS'
   }
 
   // Get Initials for Details Header Avatar
@@ -1009,6 +1126,7 @@ export function StudentDetailClient({ studentId, onClose, onStudentIdChange, isE
       onRemove?: () => void
       removeTitle?: string
       onEdit?: () => void
+      subtitle?: string
     } = {}
   ) => {
     if (loading) {
@@ -1186,9 +1304,16 @@ export function StudentDetailClient({ studentId, onClose, onStudentIdChange, isE
                       ))}
                     </div>
                   ) : (
-                    <span className={`inline-flex px-1.5 py-0.5 rounded-[4px] text-[13px] font-bold uppercase ${options.badgeColor}`}>
-                      {displayValue}
-                    </span>
+                    <div className="flex items-center gap-1.5 flex-wrap">
+                      <span className={`inline-flex px-1.5 py-0.5 rounded-[4px] text-[13px] font-bold uppercase ${options.badgeColor}`}>
+                        {displayValue}
+                      </span>
+                      {options.subtitle && (
+                        <span className="text-[12px] font-semibold text-[var(--foreground-muted)]">
+                          {options.subtitle}
+                        </span>
+                      )}
+                    </div>
                   )
                 ) : isMissing ? (
                   <span className="text-[14px] font-semibold text-[#B91C1C]">{displayValue}</span>
@@ -2434,7 +2559,8 @@ export function StudentDetailClient({ studentId, onClose, onStudentIdChange, isE
                   type: 'select',
                   selectOptions: ['Select', ...tariffOptions],
                   badgeColor: 'bg-[#00875a] text-white',
-                  titleColor: 'text-[var(--accent)]'
+                  titleColor: 'text-[var(--accent)]',
+                  subtitle: computedTariffPrice > 0 ? formatCurrency(computedTariffPrice) : undefined
                 })}
                 {renderDetailCard('Level to Study', 'level', selectedStudent.level, {
                   type: 'select',
@@ -2658,12 +2784,12 @@ export function StudentDetailClient({ studentId, onClose, onStudentIdChange, isE
                   <div
                     className={cn(
                       "rounded-[var(--radius-md)] p-2.5 text-white flex flex-col justify-between min-h-[62px] cursor-pointer transition-all duration-200",
-                      selectedStudent.balance < 0 ? 'bg-rose-500 dark:bg-rose-600' : 'bg-emerald-500 dark:bg-emerald-600',
+                      computedBalance < 0 ? 'bg-rose-500 dark:bg-rose-600' : 'bg-emerald-500 dark:bg-emerald-600',
                       copiedField === 'balance' && "animate-copy-press"
                     )}
                     title="Single-click value to copy."
                     onClick={() => {
-                      handleCopy('balance', String(selectedStudent.balance))
+                      handleCopy('balance', String(computedBalance))
                     }}
                   >
                     <div className="flex items-center justify-between">
@@ -2675,7 +2801,7 @@ export function StudentDetailClient({ studentId, onClose, onStudentIdChange, isE
                         <button
                           onClick={(e) => {
                             e.stopPropagation();
-                            handleCopy('balance', String(selectedStudent.balance))
+                            handleCopy('balance', String(computedBalance))
                           }}
                           className="p-0.5 hover:bg-black/10 rounded transition-all cursor-pointer text-white"
                           title="Copy balance"
@@ -2686,7 +2812,7 @@ export function StudentDetailClient({ studentId, onClose, onStudentIdChange, isE
                     </div>
                     <div className="mt-0.5 flex items-center justify-between gap-2 min-h-[22px] w-full">
                       <span className="text-[15px] font-bold tracking-wide">
-                        {formatCurrency(selectedStudent.balance)}
+                        {formatCurrency(computedBalance)}
                       </span>
                       {copiedField === 'balance' && (
                         <CheckCircle2 className="h-4 w-4 text-white shrink-0 animate-in fade-in zoom-in-75 duration-200" />

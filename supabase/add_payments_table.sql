@@ -14,7 +14,7 @@ CREATE TABLE IF NOT EXISTS public.payments (
   notes                TEXT,
   is_discount          BOOLEAN     NOT NULL DEFAULT FALSE,
   is_withdrawal        BOOLEAN     NOT NULL DEFAULT FALSE,
-  student_id           TEXT        REFERENCES public.students(id) ON DELETE SET NULL,
+  student_id           TEXT        REFERENCES public.students(id) ON DELETE SET NULL ON UPDATE CASCADE,
   student_name         TEXT,
   created_at           TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   updated_at           TIMESTAMPTZ NOT NULL DEFAULT NOW()
