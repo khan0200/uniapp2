@@ -12,11 +12,14 @@ export async function sendTelegramNotification(message: string) {
       body: JSON.stringify({ message })
     })
 
+    const data = await response.json().catch(() => ({}))
     if (!response.ok) {
-      const errData = await response.json().catch(() => ({}))
-      console.error('Failed to send Telegram notification:', errData.error || response.statusText)
+      console.error('Failed to send Telegram notification:', data.error || response.statusText)
+      return { success: false, error: data.error || response.statusText }
     }
-  } catch (error) {
+    return { success: true, data }
+  } catch (error: any) {
     console.error('Error sending Telegram notification:', error)
+    return { success: false, error: error.message || String(error) }
   }
 }

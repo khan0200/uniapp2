@@ -1840,9 +1840,9 @@ export function StudentDashboardClient({ hidePhone = false }: { hidePhone?: bool
 
       // Send Telegram Notification
       const escapeHtml = (str: string) => str.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
-      const safeName = fullName ? escapeHtml(fullName.trim()) : 'Unknown'
+      const safeName = fullName ? escapeHtml(fullName.trim().toUpperCase()) : 'Unknown'
       const safeId = studentId ? escapeHtml(studentId.trim().toUpperCase()) : '-'
-      const safeOffice = office ? escapeHtml(office.trim()) : '-'
+      const safeOffice = office ? escapeHtml(office.trim().toUpperCase()) : '-'
 
       const curDateTime = new Date().toLocaleString('en-GB', {
         day: '2-digit',
@@ -1855,10 +1855,10 @@ export function StudentDashboardClient({ hidePhone = false }: { hidePhone?: bool
       let notifMsg = `🆕 <b>New Registration!</b>\n\n👤 <b>Name:</b> ${safeName}\n🆔 <b>ID:</b> ${safeId}\n🏢 <b>Office:</b> ${safeOffice}`
 
       if (tariff && tariff.trim()) {
-        notifMsg += `\n💳 <b>Tariff:</b> ${escapeHtml(tariff.trim())}`
+        notifMsg += `\n💳 <b>Tariff:</b> ${escapeHtml(tariff.trim().toUpperCase())}`
       }
       if (level && level.trim()) {
-        notifMsg += `\n🎓 <b>Level:</b> ${escapeHtml(level.trim())}`
+        notifMsg += `\n🎓 <b>Level:</b> ${escapeHtml(level.trim().toUpperCase())}`
       }
       if (university1 && university1.trim()) {
         notifMsg += `\n🏛️ <b>University 1:</b> ${escapeHtml(university1.trim().toUpperCase())}`
@@ -1867,7 +1867,7 @@ export function StudentDashboardClient({ hidePhone = false }: { hidePhone?: bool
         notifMsg += `\n👥 <b>Group:</b> ${escapeHtml(studentGroup.trim().toUpperCase())}`
       }
       if (leadBy && leadBy.trim()) {
-        notifMsg += `\n🧑‍💼 <b>Lead By:</b> ${escapeHtml(leadBy.trim().toUpperCase())}`
+        notifMsg += `\n🧑💼 <b>Lead By:</b> ${escapeHtml(leadBy.trim().toUpperCase())}`
       }
       if (coordinator && coordinator.trim()) {
         notifMsg += `\n🛡️ <b>Coordinator:</b> ${escapeHtml(coordinator.trim().toUpperCase())}`
@@ -1875,7 +1875,7 @@ export function StudentDashboardClient({ hidePhone = false }: { hidePhone?: bool
 
       notifMsg += `\n\n📅 <b>Time:</b> ${curDateTime}`
 
-      sendTelegramNotification(notifMsg)
+      await sendTelegramNotification(notifMsg)
 
       setModalSuccess(true)
       setStudentId('')

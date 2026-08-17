@@ -39,14 +39,8 @@ export async function POST(request: Request) {
       .eq('id', user.id)
       .single()
 
-    const tenantId = (profile as { tenant_id: string } | null)?.tenant_id
-
-    if (!tenantId) {
-      return NextResponse.json(
-        { error: 'Could not resolve tenant for the current user' },
-        { status: 403 }
-      )
-    }
+    const rawTenantId = (profile as { tenant_id?: string | null } | null)?.tenant_id
+    const tenantId = (rawTenantId || 'unibridge').toLowerCase().trim()
 
     const { message } = await request.json()
 
@@ -57,8 +51,8 @@ export async function POST(request: Request) {
     const sanitizedMessage = removeUnavailableVisaCertificateLink(message)
 
     const botToken = process.env.BOT_TOKEN
-    const chatEnvKey = TENANT_CHAT_ENV[tenantId]
-    const chatId = chatEnvKey ? process.env[chatEnvKey] : undefined
+    const chatEnvKey = TENANT_CHAT_ENV[tenantId] || 'CHAT_ID'
+    const chatId = (chatEnvKey ? process.env[chatEnvKey] : undefined) || process.env.CHAT_ID
 
     if (!botToken) {
       return NextResponse.json(
@@ -68,8 +62,6 @@ export async function POST(request: Request) {
     }
 
     if (!chatId) {
-      // A tenant with no chat configured simply gets no notification. This is
-      // not an error the user can act on, so don't surface it as a failure.
       console.warn(`No Telegram chat configured for tenant "${tenantId}"`)
       return NextResponse.json({ success: true, message: 'No chat configured for tenant', results: [] })
     }
