@@ -19,6 +19,8 @@ const RECEIVED_BY_OPTIONS = ['ABDULAZIZ', 'MUSLIHIDDIN', 'BAXTIYOR', 'MUHAMMADAL
 const NOTE_PILLS = ['Shartnoma uchun', 'Qarz', 'Elchixona uchun', 'Appfee', 'DISCOUNT']
 const ITEMS_PER_PAGE = 30
 
+const STATUS_FILTER_OPTIONS = ['Active', 'Archive']
+
 const TARIFF_FILTER_OPTIONS = [
   'E-VISA (TIL SERTIFIKATISIZ)',
   'E-VISA (TIL SERTIFIKATLI)',
@@ -118,9 +120,8 @@ export function PaymentsClient() {
   const [viewMode, setViewMode] = useState<'grid' | 'table'>('grid')
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('asc')
 
-  // Non-deleted students, sourced from the shared dashboard context instead
-  // of a separate per-page fetch of the whole students table.
-  const students = useMemo(() => allStudents.filter(s => !s.is_deleted), [allStudents])
+  // All students (including archived), sourced from the shared dashboard context.
+  const students = useMemo(() => allStudents, [allStudents])
   const [payments, setPayments] = useState<Payment[]>([])
   const [paymentsLoading, setPaymentsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -128,14 +129,17 @@ export function PaymentsClient() {
 
   // Students tab search/filter
   const [studentSearch, setStudentSearch] = useState('')
+  const [selectedStatuses, setSelectedStatuses] = useState<string[]>([])
   const [selectedTariffs, setSelectedTariffs] = useState<string[]>([])
   const [selectedBalances, setSelectedBalances] = useState<string[]>([])
   const [selectedGroups, setSelectedGroups] = useState<string[]>([])
 
+  const [isStatusDropdownOpen, setIsStatusDropdownOpen] = useState(false)
   const [isTariffDropdownOpen, setIsTariffDropdownOpen] = useState(false)
   const [isBalanceDropdownOpen, setIsBalanceDropdownOpen] = useState(false)
   const [isGroupDropdownOpen, setIsGroupDropdownOpen] = useState(false)
 
+  const statusRef = useRef<HTMLDivElement>(null)
   const tariffRef = useRef<HTMLDivElement>(null)
   const balanceRef = useRef<HTMLDivElement>(null)
   const groupRef = useRef<HTMLDivElement>(null)
@@ -234,6 +238,9 @@ export function PaymentsClient() {
 
   useEffect(() => {
     function handleClickOutside(event: MouseEvent) {
+      if (statusRef.current && !statusRef.current.contains(event.target as Node)) {
+        setIsStatusDropdownOpen(false)
+      }
       if (tariffRef.current && !tariffRef.current.contains(event.target as Node)) {
         setIsTariffDropdownOpen(false)
       }
@@ -249,6 +256,20 @@ export function PaymentsClient() {
       document.removeEventListener('mousedown', handleClickOutside)
     }
   }, [])
+
+  const handleToggleStatus = (val: string) => {
+    setSelectedStatuses(prev =>
+      prev.includes(val) ? prev.filter(s => s !== val) : [...prev, val]
+    )
+  }
+
+  const handleToggleAllStatuses = () => {
+    if (selectedStatuses.length === STATUS_FILTER_OPTIONS.length) {
+      setSelectedStatuses([])
+    } else {
+      setSelectedStatuses([...STATUS_FILTER_OPTIONS])
+    }
+  }
 
   const handleToggleTariff = (val: string) => {
     setSelectedTariffs(prev =>
@@ -695,6 +716,11 @@ export function PaymentsClient() {
         if (!matches) return false
       }
 
+      if (selectedStatuses.length > 0 && selectedStatuses.length < STATUS_FILTER_OPTIONS.length) {
+        if (selectedStatuses.includes('Active') && s.is_deleted) return false
+        if (selectedStatuses.includes('Archive') && !s.is_deleted) return false
+      }
+
       if (selectedTariffs.length > 0) {
         let matchesTariff = false
         for (const selected of selectedTariffs) {
@@ -742,7 +768,7 @@ export function PaymentsClient() {
 
       return true
     })
-  }, [students, studentSearch, selectedTariffs, selectedBalances, selectedGroups])
+  }, [students, studentSearch, selectedStatuses, selectedTariffs, selectedBalances, selectedGroups])
 
   const filteredPayments = useMemo(() => {
     return payments.filter(p => {
@@ -770,7 +796,7 @@ export function PaymentsClient() {
   const historyTotalPages = Math.max(1, Math.ceil(filteredPayments.length / ITEMS_PER_PAGE))
   const paginatedPayments = filteredPayments.slice((historyPage - 1) * ITEMS_PER_PAGE, historyPage * ITEMS_PER_PAGE)
 
-  useEffect(() => { setStudentsPage(1) }, [studentSearch, selectedTariffs, selectedBalances, selectedGroups, sortOrder])
+  useEffect(() => { setStudentsPage(1) }, [studentSearch, selectedStatuses, selectedTariffs, selectedBalances, selectedGroups, sortOrder])
   useEffect(() => { setHistoryPage(1) }, [historySearch, methodFilter, receivedByFilter])
 
   const addModalStudentOptions = useMemo(() => {
@@ -1106,12 +1132,72 @@ export function PaymentsClient() {
                 className="w-full pl-9 pr-4 py-2 text-sm border border-[var(--border)] bg-[var(--background)] rounded-[var(--radius-md)] text-[var(--foreground)] focus:outline-none focus:border-[var(--accent)]"
               />
             </div>
+            {/* Status Filter Dropdown */}
+            <div className="relative" ref={statusRef}>
+              <button
+                type="button"
+                onClick={() => {
+                  setIsStatusDropdownOpen(prev => !prev)
+                  setIsTariffDropdownOpen(false)
+                  setIsBalanceDropdownOpen(false)
+                  setIsGroupDropdownOpen(false)
+                }}
+                className={`px-4 py-2 text-sm border rounded-full text-[var(--foreground)] cursor-pointer flex items-center justify-between gap-2 min-w-[130px] focus:outline-none select-none transition-all ${
+                  isStatusDropdownOpen ? 'border-blue-600 bg-[var(--surface-elevated)] ring-1 ring-blue-600' : 'border-[var(--border)] bg-[var(--surface)] hover:border-blue-400'
+                }`}
+              >
+                <span className="truncate max-w-[150px]">
+                  {selectedStatuses.length === 0 || selectedStatuses.length === STATUS_FILTER_OPTIONS.length
+                    ? 'All Statuses'
+                    : selectedStatuses.join(', ')}
+                </span>
+                <ChevronDown className={`h-4 w-4 text-[var(--foreground-muted)] transition-transform duration-200 ${isStatusDropdownOpen ? 'rotate-180 text-blue-600' : ''}`} />
+              </button>
+
+              {isStatusDropdownOpen && (
+                <div className="absolute left-0 mt-1.5 w-48 rounded-2xl border border-[var(--border)] bg-[var(--surface)] shadow-lg py-2.5 z-40 max-h-80 overflow-y-auto animate-in fade-in slide-in-from-top-1 duration-100">
+                  <div
+                    onClick={handleToggleAllStatuses}
+                    className="px-4 py-2 flex items-center gap-3 cursor-pointer hover:bg-[var(--surface-elevated)] transition-colors select-none text-xs font-bold text-[var(--foreground)]"
+                  >
+                    <input
+                      type="checkbox"
+                      checked={selectedStatuses.length === STATUS_FILTER_OPTIONS.length}
+                      readOnly
+                      className="h-4 w-4 rounded border-[var(--border)] text-blue-600 focus:ring-blue-500 cursor-pointer"
+                    />
+                    <span>Select All</span>
+                  </div>
+                  <div className="h-px bg-[var(--border)] my-1.5" />
+                  {STATUS_FILTER_OPTIONS.map(opt => {
+                    const isChecked = selectedStatuses.includes(opt)
+                    return (
+                      <div
+                        key={opt}
+                        onClick={() => handleToggleStatus(opt)}
+                        className="px-4 py-2 flex items-center gap-3 cursor-pointer hover:bg-[var(--surface-elevated)] transition-colors select-none text-xs font-medium text-[var(--foreground)]"
+                      >
+                        <input
+                          type="checkbox"
+                          checked={isChecked}
+                          readOnly
+                          className="h-4 w-4 rounded border-[var(--border)] text-blue-600 focus:ring-blue-500 cursor-pointer"
+                        />
+                        <span>{opt}</span>
+                      </div>
+                    )
+                  })}
+                </div>
+              )}
+            </div>
+
             {/* Tariff Filter Dropdown */}
             <div className="relative" ref={tariffRef}>
               <button
                 type="button"
                 onClick={() => {
                   setIsTariffDropdownOpen(prev => !prev)
+                  setIsStatusDropdownOpen(false)
                   setIsBalanceDropdownOpen(false)
                   setIsGroupDropdownOpen(false)
                 }}
@@ -1170,6 +1256,7 @@ export function PaymentsClient() {
                 type="button"
                 onClick={() => {
                   setIsBalanceDropdownOpen(prev => !prev)
+                  setIsStatusDropdownOpen(false)
                   setIsTariffDropdownOpen(false)
                   setIsGroupDropdownOpen(false)
                 }}
@@ -1228,6 +1315,7 @@ export function PaymentsClient() {
                 type="button"
                 onClick={() => {
                   setIsGroupDropdownOpen(prev => !prev)
+                  setIsStatusDropdownOpen(false)
                   setIsTariffDropdownOpen(false)
                   setIsBalanceDropdownOpen(false)
                 }}
@@ -1320,8 +1408,15 @@ export function PaymentsClient() {
                     onClick={() => openAddModal(student.id)}
                     className="text-left rounded-[12px] border border-[var(--border)] bg-[var(--surface)] p-4 shadow-md hover:bg-[var(--surface-elevated)] transition-all cursor-pointer w-full"
                   >
-                    <div className="font-bold text-[17px] uppercase text-[var(--foreground)] truncate tracking-wide">
-                      {student.full_name}
+                    <div className="flex items-center justify-between gap-2">
+                      <div className="font-bold text-[17px] uppercase text-[var(--foreground)] truncate tracking-wide">
+                        {student.full_name}
+                      </div>
+                      {student.is_deleted && (
+                        <span className="px-1.5 py-0.5 rounded text-[10px] font-bold tracking-wider uppercase bg-red-500/10 text-red-600 dark:text-red-400 border border-red-500/20 shrink-0">
+                          Archive
+                        </span>
+                      )}
                     </div>
                     <div className="flex flex-wrap gap-1.5 mt-3">
                       <span className="text-[13px] font-bold px-2 py-1 rounded-[6px] bg-[#0066cc] text-white">
@@ -1391,7 +1486,14 @@ export function PaymentsClient() {
                             </span>
                           </td>
                           <td className="px-6 py-4 font-semibold uppercase tracking-wide text-[15.5px]">
-                            {student.full_name}
+                            <div className="flex items-center gap-2">
+                              <span>{student.full_name}</span>
+                              {student.is_deleted && (
+                                <span className="px-1.5 py-0.5 rounded text-[10px] font-bold tracking-wider uppercase bg-red-500/10 text-red-600 dark:text-red-400 border border-red-500/20 shrink-0">
+                                  Archive
+                                </span>
+                              )}
+                            </div>
                           </td>
                           <td className="px-6 py-4 text-[15.5px] font-medium text-[var(--foreground-muted)]">
                             {student.student_group || '—'}
@@ -1679,7 +1781,14 @@ export function PaymentsClient() {
               <label className="text-xs font-semibold text-[var(--foreground-muted)]">Student (optional)</label>
               {addSelectedStudent ? (
                 <div className="mt-1 flex items-center justify-between px-3 py-2 text-sm border border-[var(--border)] rounded-[var(--radius-md)] bg-[var(--background)]">
-                  <span className="text-[var(--foreground)] truncate">{addSelectedStudent.id} — {addSelectedStudent.full_name}</span>
+                  <span className="text-[var(--foreground)] truncate flex items-center gap-2">
+                    <span>{addSelectedStudent.id} — {addSelectedStudent.full_name}</span>
+                    {addSelectedStudent.is_deleted && (
+                      <span className="px-1.5 py-0.5 rounded text-[9.5px] font-bold tracking-wider uppercase bg-red-500/10 text-red-600 dark:text-red-400 border border-red-500/20 shrink-0">
+                        Archive
+                      </span>
+                    )}
+                  </span>
                   <button onClick={() => setAddStudentId('')} className="cursor-pointer text-[var(--foreground-muted)] hover:text-[var(--foreground)]">
                     <X className="h-4 w-4" />
                   </button>
@@ -1699,9 +1808,14 @@ export function PaymentsClient() {
                         <div
                           key={s.id}
                           onClick={() => { setAddStudentId(s.id); setAddStudentSearch('') }}
-                          className="px-3 py-2 text-xs cursor-pointer hover:bg-[var(--surface-hover)] text-[var(--foreground)]"
+                          className="px-3 py-2 text-xs cursor-pointer hover:bg-[var(--surface-hover)] text-[var(--foreground)] flex items-center justify-between"
                         >
-                          {s.id} — {s.full_name}
+                          <span>{s.id} — {s.full_name}</span>
+                          {s.is_deleted && (
+                            <span className="px-1.5 py-0.5 rounded text-[9px] font-bold tracking-wider uppercase bg-red-500/10 text-red-600 dark:text-red-400 border border-red-500/20 shrink-0">
+                              Archive
+                            </span>
+                          )}
                         </div>
                       ))}
                     </div>
@@ -1809,7 +1923,14 @@ export function PaymentsClient() {
               <label className="text-xs font-semibold text-[var(--foreground-muted)]">Student (optional)</label>
               {withdrawSelectedStudent ? (
                 <div className="mt-1 flex items-center justify-between px-3 py-2 text-sm border border-[var(--border)] rounded-[var(--radius-md)] bg-[var(--background)]">
-                  <span className="text-[var(--foreground)] truncate">{withdrawSelectedStudent.id} — {withdrawSelectedStudent.full_name}</span>
+                  <span className="text-[var(--foreground)] truncate flex items-center gap-2">
+                    <span>{withdrawSelectedStudent.id} — {withdrawSelectedStudent.full_name}</span>
+                    {withdrawSelectedStudent.is_deleted && (
+                      <span className="px-1.5 py-0.5 rounded text-[9.5px] font-bold tracking-wider uppercase bg-red-500/10 text-red-600 dark:text-red-400 border border-red-500/20 shrink-0">
+                        Archive
+                      </span>
+                    )}
+                  </span>
                   <button onClick={() => setWithdrawStudentId('')} className="cursor-pointer text-[var(--foreground-muted)] hover:text-[var(--foreground)]">
                     <X className="h-4 w-4" />
                   </button>
@@ -1829,9 +1950,14 @@ export function PaymentsClient() {
                         <div
                           key={s.id}
                           onClick={() => { setWithdrawStudentId(s.id); setWithdrawStudentSearch('') }}
-                          className="px-3 py-2 text-xs cursor-pointer hover:bg-[var(--surface-hover)] text-[var(--foreground)]"
+                          className="px-3 py-2 text-xs cursor-pointer hover:bg-[var(--surface-hover)] text-[var(--foreground)] flex items-center justify-between"
                         >
-                          {s.id} — {s.full_name}
+                          <span>{s.id} — {s.full_name}</span>
+                          {s.is_deleted && (
+                            <span className="px-1.5 py-0.5 rounded text-[9px] font-bold tracking-wider uppercase bg-red-500/10 text-red-600 dark:text-red-400 border border-red-500/20 shrink-0">
+                              Archive
+                            </span>
+                          )}
                         </div>
                       ))}
                     </div>
@@ -1893,10 +2019,17 @@ export function PaymentsClient() {
 
             <div>
               <label className="text-xs font-semibold text-[var(--foreground-muted)]">Student</label>
-              <div className="mt-1 px-3 py-2 text-sm border border-[var(--border)] rounded-[var(--radius-md)] bg-[var(--background)] text-[var(--foreground-muted)]">
-                {editingPaymentDisplay.student_id && editingPaymentDisplay.student_name
-                  ? `${editingPaymentDisplay.student_id} - ${editingPaymentDisplay.student_name}`
-                  : 'No student (General payment)'}
+              <div className="mt-1 px-3 py-2 text-sm border border-[var(--border)] rounded-[var(--radius-md)] bg-[var(--background)] text-[var(--foreground-muted)] flex items-center justify-between">
+                <span>
+                  {editingPaymentDisplay.student_id && editingPaymentDisplay.student_name
+                    ? `${editingPaymentDisplay.student_id} - ${editingPaymentDisplay.student_name}`
+                    : 'No student (General payment)'}
+                </span>
+                {editingPaymentDisplay.student_id && students.find(s => s.id === editingPaymentDisplay.student_id)?.is_deleted && (
+                  <span className="px-1.5 py-0.5 rounded text-[9px] font-bold tracking-wider uppercase bg-red-500/10 text-red-600 dark:text-red-400 border border-red-500/20 shrink-0">
+                    Archive
+                  </span>
+                )}
               </div>
             </div>
 
@@ -2002,9 +2135,16 @@ export function PaymentsClient() {
                 <div className="px-3 py-2.5 rounded-[var(--radius-md)] border border-[var(--border)] bg-[var(--surface)] flex flex-col gap-0.5">
                   {viewingPaymentDisplay.student_id ? (
                     <>
-                      <span className="text-sm font-bold text-[var(--foreground)] uppercase">
-                        {viewingPaymentDisplay.student_name}
-                      </span>
+                      <div className="flex items-center gap-2">
+                        <span className="text-sm font-bold text-[var(--foreground)] uppercase">
+                          {viewingPaymentDisplay.student_name}
+                        </span>
+                        {students.find(s => s.id === viewingPaymentDisplay.student_id)?.is_deleted && (
+                          <span className="px-1.5 py-0.5 rounded text-[9px] font-bold tracking-wider uppercase bg-red-500/10 text-red-600 dark:text-red-400 border border-red-500/20 shrink-0">
+                            Archive
+                          </span>
+                        )}
+                      </div>
                       <span className="text-xs font-semibold text-[var(--foreground-muted)]">
                         ID: <span className="text-[var(--accent)] font-mono font-bold">{viewingPaymentDisplay.student_id}</span>
                       </span>
