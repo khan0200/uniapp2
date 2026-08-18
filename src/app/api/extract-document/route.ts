@@ -37,7 +37,7 @@ Analyze the uploaded document.
 
 Specific instructions:
 ${extraInstructions}
-- Identify the document type automatically (e.g. Passport, ID Card, Diploma, Certificate, Visa, Transcript, Contact Info).
+- Identify the document type automatically (e.g. Passport, ID Card, Shahodatnoma, Diploma, Certificate, Visa, Transcript, Contact Info).
 - Generate ONLY necessary structured fields that are meaningful for the identified document type. Do not perform a general OCR of every text block, and do not extract design markings, watermarks, signatures, or noisy metadata.
 - If the document is a Passport or ID Card, extract ONLY these fields:
   - "FULL_NAME": Concatenation of Surname + Given Names + Father's Name (patronymic / Otasining ismi) in that exact order (e.g. "ISAKJONOV MUKHAMMADIYOR NAVRUZBEK UGLI").
@@ -46,10 +46,18 @@ ${extraInstructions}
   - "DATE_OF_ISSUE"
   - "DATE_OF_EXPIRATION"
   - "SEX" (value must be exactly "M" or "F")
-- If the document is a graduation/educational document (e.g. Shahodatnoma, Diploma, Certificate, Transcript):
-  - Generate ONLY the primary educational fields available on the document, such as: "GRADUATION_DATE", "YEAR_OF_ISSUE", "NAME_OF_SCHOOL_OR_EDUCATIONAL_INSTITUTION", "MAJOR_OR_SPECIALTY", "DEPARTMENT".
-  - If the document is a secondary school certificate or diploma (e.g. 'Shahodatnoma' or 'Certificate of General Secondary Education'), the 'MAJOR_OR_SPECIALTY' field MUST be set to exactly 'GENERAL SECONDARY EDUCATION'.
-  - The "NAME_OF_SCHOOL_OR_EDUCATIONAL_INSTITUTION" field MUST be translated into English and formatted in all UPPERCASE (e.g. "SPECIALIZED SCHOOL NO. 72 OF MARHAMAT DISTRICT" or "TASHKENT STATE UNIVERSITY").
+- If the document is a university/college diploma or secondary school certificate (e.g. Bachelor's Diploma / Bakalavr Diplomi, Master's Diploma / Magistr Diplomi, Shahodatnoma / Certificate of General Secondary Education):
+  - Document Type: Set document_type to "BACHELOR'S DIPLOMA", "MASTER'S DIPLOMA", "SHAHODATNOMA", or "DIPLOMA".
+  - Extract ONLY these educational fields (Do NOT extract personal details like FULL_NAME, DATE_OF_BIRTH, or personal ID numbers):
+    - "FINAL_SCHOOL_NAME": The full name of the university, college, or school (from educational institution header) TRANSLATED INTO ENGLISH and formatted in ALL UPPERCASE (e.g. "SAMARKAND STATE UNIVERSITY NAMED AFTER SHAROF RASHIDOV" or "TASHKENT STATE TECHNICAL UNIVERSITY").
+    - "MAJOR": For Bachelor's/Master's diplomas, extract the awarded field of study/speciality in ALL UPPERCASE (e.g. "PHILOLOGY AND LANGUAGE TEACHING"). For Shahodatnoma, MUST be set to exactly "GENERAL SECONDARY EDUCATION".
+    - "GPA": Extract ONLY if an explicit GPA score or complete grades table is printed on the scan. If GPA / grades are NOT printed on the document scan, DO NOT include the "GPA" field at all.
+    - "DEGREE_NO": The diploma / certificate serial number (e.g. "B № 00644212" or "UM №03565142").
+    - "DATE_OF_GRADUATION": The graduation date in YYYY-MM-DD format (from the State Attestation Commission decision date e.g. 'June 10, 2025' -> '2025-06-10', or issue date). If only the year is available, extract the 4-digit year (e.g. '2025').
+    - "DATE_OF_ENTRY": Automatically calculate Date of Entry:
+      - For Bachelor's Diplomas (4-year degree): (Date of Graduation year - 4 years), on September 2nd in YYYY-MM-DD format (e.g. 2025 - 4 = '2021-09-02').
+      - For Master's Diplomas (2-year degree): (Date of Graduation year - 2 years), on September 2nd in YYYY-MM-DD format (e.g. 2025 - 2 = '2023-09-02').
+      - For Secondary School Certificates (Shahodatnoma): (Date of Graduation year - 3 years), on September 2nd in YYYY-MM-DD format (e.g. 2025 - 3 = '2022-09-02').
 - If the document contains contact information (e.g. a screenshot of a chat, message, or Telegram conversation showing an email, phone numbers, or address):
   - Set document_type to "CONTACT INFO".
   - Extract ONLY these fields if present:
@@ -69,7 +77,7 @@ Return JSON only. Do not explain anything. Output must be exactly in this JSON f
   "fields": {
     // Generate appropriate fields here dynamically depending on document type.
     // For Passports: FULL_NAME, PASSPORT_NUMBER, DATE_OF_BIRTH, DATE_OF_ISSUE, DATE_OF_EXPIRATION, SEX.
-    // For Diplomas/Certificates: NAME_OF_SCHOOL_OR_EDUCATIONAL_INSTITUTION, GRADUATION_DATE, YEAR_OF_ISSUE, MAJOR_OR_SPECIALTY, DEPARTMENT.
+    // For Shahodatnoma / Diplomas: FINAL_SCHOOL_NAME, MAJOR, GPA, DEGREE_NO, DATE_OF_ENTRY, DATE_OF_GRADUATION.
     // For Contact Info: EMAIL, PHONE_NUMBER_1, PHONE_NUMBER_2, ADDRESS.
   },
   "ocr_text": "..."

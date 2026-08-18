@@ -35,16 +35,38 @@ const FIELD_MAPPING: Record<string, keyof Student> = {
   "PHONE 1": "phone1",
   "PHONE 2": "phone2",
   "ADDRESS": "address",
-  "NAME OF SCHOOL / EDUCATIONAL INSTITUTION": "educational_background",
-  "NAME OF SCHOOL OR EDUCATIONAL INSTITUTION": "educational_background",
-  "NAME OF SCHOOL": "educational_background",
-  "EDUCATIONAL INSTITUTION": "educational_background",
-  "SCHOOL NAME": "educational_background",
+  // Educational Background mappings
+  "FINAL SCHOOL NAME": "final_school_name",
+  "NAME OF SCHOOL": "final_school_name",
+  "NAME OF SCHOOL / EDUCATIONAL INSTITUTION": "final_school_name",
+  "NAME OF SCHOOL OR EDUCATIONAL INSTITUTION": "final_school_name",
+  "EDUCATIONAL INSTITUTION": "final_school_name",
+  "SCHOOL NAME": "final_school_name",
+  "EDUCATIONAL BACKGROUND": "final_school_name",
+  "MAJOR": "major",
   "MAJOR OR SPECIALTY": "major",
   "MAJOR OR SPECIALITY": "major",
-  "MAJOR": "major",
   "SPECIALTY": "major",
-  "SPECIALITY": "major"
+  "SPECIALITY": "major",
+  "GPA": "gpa",
+  "GRADE POINT AVERAGE": "gpa",
+  "AVERAGE GRADE": "gpa",
+  "AVERAGE OF 6-YEAR GRADES": "gpa",
+  "6 YEAR GRADES AVERAGE": "gpa",
+  "DEGREE NO": "degree_no",
+  "DEGREE NUMBER": "degree_no",
+  "DIPLOMA NO": "degree_no",
+  "DIPLOMA NUMBER": "degree_no",
+  "CERTIFICATE NO": "degree_no",
+  "CERTIFICATE NUMBER": "degree_no",
+  "DATE OF ENTRY": "date_of_entry",
+  "ENTRY DATE": "date_of_entry",
+  "YEAR OF ENTRY": "date_of_entry",
+  "DATE OF GRADUATION": "date_of_graduation",
+  "GRADUATION DATE": "date_of_graduation",
+  "YEAR OF GRADUATION": "date_of_graduation",
+  "YEAR OF ISSUE": "date_of_graduation",
+  "GRADUATION YEAR": "date_of_graduation"
 }
 
 const KNOWN_GEMINI_MODELS = [
@@ -382,38 +404,132 @@ export function ExtractClient({ studentId }: ExtractClientProps) {
       }
 
       // Success! Set data
-      // Check if it is a secondary school certificate (Shahodatnoma)
       const typeStr = String(data.document_type || '').toUpperCase()
       const ocrStr = String(data.ocr_text || '').toUpperCase()
-      const isShahodatnoma = typeStr.includes('SHAHODATNOMA') || 
-                             typeStr.includes('SECONDARY') ||
-                             ocrStr.includes('SHAHODATNOMA') || 
-                             ocrStr.includes('UMUMIY O\'RTA') || 
-                             ocrStr.includes('O\'RTA TA\'LIM') ||
-                             ocrStr.includes('GENERAL SECONDARY') ||
-                             ocrStr.includes('SECONDARY GENERAL')
+
+      // Check if it is an educational document (Diploma, Bachelor, Master, Shahodatnoma)
+      const isEducational = typeStr.includes('SHAHODATNOMA') || 
+                            typeStr.includes('DIPLOMA') ||
+                            typeStr.includes('BACHELOR') ||
+                            typeStr.includes('MASTER') ||
+                            typeStr.includes('DEGREE') ||
+                            typeStr.includes('SECONDARY') ||
+                            ocrStr.includes('SHAHODATNOMA') || 
+                            ocrStr.includes('UMUMIY O\'RTA') || 
+                            ocrStr.includes('O\'RTA TA\'LIM') ||
+                            ocrStr.includes('GENERAL SECONDARY') ||
+                            ocrStr.includes('SECONDARY GENERAL') ||
+                            ocrStr.includes('BACHELOR') ||
+                            ocrStr.includes('BAKALAVR') ||
+                            ocrStr.includes('DIPLOMA') ||
+                            ocrStr.includes('MAGISTR')
+
+      const isBachelor = typeStr.includes('BACHELOR') || ocrStr.includes('BACHELOR') || ocrStr.includes('BAKALAVR')
+      const isMaster = typeStr.includes('MASTER') || ocrStr.includes('MASTER') || ocrStr.includes('MAGISTR')
+      const isShahodatnoma = typeStr.includes('SHAHODATNOMA') || ocrStr.includes('SHAHODATNOMA') || ocrStr.includes('GENERAL SECONDARY')
+
+      if (!data.fields) data.fields = {}
+
+      // Normalize / align field names for Educational documents
+      if (isEducational) {
+        // Do not include personal identity details for educational documents
+        delete data.fields.FULL_NAME
+        delete data.fields.DATE_OF_BIRTH
+        delete data.fields.SEX
+        delete data.fields.GENDER
+        delete data.fields['FULL NAME']
+        delete data.fields['DATE OF BIRTH']
+      }
 
       if (isShahodatnoma) {
-        if (!data.fields) data.fields = {}
-        data.fields.MAJOR_OR_SPECIALTY = 'GENERAL SECONDARY EDUCATION'
+        data.fields.MAJOR = 'GENERAL SECONDARY EDUCATION'
+        if (data.fields.MAJOR_OR_SPECIALTY) {
+          delete data.fields.MAJOR_OR_SPECIALTY
+        }
+      } else if (data.fields.MAJOR_OR_SPECIALTY && !data.fields.MAJOR) {
+        data.fields.MAJOR = data.fields.MAJOR_OR_SPECIALTY
+        delete data.fields.MAJOR_OR_SPECIALTY
       }
+
+      // Clean Major (strip trailing parentheses like "(Uzbek language)" if present)
+      if (data.fields.MAJOR) {
+        data.fields.MAJOR = data.fields.MAJOR.replace(/\s*\([^)]*\)\s*$/g, '').trim()
+      }
+
+      // Standardize school name key
+      const schoolKey = Object.keys(data.fields).find(k => 
+        ['NAME_OF_SCHOOL_OR_EDUCATIONAL_INSTITUTION', 'NAME_OF_SCHOOL', 'EDUCATIONAL_INSTITUTION', 'SCHOOL_NAME', 'EDUCATIONAL_BACKGROUND'].includes(k.toUpperCase())
+      )
+      if (schoolKey && !data.fields.FINAL_SCHOOL_NAME) {
+        data.fields.FINAL_SCHOOL_NAME = data.fields[schoolKey]
+        delete data.fields[schoolKey]
+      }
+
+      // Standardize degree number key
+      const degreeKey = Object.keys(data.fields).find(k => 
+        ['DEGREE_NUMBER', 'DIPLOMA_NO', 'DIPLOMA_NUMBER', 'CERTIFICATE_NO', 'CERTIFICATE_NUMBER'].includes(k.toUpperCase())
+      )
+      if (degreeKey && !data.fields.DEGREE_NO) {
+        data.fields.DEGREE_NO = data.fields[degreeKey]
+        delete data.fields[degreeKey]
+      }
+
+      // Standardize graduation date / year key
+      const gradKey = Object.keys(data.fields).find(k =>
+        ['GRADUATION_DATE', 'YEAR_OF_GRADUATION', 'YEAR_OF_ISSUE', 'GRADUATION_YEAR'].includes(k.toUpperCase())
+      )
+      if (gradKey) {
+        if (!data.fields.DATE_OF_GRADUATION) {
+          data.fields.DATE_OF_GRADUATION = data.fields[gradKey]
+        }
+        delete data.fields[gradKey]
+      }
+
+      // If Date of Graduation is found, auto-calculate Date of Entry
+      if (data.fields.DATE_OF_GRADUATION && !data.fields.DATE_OF_ENTRY) {
+        const matchYear = String(data.fields.DATE_OF_GRADUATION).match(/\b(19\d\d|20\d\d)\b/)
+        if (matchYear) {
+          const gradYear = parseInt(matchYear[1], 10)
+          const yearsBack = isBachelor ? 4 : (isMaster ? 2 : 3)
+          data.fields.DATE_OF_ENTRY = `${gradYear - yearsBack}-09-02`
+        }
+      }
+
+      // If GPA is blank or empty, ensure it is omitted
+      if (!data.fields.GPA || String(data.fields.GPA).trim() === '') {
+        delete data.fields.GPA
+      }
+
+      // Preferred order for display
+      const preferredEducationalOrder = [
+        'FINAL_SCHOOL_NAME',
+        'MAJOR',
+        'GPA',
+        'DEGREE_NO',
+        'DATE_OF_ENTRY',
+        'DATE_OF_GRADUATION'
+      ]
 
       setExtractedData(data)
       showToast('Document analyzed successfully!', 'success')
 
-      // Simulated progressive fields reveal
+      // Progressive fields reveal with ordered keys
+      const allKeys = Object.keys(data.fields)
+      const sortedKeys = [
+        ...preferredEducationalOrder.filter(k => allKeys.includes(k)),
+        ...allKeys.filter(k => !preferredEducationalOrder.includes(k))
+      ]
+
       const fieldsArray: ExtractedField[] = []
-      if (data.fields) {
-        Object.keys(data.fields).forEach((key) => {
-          if (data.fields[key]) {
-            fieldsArray.push({ key, value: data.fields[key] })
-          }
-        })
-      }
+      sortedKeys.forEach((key) => {
+        if (data.fields[key]) {
+          fieldsArray.push({ key, value: String(data.fields[key]) })
+        }
+      })
 
       setExtractedFieldsList([])
       let delay = 0
-      fieldsArray.forEach((field, index) => {
+      fieldsArray.forEach((field) => {
         setTimeout(() => {
           setExtractedFieldsList(prev => [...prev, field])
         }, delay)
@@ -543,20 +659,88 @@ export function ExtractClient({ studentId }: ExtractClientProps) {
         }
       }
 
+      // Date of entry formatting
+      if (dbField === 'date_of_entry' && finalValue) {
+        if (/^\d{4}$/.test(finalValue)) {
+          finalValue = `${finalValue}-09-02`
+        }
+      }
+
+      // Date of graduation formatting
+      if (dbField === 'date_of_graduation' && finalValue) {
+        if (/^\d{4}$/.test(finalValue)) {
+          finalValue = `${finalValue}-07-20`
+        }
+      }
+
       // Convert other standard strings to uppercase if needed
-      if (['full_name', 'address', 'educational_background', 'major', 'father_name', 'mother_name'].includes(dbField as string)) {
+      if (['full_name', 'address', 'educational_background', 'final_school_name', 'major', 'degree_no', 'father_name', 'mother_name'].includes(dbField as string)) {
         finalValue = finalValue.toUpperCase()
       }
 
-      // Supabase update
+      // Prepare Supabase update payload
       const nextStudent = { ...selectedStudent!, [dbField]: finalValue }
-      const syncedPick = syncMissingDocuments(nextStudent)
-
-      const updateData = {
+      
+      const updateData: any = {
         [dbField]: finalValue,
-        pick_needed: syncedPick,
         updated_at: new Date().toISOString()
       }
+
+      // If final_school_name is updated, also sync educational_background and auto-populate school directory contacts
+      if (dbField === 'final_school_name') {
+        updateData.educational_background = finalValue
+        nextStudent.educational_background = finalValue
+
+        try {
+          const { data: rawSchoolRows } = await supabase.from('schools').select('*')
+          const schoolRows = (rawSchoolRows || []) as any[]
+          if (schoolRows.length > 0) {
+            const cleanFinal = finalValue.toUpperCase().replace(/[ʻʼʽ‘’'`]/g, '').replace(/\s+/g, ' ').trim()
+            
+            // Match exact or substring (e.g. "SAMARKAND STATE UNIVERSITY NAMED AFTER SHAROF RASHIDOV" matches "SAMARKAND STATE UNIVERSITY")
+            const match: any = schoolRows.find((s: any) => {
+              const cleanName = (s.name || '').toUpperCase().replace(/[ʻʼʽ‘’'`]/g, '').replace(/\s+/g, ' ').trim()
+              return cleanName === cleanFinal
+            }) || schoolRows.find((s: any) => {
+              const cleanName = (s.name || '').toUpperCase().replace(/[ʻʼʽ‘’'`]/g, '').replace(/\s+/g, ' ').trim()
+              return cleanName && (cleanFinal.includes(cleanName) || cleanName.includes(cleanFinal))
+            })
+
+            if (match) {
+              if (match.address) {
+                updateData.school_address = match.address
+                nextStudent.school_address = match.address
+              }
+              if (match.website) {
+                updateData.school_website = match.website
+                nextStudent.school_website = match.website
+              }
+              if (match.phone) {
+                updateData.school_phone = match.phone
+                nextStudent.school_phone = match.phone
+              }
+              if (match.email) {
+                updateData.school_email = match.email
+                nextStudent.school_email = match.email
+              }
+            }
+          }
+        } catch (dirErr) {
+          console.error('Failed to look up school contacts in directory:', dirErr)
+        }
+      }
+
+      // If GPA is saved and no GPA system was set, default to 5
+      if (dbField === 'gpa') {
+        const num = parseFloat(finalValue)
+        if (!isNaN(num) && num <= 5.0 && !selectedStudent.gpa_system) {
+          updateData.gpa_system = '5'
+          nextStudent.gpa_system = '5'
+        }
+      }
+
+      const syncedPick = syncMissingDocuments(nextStudent)
+      updateData.pick_needed = syncedPick
 
       const { error: updateErr } = await (supabase
         .from('students') as any)
@@ -564,6 +748,20 @@ export function ExtractClient({ studentId }: ExtractClientProps) {
         .eq('id', studentId)
 
       if (updateErr) throw updateErr
+
+      // If saving final_school_name, also upsert into school directory for autocomplete
+      if (dbField === 'final_school_name' && finalValue) {
+        try {
+          await (supabase.from('schools') as any)
+            .upsert({
+              name: finalValue,
+              source: 'user',
+              updated_at: new Date().toISOString()
+            }, { onConflict: 'name' })
+        } catch (schoolErr) {
+          console.error('Failed to upsert school directory:', schoolErr)
+        }
+      }
 
       // Successfully saved!
       showToast(`${cleanLabel} saved successfully!`, 'success')
@@ -1108,8 +1306,22 @@ export function ExtractClient({ studentId }: ExtractClientProps) {
                     if (dbField === 'passport') {
                       formattedNewVal = formattedNewVal.replace(/\s/g, '')
                     }
+                    if (dbField === 'date_of_entry' || dbField === 'date_of_graduation') {
+                      if (/^\d{4}$/.test(formattedNewVal)) {
+                        formattedDbVal = formattedDbVal.slice(0, 4)
+                      }
+                    }
+                    if (dbField === 'gpa') {
+                      const dbNum = parseFloat(formattedDbVal)
+                      const newNum = parseFloat(formattedNewVal)
+                      if (!isNaN(dbNum) && !isNaN(newNum)) {
+                        isAlreadyMatching = Math.abs(dbNum - newNum) < 0.001
+                      }
+                    }
                     
-                    isAlreadyMatching = formattedDbVal === formattedNewVal && formattedNewVal !== ''
+                    if (!isAlreadyMatching) {
+                      isAlreadyMatching = formattedDbVal === formattedNewVal && formattedNewVal !== ''
+                    }
                   }
 
                   let displayKey = field.key.replace(/_/g, ' ')
