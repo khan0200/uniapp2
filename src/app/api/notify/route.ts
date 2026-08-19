@@ -50,14 +50,14 @@ export async function POST(request: Request) {
 
     const sanitizedMessage = removeUnavailableVisaCertificateLink(message)
 
-    const botToken = process.env.BOT_TOKEN
+    const botToken = process.env.BOT_TOKEN || process.env.TELEGRAM_BOT_TOKEN
     const chatEnvKey = TENANT_CHAT_ENV[tenantId] || 'CHAT_ID'
     const chatId = (chatEnvKey ? process.env[chatEnvKey] : undefined) || process.env.CHAT_ID
 
     if (!botToken) {
+      console.warn('Telegram bot token not configured (BOT_TOKEN or TELEGRAM_BOT_TOKEN). Notification skipped.')
       return NextResponse.json(
-        { error: 'Server configuration error: Telegram bot token not set' },
-        { status: 500 }
+        { success: true, message: 'Telegram bot token not configured', results: [] }
       )
     }
 

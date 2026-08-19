@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useMemo, useRef } from 'react'
+import { useState, useEffect, useMemo, useRef, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { 
@@ -377,7 +377,7 @@ export function StudentDetailClient({ studentId, onClose, onStudentIdChange, isE
     }
   }
 
-  const getTariffPrice = (tariff: string | null | undefined, languageCertificate: string | null | undefined, prices: Record<string, number> = tariffPrices) => {
+  const getTariffPrice = useCallback((tariff: string | null | undefined, languageCertificate: string | null | undefined, prices: Record<string, number> = tariffPrices) => {
     if (!tariff || tariff === 'Select') return 0
     const cleanTariff = tariff.trim().toUpperCase()
 
@@ -408,7 +408,7 @@ export function StudentDetailClient({ studentId, onClose, onStudentIdChange, isE
       'ZERO RISK': 18500000,
     }
     return defaults[cleanTariff] || 0
-  }
+  }, [tariffPrices])
 
   // Fetch student details. If a cached copy (from the shared dashboard list
   // context) is passed in, we paint immediately with that data instead of
@@ -456,8 +456,11 @@ export function StudentDetailClient({ studentId, onClose, onStudentIdChange, isE
       // Auto-sync balance with tariff, payments, and discounts
       const pData = paymentsRes.data || []
       const pSum = pData
-        .filter((p: any) => !p.is_discount && !p.is_withdrawal && p.amount > 0)
-        .reduce((sum: number, p: any) => sum + Number(p.amount), 0)
+        .filter((p: any) => !p.is_discount)
+        .reduce((sum: number, p: any) => {
+          const val = Number(p.amount) || 0
+          return p.is_withdrawal ? sum - Math.abs(val) : sum + val
+        }, 0)
       const dSum = pData
         .filter((p: any) => p.is_discount && p.amount > 0)
         .reduce((sum: number, p: any) => sum + Number(p.amount), 0) || Number(fetchedStudent.discount) || 0
@@ -535,12 +538,15 @@ export function StudentDetailClient({ studentId, onClose, onStudentIdChange, isE
 
   const computedTariffPrice = useMemo(() => {
     return getTariffPrice(selectedStudent.tariff, selectedStudent.language_certificate, tariffPrices)
-  }, [selectedStudent.tariff, selectedStudent.language_certificate, tariffPrices])
+  }, [selectedStudent.tariff, selectedStudent.language_certificate, tariffPrices, getTariffPrice])
 
   const computedPaymentsDone = useMemo(() => {
     return payments
-      .filter(p => !p.is_discount && !p.is_withdrawal && p.amount > 0)
-      .reduce((sum, p) => sum + Number(p.amount), 0)
+      .filter(p => !p.is_discount)
+      .reduce((sum, p) => {
+        const val = Number(p.amount) || 0
+        return p.is_withdrawal ? sum - Math.abs(val) : sum + val
+      }, 0)
   }, [payments])
 
   const computedDiscount = useMemo(() => {

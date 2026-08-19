@@ -7,7 +7,7 @@ import { type Student } from '@/types/database'
 import { syncMissingDocuments, isFieldFilled } from '@/lib/validation'
 import {
   Folder, ChevronDown, ChevronUp, ChevronLeft, ChevronRight, CheckCircle2, ShieldAlert,
-  X, Loader2, ArrowLeft, Plus, AlertCircle, Info, RefreshCw, Hash, Users, Bookmark, UserCheck, Layers, Tag,
+  X, AlertCircle, Hash, Users, Bookmark, Layers, Tag,
   FileText, CheckSquare
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
@@ -117,6 +117,7 @@ export function DocumentsClient() {
       const updated = students.find(s => s.id === selectedStudent.id)
       if (updated) setSelectedStudent(updated)
     }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [students])
 
   // Reset filter dropdown toggles on click outside
@@ -995,8 +996,11 @@ export function DocumentsClient() {
                         .then(({ data: pData }) => {
                           if (pData) {
                             const total = pData
-                              .filter((p: any) => !p.is_withdrawal && !p.is_discount && p.amount > 0)
-                              .reduce((sum: number, p: any) => sum + (p.amount || 0), 0)
+                              .filter((p: any) => !p.is_discount)
+                              .reduce((sum: number, p: any) => {
+                                const val = Number(p.amount) || 0
+                                return p.is_withdrawal ? sum - Math.abs(val) : sum + val
+                              }, 0)
                             setStudentPaymentsDone(total)
                           } else {
                             setStudentPaymentsDone(0)
@@ -1200,12 +1204,6 @@ export function DocumentsClient() {
                     <span className="text-xs text-[var(--foreground-muted)] italic font-semibold py-2">No missing documents specified.</span>
                   ) : (
                     getEffectiveMissingDocs(selectedStudent).map(doc => {
-                      let label = doc
-                      if (doc === "BIRTH CERTIFICATE") label = "BC"
-                      else if (doc === "MARRIAGE CERTIFICATE") label = "MC"
-                      else if (doc === "APOSTILLE") label = "APOS"
-                      else if (doc === "3.5x4.5") label = "PIC"
-
                       // Match color based on the design screenshot: APOSTILLE -> orange, BIRTH CERTIFICATE -> yellow-orange
                       let bgStyle = 'bg-gray-500'
                       if (doc === 'APOSTILLE') bgStyle = 'bg-[#ea580c]'
