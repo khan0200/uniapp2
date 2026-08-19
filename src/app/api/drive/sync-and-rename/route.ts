@@ -29,6 +29,9 @@ export async function POST(req: NextRequest) {
         q: "mimeType = 'application/vnd.google-apps.folder' and trashed = false",
         pageSize: 200,
         pageToken,
+        supportsAllDrives: true,
+        includeItemsFromAllDrives: true,
+        corpora: 'allDrives',
         fields: 'nextPageToken, files(id, name, webViewLink)',
       })
       if (res.data.files) {
@@ -126,6 +129,7 @@ export async function POST(req: NextRequest) {
           await drive.files.update({
             fileId: folder.id,
             requestBody: { name: expectedName },
+            supportsAllDrives: true,
           })
         }
 

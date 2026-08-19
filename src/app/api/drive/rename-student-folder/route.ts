@@ -17,6 +17,7 @@ export async function POST(req: NextRequest) {
       requestBody: {
         name: newFolderName,
       },
+      supportsAllDrives: true,
     })
 
     return NextResponse.json({ success: true, newFolderName })

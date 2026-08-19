@@ -11,7 +11,7 @@ export async function POST(req: NextRequest) {
     }
 
     const drive = getGoogleDriveClient()
-    const parentFolderId = process.env.GOOGLE_DRIVE_PARENT_FOLDER_ID
+    const parentFolderId = process.env.GOOGLE_DRIVE_PARENT_FOLDER_ID?.trim()
 
     // 1. Search Google Drive for existing folders matching studentId or studentName (unless forceCreate is true)
     let existingFolderId: string | null = null
@@ -19,51 +19,57 @@ export async function POST(req: NextRequest) {
 
     if (!forceCreate) {
       try {
-        // List all folders accessible by the service account
+        // List folders accessible by the service account across all drives
+        const listQuery = parentFolderId
+          ? `'${parentFolderId}' in parents and mimeType = 'application/vnd.google-apps.folder' and trashed = false`
+          : "mimeType = 'application/vnd.google-apps.folder' and trashed = false"
+
         const listRes = await drive.files.list({
-          q: "mimeType = 'application/vnd.google-apps.folder' and trashed = false",
+          q: listQuery,
           pageSize: 300,
+          supportsAllDrives: true,
+          includeItemsFromAllDrives: true,
+          corpora: 'allDrives',
           fields: 'files(id, name, webViewLink)',
         })
 
-      const allFolders = listRes.data.files || []
+        const allFolders = listRes.data.files || []
 
-      // Normalization helpers for fuzzy matching (e.g. ISAKJONOV vs ISAQJONOV)
-      const cleanStr = (s: string) =>
-        s
-          .toUpperCase()
-          .replace(/[Q]/g, 'K')
-          .replace(/[^A-Z0-9\s]/g, '')
-          .trim()
+        // Normalization helpers for fuzzy matching (e.g. ISAKJONOV vs ISAQJONOV)
+        const cleanStr = (s: string) =>
+          (s || '')
+            .toUpperCase()
+            .replace(/[Q]/g, 'K')
+            .replace(/[^A-Z0-9\s]/g, '')
+            .trim()
 
-      const targetId = cleanStr(studentId)
-      const nameParts = cleanStr(studentName)
-        .split(/\s+/)
-        .filter(p => p.length > 2)
+        const targetId = cleanStr(studentId)
+        const nameParts = cleanStr(studentName)
+          .split(/\s+/)
+          .filter(p => p.length > 2)
 
-      // Find matching folder
-      const matchedFolder = allFolders.find(folder => {
-        if (!folder.name) return false
-        const folderUpper = folder.name.toUpperCase()
-        const folderClean = cleanStr(folder.name)
+        // Find matching folder
+        const matchedFolder = allFolders.find(folder => {
+          if (!folder.name) return false
+          const folderUpper = folder.name.toUpperCase()
+          const folderClean = cleanStr(folder.name)
 
-        // Exact or boundary match on student ID (e.g. "F54", "D1", "D92")
-        if (targetId && (folderClean.startsWith(targetId + ' ') || folderClean === targetId || folderUpper.includes(`(${targetId})`))) {
-          return true
-        }
-
-        // Match on primary last name & first name
-        if (nameParts.length >= 2) {
-          const lastName = nameParts[0]
-          const firstName = nameParts[1]
-          if (folderClean.includes(lastName) && folderClean.includes(firstName)) {
+          // Exact or boundary match on student ID (e.g. "F54", "D1", "D92", "G14")
+          if (targetId && (folderClean.startsWith(targetId + ' ') || folderClean === targetId || folderUpper.includes(`(${targetId})`) || folderUpper.includes(`[${targetId}]`))) {
             return true
           }
-        }
 
+          // Match on primary last name & first name
+          if (nameParts.length >= 2) {
+            const lastName = nameParts[0]
+            const firstName = nameParts[1]
+            if (folderClean.includes(lastName) && folderClean.includes(firstName)) {
+              return true
+            }
+          }
 
-        return false
-      })
+          return false
+        })
 
         if (matchedFolder) {
           existingFolderId = matchedFolder.id || null
@@ -81,15 +87,35 @@ export async function POST(req: NextRequest) {
     // 2. If no existing folder found, create a new folder
     if (!folderId || !folderUrl) {
       isExisting = false
-      const folderName = `${studentId.trim().toUpperCase()} ${studentName.trim().toUpperCase()}${passport ? ` (${passport})` : ''}`
-      const driveResponse = await drive.files.create({
-        requestBody: {
-          name: folderName,
-          mimeType: 'application/vnd.google-apps.folder',
-          parents: parentFolderId ? [parentFolderId] : [],
-        },
-        fields: 'id, webViewLink',
-      })
+      const folderName = `${studentId.trim().toUpperCase()} ${studentName.trim().toUpperCase()}${passport ? ` (${passport.trim().toUpperCase()})` : ''}`
+
+      let driveResponse: any
+      try {
+        driveResponse = await drive.files.create({
+          requestBody: {
+            name: folderName,
+            mimeType: 'application/vnd.google-apps.folder',
+            parents: parentFolderId ? [parentFolderId] : [],
+          },
+          fields: 'id, webViewLink',
+          supportsAllDrives: true,
+        })
+      } catch (createErr: any) {
+        // If creating inside parentFolderId failed (e.g. invalid parent ID or permissions), retry creating in root/shared space
+        if (parentFolderId) {
+          console.warn('Failed to create folder inside parentFolderId, retrying at root:', createErr?.message)
+          driveResponse = await drive.files.create({
+            requestBody: {
+              name: folderName,
+              mimeType: 'application/vnd.google-apps.folder',
+            },
+            fields: 'id, webViewLink',
+            supportsAllDrives: true,
+          })
+        } else {
+          throw createErr
+        }
+      }
 
       folderId = driveResponse.data.id || null
       folderUrl = driveResponse.data.webViewLink || null
@@ -99,6 +125,7 @@ export async function POST(req: NextRequest) {
           await drive.permissions.create({
             fileId: folderId,
             requestBody: { role: 'writer', type: 'anyone' },
+            supportsAllDrives: true,
           })
         } catch (permErr) {
           console.warn('Warning: Failed to set folder permissions:', permErr)

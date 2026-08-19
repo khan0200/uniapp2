@@ -136,6 +136,10 @@ export function StudentDetailClient({ studentId, onClose, onStudentIdChange, isE
         google_drive_url: data.folderUrl,
         google_drive_folder_id: data.folderId,
       }))
+      if (selectedStudent?.id) {
+        refreshStudent?.(selectedStudent.id)
+      }
+      fetchStudents?.()
 
       setIsDriveViewerOpen(true)
     } catch (err: any) {
