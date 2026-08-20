@@ -181,6 +181,8 @@ export function PaymentsClient() {
   const [editMethod, setEditMethod] = useState('')
   const [editReceivedBy, setEditReceivedBy] = useState('')
   const [editNotes, setEditNotes] = useState('')
+  const [editStudentId, setEditStudentId] = useState('')
+  const [editStudentSearch, setEditStudentSearch] = useState('')
   const [viewingPayment, setViewingPayment] = useState<Payment | null>(null)
   const viewModalTransition = useCssTransition(!!viewingPayment, 220)
   const [lastViewingPayment, setLastViewingPayment] = useState<Payment | null>(null)
@@ -384,6 +386,10 @@ export function PaymentsClient() {
   }
 
   const submitAddPayment = async () => {
+    if (!addStudentId) {
+      alert('Please select a student!')
+      return
+    }
     const amount = parseAmount(addAmount)
     if (!amount || amount <= 0) {
       alert('Please enter a valid amount!')
@@ -399,10 +405,6 @@ export function PaymentsClient() {
     }
 
     const isDiscount = addNotes.toUpperCase().includes('DISCOUNT')
-    if (isDiscount && !addStudentId) {
-      alert('Please select a student for the discount!')
-      return
-    }
 
     const student = students.find(s => s.id === addStudentId)
 
@@ -534,6 +536,8 @@ export function PaymentsClient() {
     setEditMethod(payment.method)
     setEditReceivedBy(payment.received_by)
     setEditNotes(payment.notes || '')
+    setEditStudentId(payment.student_id || '')
+    setEditStudentSearch('')
   }
 
   const submitEditPayment = async () => {
@@ -555,7 +559,11 @@ export function PaymentsClient() {
 
     const newAmount = isNegative ? -rawAmount : rawAmount
     const originalAmount = editingPayment.amount
-    const amountDifference = newAmount - originalAmount
+    const oldStudentId = editingPayment.student_id
+    const newStudentId = editStudentId || null
+    const newStudent = students.find(s => s.id === newStudentId)
+    const newStudentName = newStudent?.full_name || null
+    const isDiscount = editingPayment.is_discount
 
     setSubmitting(true)
     try {
@@ -566,13 +574,31 @@ export function PaymentsClient() {
           method: editMethod,
           received_by: editReceivedBy,
           notes: editNotes.trim() || null,
+          student_id: newStudentId,
+          student_name: newStudentName,
         })
         .eq('id', editingPayment.id)
       if (updateError) throw updateError
 
-      if (editingPayment.student_id && amountDifference !== 0) {
-        const discountDelta = editingPayment.is_discount ? amountDifference : 0
-        await adjustStudentBalance(editingPayment.student_id, amountDifference, discountDelta)
+      if (oldStudentId === newStudentId) {
+        // Same student - adjust if amount changed
+        const amountDifference = newAmount - originalAmount
+        if (newStudentId && amountDifference !== 0) {
+          const discountDelta = isDiscount ? amountDifference : 0
+          await adjustStudentBalance(newStudentId, amountDifference, discountDelta)
+        }
+      } else {
+        // Student changed:
+        // 1. Revert the old student's balance
+        if (oldStudentId) {
+          const oldDiscountDelta = isDiscount ? -originalAmount : 0
+          await adjustStudentBalance(oldStudentId, -originalAmount, oldDiscountDelta)
+        }
+        // 2. Apply payment to the new student's balance
+        if (newStudentId) {
+          const newDiscountDelta = isDiscount ? newAmount : 0
+          await adjustStudentBalance(newStudentId, newAmount, newDiscountDelta)
+        }
       }
 
       setEditingPayment(null)
@@ -811,12 +837,19 @@ export function PaymentsClient() {
     return students.filter(s => s.id.toLowerCase().includes(q) || s.full_name.toLowerCase().includes(q)).slice(0, 30)
   }, [students, withdrawStudentSearch])
 
+  const editModalStudentOptions = useMemo(() => {
+    if (!editStudentSearch) return students.slice(0, 30)
+    const q = editStudentSearch.toLowerCase()
+    return students.filter(s => s.id.toLowerCase().includes(q) || s.full_name.toLowerCase().includes(q)).slice(0, 30)
+  }, [students, editStudentSearch])
+
   const studentPaymentHistory = (studentId: string) => {
     return payments.filter(p => p.student_id === studentId).slice(0, 25)
   }
 
   const addSelectedStudent = students.find(s => s.id === addStudentId)
   const withdrawSelectedStudent = students.find(s => s.id === withdrawStudentId)
+  const editSelectedStudent = students.find(s => s.id === editStudentId)
 
   // Helper to style SheetJS worksheets beautifully for Payment History
   const styleWorksheet = (ws: any) => {
@@ -1742,7 +1775,10 @@ export function PaymentsClient() {
             </div>
 
             <div>
-              <label className="text-xs font-semibold text-[var(--foreground-muted)]">Amount</label>
+              <label className="text-xs font-semibold text-[var(--foreground-muted)] flex items-center justify-between">
+                <span>Amount</span>
+                <span className="text-rose-500 font-bold">*</span>
+              </label>
               <input
                 type="text"
                 value={addAmount}
@@ -1754,7 +1790,10 @@ export function PaymentsClient() {
 
             <div className="grid grid-cols-2 gap-3">
               <div>
-                <label className="text-xs font-semibold text-[var(--foreground-muted)]">Method</label>
+                <label className="text-xs font-semibold text-[var(--foreground-muted)] flex items-center justify-between">
+                  <span>Method</span>
+                  <span className="text-rose-500 font-bold">*</span>
+                </label>
                 <select
                   value={addMethod}
                   onChange={e => setAddMethod(e.target.value)}
@@ -1765,7 +1804,10 @@ export function PaymentsClient() {
                 </select>
               </div>
               <div>
-                <label className="text-xs font-semibold text-[var(--foreground-muted)]">Received By</label>
+                <label className="text-xs font-semibold text-[var(--foreground-muted)] flex items-center justify-between">
+                  <span>Received By</span>
+                  <span className="text-rose-500 font-bold">*</span>
+                </label>
                 <select
                   value={addReceivedBy}
                   onChange={e => setAddReceivedBy(e.target.value)}
@@ -1778,7 +1820,10 @@ export function PaymentsClient() {
             </div>
 
             <div>
-              <label className="text-xs font-semibold text-[var(--foreground-muted)]">Student (optional)</label>
+              <label className="text-xs font-semibold text-[var(--foreground-muted)] flex items-center justify-between">
+                <span>Student</span>
+                <span className="text-rose-500 font-bold">*</span>
+              </label>
               {addSelectedStudent ? (
                 <div className="mt-1 flex items-center justify-between px-3 py-2 text-sm border border-[var(--border)] rounded-[var(--radius-md)] bg-[var(--background)]">
                   <span className="text-[var(--foreground)] truncate flex items-center gap-2">
@@ -1825,7 +1870,7 @@ export function PaymentsClient() {
             </div>
 
             <div>
-              <label className="text-xs font-semibold text-[var(--foreground-muted)]">Notes</label>
+              <label className="text-xs font-semibold text-[var(--foreground-muted)]">Notes (optional)</label>
               <textarea
                 value={addNotes}
                 onChange={e => setAddNotes(e.target.value)}
@@ -2018,19 +2063,62 @@ export function PaymentsClient() {
             </div>
 
             <div>
-              <label className="text-xs font-semibold text-[var(--foreground-muted)]">Student</label>
-              <div className="mt-1 px-3 py-2 text-sm border border-[var(--border)] rounded-[var(--radius-md)] bg-[var(--background)] text-[var(--foreground-muted)] flex items-center justify-between">
-                <span>
-                  {editingPaymentDisplay.student_id && editingPaymentDisplay.student_name
-                    ? `${editingPaymentDisplay.student_id} - ${editingPaymentDisplay.student_name}`
-                    : 'No student (General payment)'}
-                </span>
-                {editingPaymentDisplay.student_id && students.find(s => s.id === editingPaymentDisplay.student_id)?.is_deleted && (
-                  <span className="px-1.5 py-0.5 rounded text-[9px] font-bold tracking-wider uppercase bg-red-500/10 text-red-600 dark:text-red-400 border border-red-500/20 shrink-0">
-                    Archive
+              <label className="text-xs font-semibold text-[var(--foreground-muted)] flex items-center justify-between">
+                <span>Student</span>
+                <span className="text-[11px] text-[var(--foreground-subtle)] font-normal">(Optional for general transactions)</span>
+              </label>
+              {editSelectedStudent ? (
+                <div className="mt-1 flex items-center justify-between px-3 py-2 text-sm border border-[var(--border)] rounded-[var(--radius-md)] bg-[var(--background)]">
+                  <span className="text-[var(--foreground)] truncate flex items-center gap-2">
+                    <span>{editSelectedStudent.id} — {editSelectedStudent.full_name}</span>
+                    {editSelectedStudent.is_deleted && (
+                      <span className="px-1.5 py-0.5 rounded text-[9.5px] font-bold tracking-wider uppercase bg-red-500/10 text-red-600 dark:text-red-400 border border-red-500/20 shrink-0">
+                        Archive
+                      </span>
+                    )}
                   </span>
-                )}
-              </div>
+                  <button
+                    onClick={() => setEditStudentId('')}
+                    className="cursor-pointer text-[var(--foreground-muted)] hover:text-[var(--foreground)]"
+                    title="Remove student / Make general payment"
+                  >
+                    <X className="h-4 w-4" />
+                  </button>
+                </div>
+              ) : (
+                <>
+                  <input
+                    type="text"
+                    value={editStudentSearch}
+                    onChange={e => setEditStudentSearch(e.target.value)}
+                    placeholder="Search student by name or ID..."
+                    className="mt-1 w-full px-3 py-2 text-sm border border-[var(--border)] rounded-[var(--radius-md)] bg-[var(--background)] text-[var(--foreground)] focus:outline-none focus:border-[var(--accent)]"
+                  />
+                  {editStudentSearch && (
+                    <div className="mt-1 max-h-40 overflow-y-auto rounded-[var(--radius-md)] border border-[var(--border)] bg-[var(--background)]">
+                      {editModalStudentOptions.map(s => (
+                        <div
+                          key={s.id}
+                          onClick={() => { setEditStudentId(s.id); setEditStudentSearch('') }}
+                          className="px-3 py-2 text-xs cursor-pointer hover:bg-[var(--surface-hover)] text-[var(--foreground)] flex items-center justify-between"
+                        >
+                          <span>{s.id} — {s.full_name}</span>
+                          {s.is_deleted && (
+                            <span className="px-1.5 py-0.5 rounded text-[9px] font-bold tracking-wider uppercase bg-red-500/10 text-red-600 dark:text-red-400 border border-red-500/20 shrink-0">
+                              Archive
+                            </span>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                  {!editStudentSearch && !editStudentId && (
+                    <p className="text-[11px] text-[var(--foreground-muted)] mt-1 italic">
+                      No student linked (General transaction)
+                    </p>
+                  )}
+                </>
+              )}
             </div>
 
             <div>
