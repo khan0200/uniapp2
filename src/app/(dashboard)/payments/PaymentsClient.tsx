@@ -473,7 +473,17 @@ export function PaymentsClient() {
     setWithdrawStudentSearch('')
   }
 
+  const openWithdrawModal = (studentId?: string) => {
+    resetWithdrawForm()
+    if (studentId) setWithdrawStudentId(studentId)
+    setIsWithdrawModalOpen(true)
+  }
+
   const submitWithdrawal = async () => {
+    if (!withdrawStudentId) {
+      alert('Please select a student!')
+      return
+    }
     const amount = parseAmount(withdrawAmount)
     if (!amount || amount <= 0) {
       alert('Please enter a valid amount!')
@@ -495,28 +505,26 @@ export function PaymentsClient() {
         notes: `WITHDRAWAL: ${withdrawReason.trim().toUpperCase()}`,
         is_discount: false,
         is_withdrawal: true,
-        student_id: withdrawStudentId || null,
+        student_id: withdrawStudentId,
         student_name: student?.full_name || null,
         tenant_id: loggedInProfile?.tenant_id,
         created_by: loggedInProfile?.id,
       })
       if (insertError) throw insertError
 
-      if (withdrawStudentId) {
-        await adjustStudentBalance(withdrawStudentId, -amount)
-      }
+      await adjustStudentBalance(withdrawStudentId, -amount)
 
       // Send Telegram Notification
       const safeName = student?.full_name 
         ? student.full_name.trim().replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;') 
-        : (withdrawStudentId ? 'Unknown' : 'General Withdrawal')
+        : (withdrawStudentId || 'Unknown')
       const amountFormatted = new Intl.NumberFormat('uz-UZ').format(amount) + ' UZS'
       const newBalance = student ? (student.balance || 0) - amount : 0
       const balanceFormatted = student ? new Intl.NumberFormat('uz-UZ').format(newBalance) + ' UZS' : '-'
       const curDate = new Date().toLocaleDateString('en-GB', { day: '2-digit', month: '2-digit', year: 'numeric' })
       const safeNotes = `WITHDRAWAL: ${withdrawReason.trim().toUpperCase()}`.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
 
-      const notifMsg = `🟥 <b>Withdrawal</b>\n\n🆔 <b>Student ID:</b> ${withdrawStudentId || '-'}\n👤 <b>Student:</b> ${safeName}\n💰 <b>Amount:</b> -${amountFormatted}\n💼 <b>Balance:</b> ${balanceFormatted}\n📝 <b>Note:</b> ${safeNotes}\n\n📅 <b>Date:</b> ${curDate}`
+      const notifMsg = `🟥 <b>Withdrawal</b>\n\n🆔 <b>Student ID:</b> ${withdrawStudentId}\n👤 <b>Student:</b> ${safeName}\n💰 <b>Amount:</b> -${amountFormatted}\n💼 <b>Balance:</b> ${balanceFormatted}\n📝 <b>Note:</b> ${safeNotes}\n\n📅 <b>Date:</b> ${curDate}`
       sendTelegramNotification(notifMsg)
 
       setIsWithdrawModalOpen(false)
@@ -1143,7 +1151,7 @@ export function PaymentsClient() {
             <Plus className="h-4 w-4" /> Add Payment
           </button>
           <button
-            onClick={() => { resetWithdrawForm(); setIsWithdrawModalOpen(true) }}
+            onClick={() => openWithdrawModal()}
             className="flex items-center gap-2 rounded-[var(--radius-md)] border border-[var(--border)] bg-[var(--surface)] px-3.5 py-2 text-sm font-semibold text-[var(--foreground)] hover:bg-[var(--surface-elevated)] active:scale-[0.96] transition-all cursor-pointer"
           >
             <Minus className="h-4 w-4" /> Withdraw
@@ -1954,7 +1962,10 @@ export function PaymentsClient() {
             </div>
 
             <div>
-              <label className="text-xs font-semibold text-[var(--foreground-muted)]">Amount</label>
+              <label className="text-xs font-semibold text-[var(--foreground-muted)] flex items-center justify-between">
+                <span>Amount</span>
+                <span className="text-rose-500 font-bold">*</span>
+              </label>
               <input
                 type="text"
                 value={withdrawAmount}
@@ -1965,7 +1976,10 @@ export function PaymentsClient() {
             </div>
 
             <div>
-              <label className="text-xs font-semibold text-[var(--foreground-muted)]">Student (optional)</label>
+              <label className="text-xs font-semibold text-[var(--foreground-muted)] flex items-center justify-between">
+                <span>Student</span>
+                <span className="text-rose-500 font-bold">*</span>
+              </label>
               {withdrawSelectedStudent ? (
                 <div className="mt-1 flex items-center justify-between px-3 py-2 text-sm border border-[var(--border)] rounded-[var(--radius-md)] bg-[var(--background)]">
                   <span className="text-[var(--foreground)] truncate flex items-center gap-2">
@@ -2012,14 +2026,34 @@ export function PaymentsClient() {
             </div>
 
             <div>
-              <label className="text-xs font-semibold text-[var(--foreground-muted)]">Reason</label>
+              <label className="text-xs font-semibold text-[var(--foreground-muted)] flex items-center justify-between">
+                <span>Reason</span>
+                <span className="text-rose-500 font-bold">*</span>
+              </label>
               <textarea
                 value={withdrawReason}
                 onChange={e => setWithdrawReason(e.target.value)}
+                placeholder="Enter reason for withdrawal..."
                 rows={2}
                 className="mt-1 w-full px-3 py-2 text-sm border border-[var(--border)] rounded-[var(--radius-md)] bg-[var(--background)] text-[var(--foreground)] focus:outline-none focus:border-[var(--accent)] resize-none"
               />
             </div>
+
+            {withdrawSelectedStudent && studentPaymentHistory(withdrawSelectedStudent.id).length > 0 && (
+              <div className="border-t border-[var(--border)] pt-3">
+                <div className="text-xs font-semibold text-[var(--foreground-muted)] mb-2">Recent Payments</div>
+                <div className="max-h-32 overflow-y-auto flex flex-col gap-1">
+                  {studentPaymentHistory(withdrawSelectedStudent.id).map(p => (
+                    <div key={p.id} className="flex items-center justify-between text-[11px] text-[var(--foreground-muted)]">
+                      <span>{p.created_at ? new Date(p.created_at).toLocaleDateString('uz-UZ') : ''}</span>
+                      <span className={p.amount < 0 ? 'text-rose-500 font-semibold' : 'text-emerald-500 font-semibold'}>
+                        {p.amount < 0 ? '-' : '+'}{formatAmount(Math.abs(p.amount))}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
 
             <button
               onClick={submitWithdrawal}
