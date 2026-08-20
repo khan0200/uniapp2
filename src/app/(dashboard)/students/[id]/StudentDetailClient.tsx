@@ -17,6 +17,7 @@ import { PageShell } from '@/components/ui/PageShell'
 import { cn } from '@/lib/utils'
 import { useStudentDashboard } from '@/contexts/StudentDashboardContext'
 import { syncMissingDocuments } from '@/lib/validation'
+import { getTariffPrice } from '@/lib/tariff'
 import { GoogleDriveViewerModal } from '@/components/modals/GoogleDriveViewerModal'
 
 interface StudentDetailClientProps {
@@ -377,39 +378,6 @@ export function StudentDetailClient({ studentId, onClose, onStudentIdChange, isE
     }
   }
 
-  const getTariffPrice = useCallback((tariff: string | null | undefined, languageCertificate: string | null | undefined, prices: Record<string, number> = tariffPrices) => {
-    if (!tariff || tariff === 'Select') return 0
-    const cleanTariff = tariff.trim().toUpperCase()
-
-    // 1. Check if tariff is E-VISA with/without certificate
-    if (cleanTariff.includes('E-VISA')) {
-      const hasCert = languageCertificate && languageCertificate !== 'NO CERTIFICATE' && languageCertificate.trim() !== ''
-      const targetName = hasCert ? 'E-VISA (TIL SERTIFIKATLI)' : 'E-VISA (TIL SERTIFIKATISIZ)'
-      
-      const foundMatch = Object.entries(prices).find(([k]) => k.trim().toUpperCase() === targetName)
-      if (foundMatch && Number(foundMatch[1]) > 0) return Number(foundMatch[1])
-      
-      const directMatch = Object.entries(prices).find(([k]) => k.trim().toUpperCase() === cleanTariff)
-      if (directMatch && Number(directMatch[1]) > 0) return Number(directMatch[1])
-
-      return hasCert ? 16000000 : 24000000
-    }
-
-    // 2. Direct name match (case-insensitive)
-    const directMatch = Object.entries(prices).find(([k]) => k.trim().toUpperCase() === cleanTariff)
-    if (directMatch && Number(directMatch[1]) !== undefined) return Number(directMatch[1])
-
-    // 3. Fallback defaults if DB price is missing
-    const defaults: Record<string, number> = {
-      'STANDART': 13000000,
-      'PREMIUM': 32500000,
-      'VISA PLUS': 65000000,
-      'REGIONAL VISA': 24000000,
-      'ZERO RISK': 18500000,
-    }
-    return defaults[cleanTariff] || 0
-  }, [tariffPrices])
-
   // Fetch student details. If a cached copy (from the shared dashboard list
   // context) is passed in, we paint immediately with that data instead of
   // blocking on the network, then quietly refresh in the background.
@@ -538,7 +506,7 @@ export function StudentDetailClient({ studentId, onClose, onStudentIdChange, isE
 
   const computedTariffPrice = useMemo(() => {
     return getTariffPrice(selectedStudent.tariff, selectedStudent.language_certificate, tariffPrices)
-  }, [selectedStudent.tariff, selectedStudent.language_certificate, tariffPrices, getTariffPrice])
+  }, [selectedStudent.tariff, selectedStudent.language_certificate, tariffPrices])
 
   const computedPaymentsDone = useMemo(() => {
     return payments

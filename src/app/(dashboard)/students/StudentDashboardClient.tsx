@@ -16,6 +16,7 @@ import { useStudentDashboard } from '@/contexts/StudentDashboardContext'
 import { useUser } from '@/contexts/UserContext'
 import { sendTelegramNotification } from '@/lib/telegram'
 import { syncMissingDocuments } from '@/lib/validation'
+import { getTariffPrice } from '@/lib/tariff'
 import { useCssTransition } from '@/hooks/useCssTransition'
 
 const AddStudentModal = dynamic(() => import('./AddStudentModal'), { ssr: false })
@@ -323,6 +324,7 @@ export function StudentDashboardClient({ hidePhone = false }: { hidePhone?: bool
     isExcelModalOpen,
     setIsExcelModalOpen,
     tariffOptions,
+    tariffPrices,
     levelOptions,
     groupOptions,
     leadByOptions,
@@ -1771,6 +1773,9 @@ export function StudentDashboardClient({ hidePhone = false }: { hidePhone?: bool
         console.warn('Auto name translation failed on creation:', translateErr)
       }
 
+      const initialTariffPrice = getTariffPrice(tariff, null, tariffPrices)
+      const initialBalance = initialTariffPrice > 0 ? -initialTariffPrice : 0
+
       const { error: insertError } = await supabase
         .from('students')
         .insert({
@@ -1788,7 +1793,7 @@ export function StudentDashboardClient({ hidePhone = false }: { hidePhone?: bool
           created_by: loggedInProfile?.id,
           // Explicitly set default fields to avoid RLS/constraint issue
           university_1_status: 'Chosen',
-          balance: 0,
+          balance: initialBalance,
           discount: 0,
           pick_needed: syncMissingDocuments({
             id: studentId.trim().toUpperCase(),

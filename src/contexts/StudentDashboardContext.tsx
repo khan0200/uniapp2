@@ -5,6 +5,7 @@ import { createClient } from '@/lib/supabase/client'
 import { useRealtimeTable } from '@/lib/supabase/useRealtimeTable'
 import { useUser } from '@/contexts/UserContext'
 import { type Student } from '@/types/database'
+import { DEFAULT_TARIFF_PRICES } from '@/lib/tariff'
 
 export interface CustomTag {
   name: string
@@ -150,16 +151,7 @@ export function StudentDashboardProvider({ children }: { children: ReactNode }) 
 
   // Filter option arrays fetched from DB
   const [tariffOptions, setTariffOptions] = useState<string[]>(['STANDART', 'PREMIUM', 'VISA PLUS', 'E-VISA', 'REGIONAL VISA'])
-  const [tariffPrices, setTariffPrices] = useState<Record<string, number>>({
-    'STANDART': 13000000,
-    'PREMIUM': 32500000,
-    'VISA PLUS': 65000000,
-    'E-VISA (TIL SERTIFIKATISIZ)': 24000000,
-    'E-VISA (TIL SERTIFIKATLI)': 16000000,
-    'REGIONAL VISA': 24000000,
-    'ZERO RISK': 18500000,
-    'E-VISA': 2000000,
-  })
+  const [tariffPrices, setTariffPrices] = useState<Record<string, number>>({ ...DEFAULT_TARIFF_PRICES })
   const [levelOptions, setLevelOptions] = useState<string[]>(['COLLEGE', 'BACHELOR', 'MASTERS', 'MASTER NO CERTIFICATE', 'LANGUAGE COURSE'])
   const [groupOptions, setGroupOptions] = useState<string[]>([])
   const [leadByOptions, setLeadByOptions] = useState<string[]>([])
