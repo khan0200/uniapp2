@@ -421,19 +421,19 @@ export function StudentDetailClient({ studentId, onClose, onStudentIdChange, isE
           })
       }
 
-      // Auto-sync balance with tariff, payments, and discounts
+      // Auto-sync balance with tariff, payments, withdrawals, and discounts
       const pData = paymentsRes.data || []
       const pSum = pData
-        .filter((p: any) => !p.is_discount)
-        .reduce((sum: number, p: any) => {
-          const val = Number(p.amount) || 0
-          return p.is_withdrawal ? sum - Math.abs(val) : sum + val
-        }, 0)
+        .filter((p: any) => !p.is_discount && !p.is_withdrawal)
+        .reduce((sum: number, p: any) => sum + (Number(p.amount) || 0), 0)
+      const wSum = pData
+        .filter((p: any) => p.is_withdrawal)
+        .reduce((sum: number, p: any) => sum + Math.abs(Number(p.amount) || 0), 0)
       const dSum = pData
         .filter((p: any) => p.is_discount && p.amount > 0)
         .reduce((sum: number, p: any) => sum + Number(p.amount), 0) || Number(fetchedStudent.discount) || 0
       const tPrice = getTariffPrice(fetchedStudent.tariff, fetchedStudent.language_certificate, tariffPrices)
-      const expBalance = tPrice > 0 ? ((pSum + dSum) - tPrice) : (pSum + dSum)
+      const expBalance = tPrice > 0 ? ((pSum + dSum - wSum) - tPrice) : (pSum + dSum - wSum)
       const normExpBalance = Math.abs(expBalance) < 0.01 ? 0 : expBalance
 
       if (fetchedStudent.tariff && fetchedStudent.balance !== normExpBalance) {
@@ -510,11 +510,14 @@ export function StudentDetailClient({ studentId, onClose, onStudentIdChange, isE
 
   const computedPaymentsDone = useMemo(() => {
     return payments
-      .filter(p => !p.is_discount)
-      .reduce((sum, p) => {
-        const val = Number(p.amount) || 0
-        return p.is_withdrawal ? sum - Math.abs(val) : sum + val
-      }, 0)
+      .filter(p => !p.is_discount && !p.is_withdrawal)
+      .reduce((sum, p) => sum + (Number(p.amount) || 0), 0)
+  }, [payments])
+
+  const computedWithdrawals = useMemo(() => {
+    return payments
+      .filter(p => p.is_withdrawal)
+      .reduce((sum, p) => sum + Math.abs(Number(p.amount) || 0), 0)
   }, [payments])
 
   const computedDiscount = useMemo(() => {
@@ -526,16 +529,15 @@ export function StudentDetailClient({ studentId, onClose, onStudentIdChange, isE
   }, [payments, selectedStudent.discount])
 
   const computedBalance = useMemo(() => {
-    // Balance formula: (Payments Done + Discount) - Tariff Price
-    // Example: Tariff = 32.5M, Payments = 20M, Discount = 2.5M
-    // Balance = (20M + 2.5M) - 32.5M = -10,000,000 UZS (remaining debt of 10,000,000 UZS)
-    // If Tariff is not set: balance is Payments Done + Discount (or student.balance)
+    // Balance formula: (Payments Done + Discount - Withdrawals) - Tariff Price
+    // Example: Tariff = 16M, Payments = 500k, Withdrawals = 3M, Discount = 0
+    // Balance = (500k + 0 - 3M) - 16M = -18,500,000 UZS
     if (!selectedStudent.tariff || selectedStudent.tariff === 'Select') {
       return (Number(selectedStudent.balance) || 0)
     }
-    const balance = (computedPaymentsDone + computedDiscount) - computedTariffPrice
+    const balance = (computedPaymentsDone + computedDiscount - computedWithdrawals) - computedTariffPrice
     return Math.abs(balance) < 0.01 ? 0 : balance
-  }, [computedTariffPrice, computedPaymentsDone, computedDiscount, selectedStudent.tariff, selectedStudent.balance])
+  }, [computedTariffPrice, computedPaymentsDone, computedDiscount, computedWithdrawals, selectedStudent.tariff, selectedStudent.balance])
 
   // Copy helper
   const handleCopy = (field: string, text: string) => {

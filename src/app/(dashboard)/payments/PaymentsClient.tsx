@@ -6,7 +6,8 @@ import { type Student, type Payment } from '@/types/database'
 import { sendTelegramNotification } from '@/lib/telegram'
 import {
   Users, Receipt, Plus, Minus, Search, ChevronDown, ChevronUp, X, Loader2,
-  Pencil, Trash2, Printer, CreditCard, Wallet, LayoutGrid, Table, FileSpreadsheet
+  Pencil, Trash2, Printer, CreditCard, Wallet, LayoutGrid, Table, FileSpreadsheet,
+  User
 } from 'lucide-react'
 import { useStudentDashboard } from '@/contexts/StudentDashboardContext'
 import { useRealtimeTable } from '@/lib/supabase/useRealtimeTable'
@@ -123,6 +124,7 @@ export function PaymentsClient() {
   // All students (including archived), sourced from the shared dashboard context.
   const students = useMemo(() => allStudents, [allStudents])
   const [payments, setPayments] = useState<Payment[]>([])
+  const [usersMap, setUsersMap] = useState<Record<string, { full_name: string | null; email: string; role: string }>>({})
   const [paymentsLoading, setPaymentsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const loading = studentsLoading || paymentsLoading
@@ -190,15 +192,34 @@ export function PaymentsClient() {
     if (viewingPayment) setLastViewingPayment(viewingPayment)
   }, [viewingPayment])
 
+  const getRegisteredByName = useCallback((payment?: Payment | { created_by?: string | null; received_by?: string } | null) => {
+    if (!payment) return null
+    if (payment.created_by && usersMap[payment.created_by]) {
+      const u = usersMap[payment.created_by]
+      return u.full_name || u.email
+    }
+    return null
+  }, [usersMap])
+
   const fetchData = useCallback(async () => {
     try {
       setPaymentsLoading(true)
       setError(null)
-      const paymentsRes = await supabase.from('payments').select('*').order('created_at', { ascending: false })
+      const [paymentsRes, profilesRes] = await Promise.all([
+        supabase.from('payments').select('*').order('created_at', { ascending: false }),
+        supabase.from('profiles').select('id, full_name, email, role')
+      ])
 
       if (paymentsRes.error) throw paymentsRes.error
 
       setPayments(paymentsRes.data || [])
+      if (profilesRes.data) {
+        const map: Record<string, { full_name: string | null; email: string; role: string }> = {}
+        profilesRes.data.forEach((p: any) => {
+          map[p.id] = { full_name: p.full_name, email: p.email, role: p.role }
+        })
+        setUsersMap(map)
+      }
     } catch (err: any) {
       console.error('Error fetching payments data details:', {
         message: err.message,
@@ -1073,6 +1094,7 @@ export function PaymentsClient() {
         'Transaction Type': txType,
         'Payment Method': p.method || '',
         'Received By': p.received_by || '',
+        'Registered By': getRegisteredByName(p) || p.received_by || 'System',
         'Date & Time': formatDate(p.created_at),
         Notes: p.notes || ''
       }
@@ -1087,6 +1109,7 @@ export function PaymentsClient() {
       { wch: 18 },  // Transaction Type
       { wch: 18 },  // Payment Method
       { wch: 18 },  // Received By
+      { wch: 20 },  // Registered By
       { wch: 22 },  // Date & Time
       { wch: 35 }   // Notes
     ]
@@ -1686,14 +1709,23 @@ export function PaymentsClient() {
                       <span className="inline-flex items-center px-1.5 py-0.5 rounded-[3px] text-[9px] font-bold uppercase tracking-wider bg-[var(--surface-interactive)] text-[var(--foreground-muted)] border border-[var(--border)]">
                         {payment.method}
                       </span>
-                      <span className="inline-flex items-center px-1.5 py-0.5 rounded-[3px] text-[9px] font-bold uppercase tracking-wider bg-[var(--surface-interactive)] text-[var(--foreground-muted)] border border-[var(--border)]">
+                      <span className="inline-flex items-center px-1.5 py-0.5 rounded-[3px] text-[9px] font-bold uppercase tracking-wider bg-[var(--surface-interactive)] text-[var(--foreground-muted)] border border-[var(--border)]" title="Payment Receiver">
                         {payment.received_by}
+                      </span>
+                    </div>
+
+                    {/* System User (Registered By) */}
+                    <div className="flex items-center gap-1.5 text-[11px] text-[var(--foreground-muted)] pt-1 border-t border-[var(--border-subtle)]">
+                      <User className="h-3 w-3 text-[var(--foreground-subtle)] shrink-0" />
+                      <span className="text-[var(--foreground-subtle)] text-[10px]">Registered by:</span>
+                      <span className="font-semibold text-[var(--foreground)] truncate">
+                        {getRegisteredByName(payment) || payment.received_by || 'System'}
                       </span>
                     </div>
 
                     {/* Notes Section */}
                     {payment.notes && (
-                      <div className="pt-2 border-t border-[var(--border-subtle)]">
+                      <div className="pt-1 border-t border-[var(--border-subtle)]">
                         <div className="text-[11px] text-[var(--foreground-muted)] leading-normal italic truncate" title={payment.notes}>
                           {payment.notes}
                         </div>
@@ -2322,6 +2354,24 @@ export function PaymentsClient() {
                   <div className="px-3 py-2 rounded-[var(--radius-md)] border border-[var(--border)] bg-[var(--surface)] text-sm font-semibold text-[var(--foreground)]">
                     {viewingPaymentDisplay.received_by}
                   </div>
+                </div>
+              </div>
+
+              {/* Registered By System User */}
+              <div className="flex flex-col gap-1">
+                <span className="text-xs font-semibold text-[var(--foreground-muted)]">Registered By (System User)</span>
+                <div className="px-3 py-2 rounded-[var(--radius-md)] border border-[var(--border)] bg-[var(--surface)] flex items-center justify-between gap-2 text-sm text-[var(--foreground)]">
+                  <div className="flex items-center gap-2">
+                    <User className="h-4 w-4 text-[var(--foreground-muted)] shrink-0" />
+                    <span className="font-semibold">
+                      {getRegisteredByName(viewingPaymentDisplay) || viewingPaymentDisplay.received_by || 'System'}
+                    </span>
+                  </div>
+                  {viewingPaymentDisplay.created_by && usersMap[viewingPaymentDisplay.created_by]?.role && (
+                    <span className="text-[11px] px-2.5 py-0.5 rounded-full bg-[var(--surface-elevated)] border border-[var(--border)] font-medium text-[var(--foreground-muted)]">
+                      {usersMap[viewingPaymentDisplay.created_by].role}
+                    </span>
+                  )}
                 </div>
               </div>
 
